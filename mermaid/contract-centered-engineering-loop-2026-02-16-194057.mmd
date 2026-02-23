@@ -1,0 +1,45 @@
+
+graph LR
+    subgraph Stability [Step 7: Measure]
+        G[7. Re-sample & Measure Convergence]
+    end
+
+    subgraph Evaluation [Steps 4-6: Evaluate]
+        F[6. Clause Refinement]
+        E[5. Localization]
+        D[4. Evaluation]
+    end
+
+    subgraph Production [Step 3: Derive]
+        C[3. Independent Derivation]
+    end
+
+    subgraph Contracting [Steps 1-2: Contract]
+        B[2. Attack & Harden]
+        A[1. Inversion]
+    end
+
+    %% Linear Flow
+    A --> B
+    B -- "Hardened Spec" --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+
+    %% Simplified Feedback
+    G -. "Iterate (Refine & Re-derive)" .-> B
+
+    %% Professional Muted Palette
+    style A fill:#ffffff,stroke:#1e293b,color:#1e293b
+    style B fill:#ffffff,stroke:#1e293b,stroke-width:2px,color:#1e293b
+    style C fill:#ffffff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a
+    style D fill:#ffffff,stroke:#92400e,color:#78350f
+    style E fill:#ffffff,stroke:#92400e,color:#78350f
+    style F fill:#ffffff,stroke:#4338ca,color:#3730a3
+    style G fill:#ffffff,stroke:#15803d,color:#166534
+
+    style Contracting fill:#f8fafc,stroke:#e2e8f0
+    style Production fill:#f0f7ff,stroke:#dbeafe
+    style Evaluation fill:#fffcf0,stroke:#fef3c7
+    style Stability fill:#f0fdf4,stroke:#dcfce7

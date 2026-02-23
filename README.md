@@ -49,7 +49,7 @@ By forcing explicit boundaries, VDG reduces degrees of freedom in response forma
 
 ---
 
-### [Contract-Centered Engineering](papers/contract-centered-engineering-v2.10.pdf)
+### [Contract-Centered Engineering](papers/contract-centered-engineering-v2.16.pdf)
 *Engineering topology under collapsed implementation cost*
 
 When generating implementations becomes inexpensive, authority can migrate from singular codebases to clause-structured operational contracts.
@@ -70,8 +70,9 @@ When generating implementations becomes inexpensive, authority can migrate from 
 **Empirical demonstration:** Artifact synchronization system specified via contract, then independently derived multiple times. Divergence concentrated in authority rules and deletion semantics. Clause refinement reduced instability across subsequent derivations.
 
 **Published:** [Date]  
-**Version:** 2.10  
+**Version:** 2.16  
 **Demonstration:** [Convergence Contract v1.1](contracts/convergence-contract-v1.1.pdf)
+**Demonstration:** [Convergence Contract v2.5.2](contracts/convergence-contract-v2.5.2.pdf)
 
 ---
 
@@ -83,6 +84,9 @@ Operational specifications that demonstrate the methodology:
 Response structure protocol. Defines scope triggers, section requirements, classification rules, and compliance tests for VDG responses.
 
 **[Convergence Contract v1.1](contracts/convergence-contract-v1.1.pdf)**  
+Document synchronization system specification. Demonstrates explicit authority semantics, deletion safety gates, abort conditions, and clause-level evaluability.
+
+**[Convergence Contract v2.5.2](contracts/convergence-contract-v2.5.2.pdf)**  
 Document synchronization system specification. Demonstrates explicit authority semantics, deletion safety gates, abort conditions, and clause-level evaluability.
 
 Both contracts were tested through independent derivation as described in Contract-Centered Engineering.
@@ -148,7 +152,7 @@ https://github.com/gtzilla/probabilistic-systems-engineering
 **Contract-Centered Engineering:**
 ```
 Tomlinson, G. (2026). Contract-Centered Engineering Under Collapsed 
-Implementation Cost (v2.10). 
+Implementation Cost (v2.16). 
 https://github.com/gtzilla/probabilistic-systems-engineering
 ```
 
