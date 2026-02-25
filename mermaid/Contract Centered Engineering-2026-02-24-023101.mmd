@@ -1,0 +1,26 @@
+flowchart TB
+
+  A["1. Contract-First Inversion"]
+  B["2. Attack & Harden"]
+  C["3. Independent Derivation"]
+  D["4. Clause-Level Evaluation"]
+  E["5. Divergence Localization"]
+  F["6. Clause Refinement"]
+  G["7. Re-sample & Measure Convergence"]
+
+  A --> B -->|Hardened Spec| C --> D --> E --> F --> G
+  G -.->|Iterate: refine and re-derive| B
+
+  %% Node Colors
+  style A fill:#ffffff,stroke:#1e293b,stroke-width:2px,color:#0f172a
+  style B fill:#f8fafc,stroke:#166534,stroke-width:2px,color:#15803d
+
+  style C fill:#f0f7ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a
+
+  style D fill:#fffcf0,stroke:#92400e,stroke-width:2px,color:#78350f
+  style E fill:#fffcf0,stroke:#92400e,stroke-width:2px,color:#78350f
+  style F fill:#eef2ff,stroke:#4338ca,stroke-width:2px,color:#3730a3
+
+  style G fill:#f0fdf4,stroke:#15803d,stroke-width:2px,color:#166534
+
+  
