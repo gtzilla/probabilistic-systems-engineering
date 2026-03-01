@@ -1,4 +1,4 @@
-# Artifact Projection (Contract v2.3)
+# Artifact Projection (Contract v2.3.1)
 
 Projects eligible PDFs under configured Source Roots into `markdown/` as deterministic `.md` + `.meta.json` pairs.
 

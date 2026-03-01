@@ -29,4 +29,4 @@ jobs:
           context: tools/artifact-projection/docker
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-pandoc3.9
+            ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-sf-pandoc3.9

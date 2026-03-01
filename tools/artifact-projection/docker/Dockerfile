@@ -21,7 +21,7 @@ RUN curl -fsSL -o /tmp/pandoc.tar.gz \
 
 # Pin pdf2htmlEX 0.18.8.rc1 AppImage
 RUN curl -fsSL -o /usr/local/bin/pdf2htmlEX \
-      https://github.com/pdf2htmlEX/pdf2htmlEX/releases/download/v0.18.8.rc1/pdf2htmlEX-0.18.8.rc1-x86_64.AppImage \
+      https://sourceforge.net/projects/pdf2htmlex.mirror/files/v0.18.8.rc1/pdf2htmlEX-0.18.8.rc1-master-20200630-Ubuntu-eoan-x86_64.AppImage/download \
  && chmod 0755 /usr/local/bin/pdf2htmlEX
 
 WORKDIR /repo

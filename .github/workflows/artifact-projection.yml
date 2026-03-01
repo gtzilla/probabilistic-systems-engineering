@@ -12,7 +12,7 @@ jobs:
   fixtures_no_deletions:
     runs-on: ubuntu-24.04
     container:
-      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-pandoc3.9
+      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-sf-pandoc3.9
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,7 +28,7 @@ jobs:
   fixtures_with_deletions:
     runs-on: ubuntu-24.04
     container:
-      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-pandoc3.9
+      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-sf-pandoc3.9
     steps:
       - uses: actions/checkout@v4
       - name: Install tool
@@ -43,7 +43,7 @@ jobs:
     needs: [fixtures_no_deletions]
     runs-on: ubuntu-24.04
     container:
-      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-pandoc3.9
+      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-sf-pandoc3.9
     steps:
       - uses: actions/checkout@v4
         with:
