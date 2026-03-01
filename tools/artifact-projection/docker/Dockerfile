@@ -11,8 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libfuse2 \
     python3 \
     python3-pip \
-    python3-venv
-  && rm -rf /var/lib/apt/lists/*
+    python3-venv \
+    && rm -rf /var/lib/apt/lists/*
 
 # Pin pandoc 3.9 (tarball)
 RUN curl -fsSL -o /tmp/pandoc.tar.gz \
