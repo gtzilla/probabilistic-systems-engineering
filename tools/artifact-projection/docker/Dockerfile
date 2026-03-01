@@ -29,4 +29,9 @@ RUN curl -fsSL -o /tmp/pdf2htmlEX.deb \
   && rm -rf /var/lib/apt/lists/*
 
 # PyMuPDF (fitz) extraction engine.
-RUN pip3 install --no-cache-dir pymupdf
+# Ubuntu 24.04 uses PEP 668 "externally managed" Python; install into a venv.
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv "$VIRTUAL_ENV" \
+ && "$VIRTUAL_ENV/bin/pip" install --no-cache-dir --upgrade pip \
+ && "$VIRTUAL_ENV/bin/pip" install --no-cache-dir pymupdf
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
