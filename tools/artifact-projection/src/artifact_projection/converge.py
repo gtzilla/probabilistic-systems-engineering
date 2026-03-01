@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -99,9 +100,37 @@ def _assert_no_dts_collision(dts_pairs: List[Tuple[str, str, str]]) -> None:
         seen[k2] = source_rel
 
 
-def _assert_dts_not_unmanaged(repo_root: Path, md_rel: str, meta_rel: str) -> None:
+
+def _assert_no_dts_vs_unmanaged_casefold(*, repo_root: Path, dts_targets: List[str], lrs_paths: List[str]) -> None:
+    md_root = (repo_root / "markdown").resolve()
+    if not md_root.exists():
+        return
+    lrs_set = set(lrs_paths)
+    unmanaged_keys: Dict[str, str] = {}
+    for p in md_root.rglob("*"):
+        if p.is_dir():
+            continue
+        rel = p.relative_to(repo_root).as_posix()
+        if rel in lrs_set:
+            continue
+        unmanaged_keys[_casefold_key(rel)] = rel
+    for target in dts_targets:
+        if target in lrs_set:
+            continue
+        k = _casefold_key(target)
+        existing = unmanaged_keys.get(k)
+        if existing is None:
+            continue
+        if existing != target:
+            raise FailedPolicy(f"DTS vs Unmanaged collision (casefold) for {target}: existing {existing}")
+def _assert_dts_not_unmanaged(repo_root: Path, md_rel: str, meta_rel: str, *, lrs_paths: List[str]) -> None:
     md_p = repo_root / md_rel
     meta_p = repo_root / meta_rel
+
+    # LRS paths are logically removable and SHALL NOT trigger DTS vs Unmanaged policy failures.
+    lrs_set = set(lrs_paths)
+    if md_rel in lrs_set or meta_rel in lrs_set:
+        return
     # Unmanaged collision includes non-file at target path
     if md_p.exists() and not md_p.is_file():
         raise FailedPolicy(f"DTS collides with unmanaged non-file path: {md_rel}")
@@ -110,31 +139,27 @@ def _assert_dts_not_unmanaged(repo_root: Path, md_rel: str, meta_rel: str) -> No
 
 
 def _detect_lrs(repo_root: Path, dts_pairs: List[Tuple[str, str, str]]) -> List[str]:
-    # Managed residue: for a given deterministic pair, exactly one exists
+    # Managed residue: for a deterministic pair, exactly one of markdown/<base>.md and markdown/<base>.meta.json exists.
     residues: List[str] = []
-    for source_rel, md_rel, meta_rel in dts_pairs:
+    for _, md_rel, meta_rel in dts_pairs:
         md_p = repo_root / md_rel
         meta_p = repo_root / meta_rel
         md_exists = md_p.exists()
         meta_exists = meta_p.exists()
-        if md_exists != meta_exists:
-            residues.append(source_rel)
+        if md_exists and not meta_exists:
+            residues.append(md_rel)
+        elif meta_exists and not md_exists:
+            residues.append(meta_rel)
     return residues
-
-
-def _delete_lrs(repo_root: Path, dts_pairs: List[Tuple[str, str, str]]) -> None:
-    for source_rel, md_rel, meta_rel in dts_pairs:
-        md_p = repo_root / md_rel
-        meta_p = repo_root / meta_rel
-        md_exists = md_p.exists()
-        meta_exists = meta_p.exists()
-        if md_exists != meta_exists:
-            if md_exists:
-                md_p.unlink()
-            if meta_exists:
-                meta_p.unlink()
-
-
+def _delete_lrs(repo_root: Path, residues: List[str]) -> None:
+    for rel in residues:
+        p = (repo_root / rel).resolve()
+        if not p.exists():
+            continue
+        if p.is_dir():
+            shutil.rmtree(p)
+        else:
+            p.unlink()
 def _write_file_atomic(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
@@ -169,17 +194,22 @@ def run_convergence(*, repo_root: Path, config_path: Path) -> str:
 
     _assert_no_dts_collision(dts_pairs)
 
-    # DTS vs unmanaged checks
-    for source_rel, md_rel, meta_rel in dts_pairs:
-        _assert_dts_not_unmanaged(repo_root, md_rel, meta_rel)
-
     # Managed residue handling
     allow_deletions = os.environ.get("ARTIFACT_PROJECTION_ALLOW_DELETIONS") == "true"
     residues = _detect_lrs(repo_root, dts_pairs)
     if residues and not allow_deletions:
         raise FailedPolicy("Managed residue exists and deletions are not allowed")
     if residues and allow_deletions:
-        _delete_lrs(repo_root, dts_pairs)
+        _delete_lrs(repo_root, residues)
+
+    # DTS vs unmanaged checks (LRS is ignored for collision purposes)
+    _assert_no_dts_vs_unmanaged_casefold(
+        repo_root=repo_root,
+        dts_targets=[md for _, md, _ in dts_pairs] + [meta for _, _, meta in dts_pairs],
+        lrs_paths=residues,
+    )
+    for source_rel, md_rel, meta_rel in dts_pairs:
+        _assert_dts_not_unmanaged(repo_root, md_rel, meta_rel, lrs_paths=residues)
 
     # Stage outputs in-memory then write (atomic per-file; repo-level atomicity relies on not touching on failure)
     staged: List[Tuple[str, bytes]] = []

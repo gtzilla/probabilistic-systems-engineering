@@ -154,6 +154,12 @@ def run_fixtures(*, allow_deletions: bool) -> int:
 
     for fx in discover_fixtures():
         expect = _load_json(fx.expect_path)
+        # Per-fixture allow_deletions override (fixture suite contains both cases).
+        per_allow = expect.get("allow_deletions")
+        if per_allow is None:
+            env["ARTIFACT_PROJECTION_ALLOW_DELETIONS"] = "true" if allow_deletions else "false"
+        else:
+            env["ARTIFACT_PROJECTION_ALLOW_DELETIONS"] = "true" if bool(per_allow) else "false"
         expected_outcome = expect.get("expected_outcome")
         expect_changed = expect.get("expect_changed_paths", [])
         expect_unchanged = expect.get("expect_unchanged_paths", [])

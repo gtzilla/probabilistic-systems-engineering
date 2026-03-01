@@ -1,5 +1,5 @@
 {
-  "expected_outcome": "EXPORTED_CLEAN",
+  "allow_deletions": true,
   "expect_changed_paths": [
     "markdown/a.md",
     "markdown/a.meta.json"
@@ -8,5 +8,6 @@
     "pdf/a.pdf",
     "config.json",
     "markdown/orphan.md"
-  ]
+  ],
+  "expected_outcome": "EXPORTED_CLEAN"
 }
