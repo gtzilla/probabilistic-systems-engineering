@@ -5,7 +5,7 @@ from .converge import run_convergence
 from .errors import FailedPolicy, FailedOperational, FailedRepresentation
 
 def main():
-    p = argparse.ArgumentParser(description="Artifact Projection (Contract v2.3)")
+    p = argparse.ArgumentParser(description="Artifact Projection (Contract v2.3.1)")
     p.add_argument("--config", required=True, help="Path to config JSON")
     args = p.parse_args()
 

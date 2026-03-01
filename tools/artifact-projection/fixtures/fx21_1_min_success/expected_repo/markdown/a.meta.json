@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.2",
+  "schema_version": "2.3.1",
   "source_path": "pdf/a.pdf",
   "root_id": "pdf",
   "pdf_sha256": "83f0d907c34df7597eb9189da7a5dd018623e04cb2de03541dd450ae3357a0c3",

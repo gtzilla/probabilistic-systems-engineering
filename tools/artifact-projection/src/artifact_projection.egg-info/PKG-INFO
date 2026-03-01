@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: artifact-projection
+Version: 2.4.10
+Summary: Artifact Projection Tool (Convergence Contract v2.2)
+Requires-Python: >=3.11

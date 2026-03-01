@@ -10,6 +10,9 @@ _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 REQUIRED_KEYS = ("schema_version", "source_path", "root_id", "pdf_sha256", "engine_id")
 
+# MUST match the Convergence Contract document version for the schema.
+SCHEMA_VERSION = "2.3.1"
+
 @dataclass(frozen=True)
 class Meta:
     schema_version: str
@@ -28,8 +31,8 @@ def parse_meta_json(text: str) -> Meta:
     keys = tuple(obj.keys())
     if set(keys) != set(REQUIRED_KEYS) or len(keys) != len(REQUIRED_KEYS):
         raise FailedPolicy("Invalid meta.json: keys must be exactly schema_version, source_path, root_id, pdf_sha256, engine_id")
-    if obj.get("schema_version") != "2.2":
-        raise FailedPolicy('Invalid meta.json: schema_version must be "2.2"')
+    if obj.get("schema_version") != SCHEMA_VERSION:
+        raise FailedPolicy(f'Invalid meta.json: schema_version must be "{SCHEMA_VERSION}"')
     for k in REQUIRED_KEYS:
         if not isinstance(obj.get(k), str):
             raise FailedPolicy(f"Invalid meta.json: {k} must be a string")
@@ -49,7 +52,7 @@ def read_meta_file(path: Path) -> Meta:
 
 def write_meta_file(path: Path, meta: Meta) -> None:
     obj = {
-        "schema_version": "2.2",
+        "schema_version": SCHEMA_VERSION,
         "source_path": meta.source_path,
         "root_id": meta.root_id,
         "pdf_sha256": meta.pdf_sha256,

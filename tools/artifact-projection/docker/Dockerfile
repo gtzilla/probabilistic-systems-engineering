@@ -27,3 +27,6 @@ RUN curl -fsSL -o /tmp/pdf2htmlEX.deb \
   && apt-get install -y --no-install-recommends /tmp/pdf2htmlEX.deb \
   && rm -f /tmp/pdf2htmlEX.deb \
   && rm -rf /var/lib/apt/lists/*
+
+# PyMuPDF (fitz) extraction engine.
+RUN pip3 install --no-cache-dir pymupdf

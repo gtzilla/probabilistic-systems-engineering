@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..errors import FailedOperational
+from .pandoc_pymupdf import convert_pdf_to_markdown as convert_pdf_to_markdown_pymupdf
 
 DEGRADED_MARKER = "<!-- ARTIFACT_PROJECTION_DEGRADED -->\n"
 
@@ -26,6 +27,11 @@ def convert_pdf_to_markdown(pdf_path: Path, *, engine_id: str) -> ConvertResult:
 
     if engine_id.startswith("fixture-stable"):
         return ConvertResult(markdown=_fixture_markdown(pdf_path), degraded_tables=False)
+
+    # Real engine routing.
+    # - If engine_id indicates PyMuPDF, bypass pdf2htmlEX entirely.
+    if "pymupdf" in engine_id.lower():
+        return convert_pdf_to_markdown_pymupdf(pdf_path)
 
     with tempfile.TemporaryDirectory(prefix="artifact_projection_pdf_") as td:
         html_path = Path(td) / "out.html"

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 from .convert.pdf2htmlex_pandoc import convert_pdf_to_markdown, DEGRADED_MARKER
+from .meta import SCHEMA_VERSION
 from .errors import FailedPolicy, FailedOperational, FailedRepresentation
 
 
@@ -230,7 +231,7 @@ def run_convergence(*, repo_root: Path, config_path: Path) -> str:
             md_text = DEGRADED_MARKER + "```text\n<degraded table extraction>\n```\n\n" + md_text
 
         meta_obj = {
-            "schema_version": "2.2",
+            "schema_version": SCHEMA_VERSION,
             "source_path": source_rel,
             "root_id": r.root_id,
             "pdf_sha256": pdf_sha,
