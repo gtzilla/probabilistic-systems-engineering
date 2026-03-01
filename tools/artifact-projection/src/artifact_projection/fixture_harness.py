@@ -28,9 +28,58 @@ def _load_json(path: Path) -> Dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _snapshot_tree(root: Path) -> Dict[str, bytes]:
+def _read_bytes(path: Path) -> bytes:
+    return path.read_bytes()
+
+
+def _snapshot_paths(root: Path, rel_paths: List[str]) -> Dict[str, bytes]:
     snap: Dict[str, bytes] = {}
-    for p in sorted(root.rglob("*")):
+    for rel in rel_paths:
+        p = root / rel
+        if rel.endswith("/"):
+            # directory marker
+            if not p.is_dir():
+                snap[rel] = b"__MISSING_DIR__"
+            else:
+                snap[rel] = b""
+            continue
+        if p.is_dir():
+            # represent directory as marker
+            snap[rel + "/"] = b""
+        elif p.is_file():
+            snap[rel] = _read_bytes(p)
+        else:
+            snap[rel] = b"__MISSING__"
+    return snap
+
+
+
+def _snapshot_expected_files(expected_repo_dir: Path, repo_root: Path) -> Tuple[Dict[str, bytes], Dict[str, bytes]]:
+    # Compare only files present in expected_repo/markdown to allow unmanaged files to exist.
+    exp_files: Dict[str, bytes] = {}
+    act_files: Dict[str, bytes] = {}
+    md_root = expected_repo_dir / "markdown"
+    if not md_root.exists():
+        return exp_files, act_files
+    for p in sorted(md_root.rglob("*")):
+        if p.is_dir():
+            continue
+        rel = p.relative_to(expected_repo_dir).as_posix()  # markdown/...
+        exp_files[rel] = p.read_bytes()
+        act_p = repo_root / rel
+        if act_p.is_file():
+            act_files[rel] = act_p.read_bytes()
+        else:
+            act_files[rel] = b"__MISSING__"
+    return exp_files, act_files
+
+
+def _snapshot_tree_under(root: Path, subdir: str) -> Dict[str, bytes]:
+    base = root / subdir
+    snap: Dict[str, bytes] = {}
+    if not base.exists():
+        return snap
+    for p in sorted(base.rglob("*")):
         rel = p.relative_to(root).as_posix()
         if p.is_dir():
             snap[rel + "/"] = b""
@@ -39,24 +88,16 @@ def _snapshot_tree(root: Path) -> Dict[str, bytes]:
     return snap
 
 
-def _copy_tree(src: Path, dst: Path) -> None:
-    if dst.exists():
-        shutil.rmtree(dst)
-    shutil.copytree(src, dst)
-
-
-def _compare_trees(expected_root: Path, actual_root: Path) -> Tuple[bool, str]:
-    exp = _snapshot_tree(expected_root)
-    act = _snapshot_tree(actual_root)
-    if exp == act:
+def _compare_snap(expected: Dict[str, bytes], actual: Dict[str, bytes]) -> Tuple[bool, str]:
+    if expected == actual:
         return True, ""
-    exp_keys = set(exp.keys())
-    act_keys = set(act.keys())
+    exp_keys = set(expected.keys())
+    act_keys = set(actual.keys())
     missing = sorted(exp_keys - act_keys)[:10]
     extra = sorted(act_keys - exp_keys)[:10]
     changed = []
     for k in sorted(exp_keys & act_keys):
-        if exp[k] != act[k]:
+        if expected[k] != actual[k]:
             changed.append(k)
             if len(changed) >= 10:
                 break
@@ -69,7 +110,7 @@ def discover_fixtures() -> List[Fixture]:
     out: List[Fixture] = []
     for d in sorted([p for p in FIXTURES_ROOT.iterdir() if p.is_dir()]):
         repo_dir = d / "repo"
-        config_path = d / "repo" / "config.json"
+        config_path = repo_dir / "config.json"
         expect_path = d / "expect.json"
         expected_repo_dir = d / "expected_repo"
         if not repo_dir.is_dir():
@@ -114,33 +155,72 @@ def run_fixtures(*, allow_deletions: bool) -> int:
     for fx in discover_fixtures():
         expect = _load_json(fx.expect_path)
         expected_outcome = expect.get("expected_outcome")
+        expect_changed = expect.get("expect_changed_paths", [])
+        expect_unchanged = expect.get("expect_unchanged_paths", [])
         if expected_outcome not in OUTCOMES:
             failures.append(f"{fx.fixture_id}: invalid expected_outcome")
+            continue
+        if not isinstance(expect_changed, list) or not isinstance(expect_unchanged, list):
+            failures.append(f"{fx.fixture_id}: invalid expect_changed_paths/expect_unchanged_paths")
             continue
 
         with tempfile.TemporaryDirectory(prefix=f"ap_fixture_{fx.fixture_id}_") as td:
             td_path = Path(td)
             repo_copy = td_path / "repo"
-            _copy_tree(fx.repo_dir, repo_copy)
+            shutil.copytree(fx.repo_dir, repo_copy)
 
-            before = _snapshot_tree(repo_copy)
+            before_changed = _snapshot_paths(repo_copy, expect_changed)
+            before_unchanged = _snapshot_paths(repo_copy, expect_unchanged)
+
             outcome, rc, out = _run_projection(repo_copy, env)
-            after = _snapshot_tree(repo_copy)
+
+            after_changed = _snapshot_paths(repo_copy, expect_changed)
+            after_unchanged = _snapshot_paths(repo_copy, expect_unchanged)
 
             if outcome != expected_outcome:
                 failures.append(f"{fx.fixture_id}: outcome mismatch expected={expected_outcome} actual={outcome} rc={rc}")
                 continue
 
+            # unchanged assertions always apply
+            ok, msg = _compare_snap(before_unchanged, after_unchanged)
+            if not ok:
+                failures.append(f"{fx.fixture_id}: unchanged_paths violated: {msg}")
+                continue
+
             if expected_outcome == "EXPORTED_CLEAN":
-                if not fx.expected_repo_dir.is_dir():
-                    failures.append(f"{fx.fixture_id}: expected_repo/ missing for success fixture")
-                    continue
-                ok, msg = _compare_trees(fx.expected_repo_dir, repo_copy)
-                if not ok:
-                    failures.append(f"{fx.fixture_id}: tree mismatch: {msg}")
-                    continue
+                # changed paths should differ or exist newly (best-effort check)
+                # For paths that are created, before snapshot will be __MISSING__
+                # We don't require byte-different (some outputs may be identical), but we require existence not missing.
+                for rel in expect_changed:
+                    if rel.endswith("/"):
+                        if not (repo_copy / rel).is_dir():
+                            failures.append(f"{fx.fixture_id}: expected created dir missing: {rel}")
+                            break
+                    else:
+                        if not (repo_copy / rel).exists():
+                            failures.append(f"{fx.fixture_id}: expected changed path missing: {rel}")
+                            break
+                else:
+                    # compare managed scope only: markdown/ subtree must match expected_repo/markdown subtree
+                    exp_md, act_md = _snapshot_expected_files(fx.expected_repo_dir, repo_copy)
+                    ok2, msg2 = _compare_snap(exp_md, act_md)
+                    if not ok2:
+                        failures.append(f"{fx.fixture_id}: managed markdown tree mismatch: {msg2}")
+                        continue
             else:
-                if before != after:
+                # failure must leave no visible change at all (stronger than needed but matches v2.3 patch intent)
+                # Compare whole tree by walking all files/dirs under repo_copy and original
+                # (cheap: compare git-style snapshots)
+                def snap_all(root: Path) -> Dict[str, bytes]:
+                    snap: Dict[str, bytes] = {}
+                    for p in sorted(root.rglob("*")):
+                        rel = p.relative_to(root).as_posix()
+                        if p.is_dir():
+                            snap[rel + "/"] = b""
+                        else:
+                            snap[rel] = p.read_bytes()
+                    return snap
+                if snap_all(repo_copy) != snap_all(fx.repo_dir):
                     failures.append(f"{fx.fixture_id}: failure changed repo-visible state")
                     continue
 

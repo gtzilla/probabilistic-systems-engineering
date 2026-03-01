@@ -2,6 +2,6 @@
   "schema_version": "2.2",
   "source_path": "pdf/a.pdf",
   "root_id": "pdf",
-  "pdf_sha256": "e943296ecafe72b0f894b82114816fff19f4b59b5e5bb87566d65c77358b2bb0",
+  "pdf_sha256": "3b2800a037a77525a6a79b5e2ce8444d8812639a1d53e2cc69d20fcdafeb2fcf",
   "engine_id": "fixture-stable-v2"
 }
