@@ -1,174 +1,151 @@
 # Probabilistic Systems Engineering
 
-**Research on engineering methods for systems where identical inputs don't guarantee identical outputs.**
+**Engineering discipline for systems where identical inputs do not
+guarantee identical outputs.**
 
-When you interact with AI agents, generative models, or other probabilistic systems, outputs vary. The same prompt produces different responses. Small context changes shift behavior. This creates a specific engineering problem: **how do you apply discipline when the substrate is stochastic?**
+When interacting with AI agents and generative models, outputs are
+sampled from probability distributions. Small context changes shift
+behavior. Identical prompts do not guarantee identical reasoning paths.
 
-This repository documents experimental approaches to reducing variance, improving auditability, and making reasoning observable in probabilistic systems.
+This repository documents experimental methods for applying engineering
+rigor to probabilistic substrates.
 
----
+------------------------------------------------------------------------
 
-## The Core Problem
+## Start Here
 
-AI systems produce outputs by sampling from probability distributions. This creates two challenges:
+### 🔬 Contract-Centered Iterative Stability (v4.7.2)
 
-1. **Structural variance** – Identical requests produce different reasoning paths, making drift hard to measure
-2. **Collapsed implementation cost** – Generating alternative implementations is now cheap, changing what "authority" means in software development
+*Empirical research paper*
 
-Traditional engineering practices assume determinism. These experiments explore what changes when that assumption breaks.
+Identifies a stability boundary in iterative AI-assisted development.
 
----
+Across five structured executions spanning two LLM families:
 
-## What's Here
+-   Same-surface changes remained stable.
+-   Cross-surface invariants failed to propagate unless their full scope
+    was explicitly enumerated.
 
-### [Is This Engineering?](papers/is-this-engineering.pdf)
-*Exploratory essay*
+Core mechanism:
 
-Frames the substrate shift. When systems produce distributions instead of certainties, does "engineering" still mean the same thing? Examines the discomfort of applying familiar patterns to unfamiliar substrates.
+> When a requirement spans multiple mutation surfaces and only one
+> surface is named in a prompt, only that surface should be expected to
+> change.
 
-**Published:** [Date]  
-**Length:** 3 pages
+------------------------------------------------------------------------
 
----
+## Supporting Artifacts
 
-### [Verified/Deduction/Gap (VDG)](papers/verified-deduction-gap-v1.4.1.pdf)
-*Structural discipline for reducing variance*
+### Thesis & Experimental Methodology (v3.0)
 
-A response-partitioning protocol that separates:
-- **Verified** – Evidence from artifacts and stable domain facts
-- **Deduction** – Logical implications of verified statements  
-- **Gap** – Missing constraints and uncertainty
+Defines the contract-first evaluation loop used in the stability
+experiments.
 
-By forcing explicit boundaries, VDG reduces degrees of freedom in response formation. The model continues sampling from a distribution, but the shape of that distribution is constrained.
+Explains: - Contract-first inversion - Independent derivation -
+Clause-level evaluation - Divergence localization - Iterative refinement
 
-**Why it matters:** Makes inference inspectable, reduces assumption leakage, decreases review entropy, narrows behavioral range under reset conditions.
+------------------------------------------------------------------------
 
-**Published:** [Date]  
-**Version:** 1.4.1  
-**Contract:** [VDG Response Protocol](contracts/vdg-contract-v1.4.1.pdf)
+### Convergence Contract v2.6.3
 
----
+The clause-structured operational contract used as the stable yardstick
+in the stability experiment.
 
-### [Contract-Centered Engineering](papers/contract-centered-engineering-v2.16.pdf)
-*Engineering topology under collapsed implementation cost*
+Demonstrates: - Explicit authority semantics - Deletion safety gates -
+Atomic convergence rules - Clause-level evaluability
 
-When generating implementations becomes inexpensive, authority can migrate from singular codebases to clause-structured operational contracts.
+------------------------------------------------------------------------
 
-**The shift:**
-- Traditional: Implementation is scarce, specification is cheap
-- Now: Implementation is cheap, specification precision is scarce
+## Foundational Work
 
-**The method:** A 7-step loop for hardening contracts through independent derivation:
-1. Contract-first inversion
-2. Adversarial hardening
-3. Independent derivation  
-4. Clause-level evaluation
-5. Divergence localization
-6. Clause refinement
-7. Re-sampling and convergence measurement
+### Verified / Deduction / Gap (VDG) v1.4.1
 
-**Empirical demonstration:** Artifact synchronization system specified via contract, then independently derived multiple times. Divergence concentrated in authority rules and deletion semantics. Clause refinement reduced instability across subsequent derivations.
+A response-partitioning protocol that reduces variance by separating:
 
-**Published:** [Date]  
-**Version:** 2.16  
-**Demonstration:** [Convergence Contract v1.1](contracts/convergence-contract-v1.1.pdf)
-**Demonstration:** [Convergence Contract v2.5.2](contracts/convergence-contract-v2.5.2.pdf)
+-   **Verified** --- Evidence from artifacts and stable domain facts\
+-   **Deduction** --- Logical implications of verified statements\
+-   **Gap** --- Missing constraints and uncertainty
 
----
+The model still samples from a distribution, but the shape of that
+distribution becomes constrained and inspectable.
 
-## Contracts
+------------------------------------------------------------------------
 
-Operational specifications that demonstrate the methodology:
+### Contract-Centered Engineering (v2.16)
 
-**[VDG Contract v1.4.1](contracts/vdg-contract-v1.4.1.pdf)**  
-Response structure protocol. Defines scope triggers, section requirements, classification rules, and compliance tests for VDG responses.
+Explores how engineering topology changes when implementation becomes
+inexpensive and specification precision becomes scarce.
 
-**[Convergence Contract v1.1](contracts/convergence-contract-v1.1.pdf)**  
-Document synchronization system specification. Demonstrates explicit authority semantics, deletion safety gates, abort conditions, and clause-level evaluability.
+Introduces a 7-step loop:
 
-**[Convergence Contract v2.5.2](contracts/convergence-contract-v2.5.2.pdf)**  
-Document synchronization system specification. Demonstrates explicit authority semantics, deletion safety gates, abort conditions, and clause-level evaluability.
+1.  Contract-first inversion\
+2.  Adversarial hardening\
+3.  Independent derivation\
+4.  Clause-level evaluation\
+5.  Divergence localization\
+6.  Clause refinement\
+7.  Re-sampling and convergence measurement
 
-Both contracts were tested through independent derivation as described in Contract-Centered Engineering.
+------------------------------------------------------------------------
 
----
+## The Research Program
 
-## Reading Order
+This repository explores three related problems:
 
-**If you're new to this work:**
-1. Start with **Is This Engineering?** for framing
-2. Read **VDG** for an operational method
-3. Read **Contract-Centered Engineering** for the topology shift
+1.  **Variance Reduction**\
+    How do we constrain reasoning distributions without eliminating
+    stochasticity?
 
-**If you're already thinking about AI system rigor:**
-- Go straight to **VDG** for variance reduction technique
-- Go straight to **Contract-Centered** for specification-first methodology
+2.  **Authority Under Collapsed Implementation Cost**\
+    What happens when generating alternative implementations becomes
+    trivial?
 
-**If you want to see examples:**
-- Read the contracts alongside the papers they demonstrate
+3.  **Iterative Stability**\
+    Do invariants survive sequential tightening under conversational
+    mutation?
 
----
+------------------------------------------------------------------------
 
 ## What This Is Not
 
-- **Not tooling** – These are methodology papers, not frameworks or libraries
-- **Not determinism** – This doesn't eliminate randomness, it shapes distributions
-- **Not general AI theory** – This is engineering practice for probabilistic systems
-- **Not prescriptive** – Methods are experimental and expected to evolve
+-   Not tooling or a framework\
+-   Not determinism\
+-   Not AI philosophy\
+-   Not benchmark performance comparison
 
----
+This is experimental engineering work.
 
-## Updates and Evolution
+------------------------------------------------------------------------
 
-This work evolves through continued experimentation. Papers are versioned. Contracts are tested and refined.
+## Reading Order
 
-**For automatic update notifications:** [Download on Gumroad](https://gtzilla.gumroad.com/) – free, includes all updates
+If new:
 
-**To follow development:** Watch this repo
+1.  Contract-Centered Iterative Stability\
+2.  Thesis & Methodology\
+3.  Convergence Contract v2.6.3\
+4.  VDG\
+5.  Contract-Centered Engineering
 
-**To contribute observations:** Open an issue describing your experiments
-
----
+------------------------------------------------------------------------
 
 ## Status
 
-- **VDG:** Validation Stage 1 (Internal model testing)
-- **Contract-Centered Engineering:** Empirical demonstration published, method under continued testing
-- **All work:** Experimental, expected to evolve
+-   Iterative Stability: Mechanism replicated across multiple runs\
+-   VDG: Validation Stage 1\
+-   Contract-Centered Engineering: Empirical demonstration published\
+-   All work: Experimental and evolving
 
----
-
-## Citation
-
-If you reference this work:
-
-**VDG:**
-```
-Tomlinson, G. (2026). Verified/Deduction/Gap: A Structural Discipline for 
-Reducing Variance in Probabilistic Systems (v1.4.1). 
-https://github.com/gtzilla/probabilistic-systems-engineering
-```
-
-**Contract-Centered Engineering:**
-```
-Tomlinson, G. (2026). Contract-Centered Engineering Under Collapsed 
-Implementation Cost (v2.16). 
-https://github.com/gtzilla/probabilistic-systems-engineering
-```
-
-
----
+------------------------------------------------------------------------
 
 ## Author
 
-**Gregory Tomlinson**  
-Lead Engineer  
-[LinkedIn](https://www.linkedin.com/in/gregorytomlinson/)
+Gregory Tomlinson\
+Lead Engineer\
+LinkedIn: https://www.linkedin.com/in/gregorytomlinson/
 
-This work emerged from internal experiments with AI agents and ticket systems, driven by the question: when the substrate is probabilistic, what does engineering discipline actually look like?
-
----
+------------------------------------------------------------------------
 
 ## License
 
-[CC BY 4.0](LICENSE) – You're free to use, adapt, and build on this work with attribution.
+CC BY 4.0
