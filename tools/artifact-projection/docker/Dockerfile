@@ -23,8 +23,16 @@ RUN curl -fsSL -o /tmp/pandoc.tar.gz \
  && pandoc --version
 
 # Pin pdf2htmlEX 0.18.8.rc1 AppImage
-RUN curl -fsSL -o /usr/local/bin/pdf2htmlEX \
-      https://sourceforge.net/projects/pdf2htmlex.mirror/files/v0.18.8.rc1/pdf2htmlEX-0.18.8.rc1-master-20200630-Ubuntu-eoan-x86_64.AppImage/download \
- && chmod 0755 /usr/local/bin/pdf2htmlEX
-
-WORKDIR /repo
+RUN curl -fsSL -o /tmp/pdf2htmlEX.AppImage \
+      https://github.com/pdf2htmlEX/pdf2htmlEX/releases/download/v0.18.8.rc1/pdf2htmlEX-0.18.8.rc1-x86_64.AppImage \
+  && chmod 0755 /tmp/pdf2htmlEX.AppImage \
+  && /tmp/pdf2htmlEX.AppImage --appimage-extract >/dev/null \
+  && mv squashfs-root /opt/pdf2htmlEX \
+  && rm -f /tmp/pdf2htmlEX.AppImage \
+  && printf '%s\n' '#!/usr/bin/env bash' \
+       'set -euo pipefail' \
+       'APPDIR=/opt/pdf2htmlEX' \
+       'export LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH-}"' \
+       'exec "$APPDIR/usr/bin/pdf2htmlEX" "$@"' \
+       > /usr/local/bin/pdf2htmlEX \
+  && chmod 0755 /usr/local/bin/pdf2htmlEX

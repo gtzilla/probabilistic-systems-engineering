@@ -139,16 +139,17 @@ def _assert_dts_not_unmanaged(repo_root: Path, md_rel: str, meta_rel: str, *, lr
 
 
 def _detect_lrs(repo_root: Path, dts_pairs: List[Tuple[str, str, str]]) -> List[str]:
-    # Managed residue: for a deterministic pair, exactly one of markdown/<base>.md and markdown/<base>.meta.json exists.
+    # Managed residue: for a deterministic pair, exactly one of markdown/<base>.md and markdown/<base>.meta.json exists
+    # AND the existing path is a regular file (directories are unmanaged and handled by DTS-vs-unmanaged policy).
     residues: List[str] = []
     for _, md_rel, meta_rel in dts_pairs:
         md_p = repo_root / md_rel
         meta_p = repo_root / meta_rel
         md_exists = md_p.exists()
         meta_exists = meta_p.exists()
-        if md_exists and not meta_exists:
+        if md_exists and not meta_exists and md_p.is_file():
             residues.append(md_rel)
-        elif meta_exists and not md_exists:
+        elif meta_exists and not md_exists and meta_p.is_file():
             residues.append(meta_rel)
     return residues
 def _delete_lrs(repo_root: Path, residues: List[str]) -> None:

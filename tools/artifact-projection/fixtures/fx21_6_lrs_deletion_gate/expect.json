@@ -1,4 +1,5 @@
 {
+  "allow_deletions": false,
   "expect_changed_paths": [],
   "expect_unchanged_paths": [
     "pdf/a.pdf",
