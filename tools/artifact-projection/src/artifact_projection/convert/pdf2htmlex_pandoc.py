@@ -33,6 +33,7 @@ def convert_pdf_to_markdown(pdf_path: Path, *, engine_id: str) -> ConvertResult:
         try:
             proc = subprocess.run(
                 ["pdf2htmlEX", str(pdf_path), str(html_path)],
+                cwd="/",
                 text=True,
                 capture_output=True,
                 check=False,
