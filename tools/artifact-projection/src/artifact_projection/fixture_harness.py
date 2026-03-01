@@ -203,6 +203,7 @@ def run_fixtures(*, allow_deletions: bool) -> int:
 
     for fx in discover_fixtures():
         work_root = _copy_fixture_repo(fx.repo_dir)
+        _ensure_fixture_preconditions(fx.fixture_id, work_root)
         expect = _load_json(fx.expect_path)
         # Per-fixture allow_deletions override (fixture suite contains both cases).
         per_allow = expect.get("allow_deletions")
@@ -224,7 +225,6 @@ def run_fixtures(*, allow_deletions: bool) -> int:
             td_path = Path(td)
             repo_copy = td_path / "repo"
             shutil.copytree(work_root, repo_copy)
-            _ensure_fixture_preconditions(fx.fixture_id, repo_copy)
 
             before_changed = _snapshot_paths(repo_copy, expect_changed)
             before_unchanged = _snapshot_paths(repo_copy, expect_unchanged)
