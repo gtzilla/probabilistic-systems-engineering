@@ -7,6 +7,48 @@ def _copy_fixture_repo(src_repo: Path) -> Path:
     shutil.copytree(src_repo, dst, dirs_exist_ok=False)
     return dst
 
+def _ensure_fixture_preconditions(fixture_id: str, repo_root: Path) -> None:
+    # Some fixtures rely on repo states that may not survive certain host filesystems (e.g., empty dirs).
+    # Enforce preconditions in the temp working copy so fixture intent is deterministic.
+    if fixture_id == "fx21_4_dts_collision_casefold":
+        # Ensure unmanaged markdown/A.md exists (casefold collision with DTS markdown/a.md).
+        p = repo_root / "markdown" / "A.md"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        if not p.exists():
+            p.write_text("unmanaged casefold collision sentinel\n")
+        # Ensure pdf/a.pdf exists (some checkouts may omit fixture binaries).
+        pdf = repo_root / "pdf" / "a.pdf"
+        pdf.parent.mkdir(parents=True, exist_ok=True)
+        if not pdf.exists():
+            pdf.write_bytes(b"%PDF-1.4\n% fixture\n")
+    elif fixture_id == "fx21_5_dts_vs_unmanaged_dir":
+        # Ensure unmanaged directory at markdown/a.md exists (DTS wants markdown/a.md as file).
+        d = repo_root / "markdown" / "a.md"
+        d.mkdir(parents=True, exist_ok=True)
+        keep = d / ".keep"
+        if not keep.exists():
+            keep.write_text("keep\n")
+        pdf = repo_root / "pdf" / "a.pdf"
+        pdf.parent.mkdir(parents=True, exist_ok=True)
+        if not pdf.exists():
+            pdf.write_bytes(b"%PDF-1.4\n% fixture\n")
+    elif fixture_id == "fx21_6_lrs_deletion_gate":
+        # Ensure managed residue: markdown/a.md exists, markdown/a.meta.json missing.
+        md = repo_root / "markdown" / "a.md"
+        md.parent.mkdir(parents=True, exist_ok=True)
+        if not md.exists():
+            md.write_text("orphaned managed markdown\n")
+        meta = repo_root / "markdown" / "a.meta.json"
+        if meta.exists():
+            meta.unlink()
+        orphan = repo_root / "markdown" / "orphan.md"
+        if not orphan.exists():
+            orphan.write_text("unmanaged file\n")
+        pdf = repo_root / "pdf" / "a.pdf"
+        pdf.parent.mkdir(parents=True, exist_ok=True)
+        if not pdf.exists():
+            pdf.write_bytes(b"%PDF-1.4\n% fixture\n")
+
 import json
 import os
 import shutil
@@ -182,6 +224,7 @@ def run_fixtures(*, allow_deletions: bool) -> int:
             td_path = Path(td)
             repo_copy = td_path / "repo"
             shutil.copytree(work_root, repo_copy)
+            _ensure_fixture_preconditions(fx.fixture_id, repo_copy)
 
             before_changed = _snapshot_paths(repo_copy, expect_changed)
             before_unchanged = _snapshot_paths(repo_copy, expect_unchanged)
