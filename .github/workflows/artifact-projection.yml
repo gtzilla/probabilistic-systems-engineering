@@ -12,48 +12,63 @@ jobs:
   fixtures_no_deletions:
     runs-on: ubuntu-24.04
     container:
-      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-sf-pandoc3.9
+      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-sf-pandoc3.9-v232
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Install tool
-        run: pip install -e tools/artifact-projection
+        run: |
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -e tools/artifact-projection
       - name: Run fixtures (deletions disabled)
         env:
           ARTIFACT_PROJECTION_ALLOW_DELETIONS: "false"
         run: |
+          . .venv/bin/activate
           python -m artifact_projection.fixtures_cli
 
   fixtures_with_deletions:
     runs-on: ubuntu-24.04
     container:
-      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-sf-pandoc3.9
+      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-sf-pandoc3.9-v232
     steps:
       - uses: actions/checkout@v4
       - name: Install tool
-        run: pip install -e tools/artifact-projection
+        run: |
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -e tools/artifact-projection
       - name: Run fixtures (deletions enabled)
         env:
           ARTIFACT_PROJECTION_ALLOW_DELETIONS: "true"
         run: |
+          . .venv/bin/activate
           python -m artifact_projection.fixtures_cli --allow-deletions
 
   project:
     needs: [fixtures_no_deletions]
     runs-on: ubuntu-24.04
     container:
-      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-sf-pandoc3.9
+      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-sf-pandoc3.9-v232
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Install tool
-        run: pip install -e tools/artifact-projection
+        run: |
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -e tools/artifact-projection
       - name: Run projection
         env:
           ARTIFACT_PROJECTION_ALLOW_DELETIONS: "false"
         run: |
+          . .venv/bin/activate
           python -m artifact_projection --config tools/artifact-projection/artifact-projection.json
       - name: Commit changes
         run: |
