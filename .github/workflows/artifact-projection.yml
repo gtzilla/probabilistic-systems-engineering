@@ -6,70 +6,71 @@ on:
 
 permissions:
   contents: write
-  packages: read
+  packages: write
 
 jobs:
-  fixtures_no_deletions:
+  build_toolchain_image:
     runs-on: ubuntu-24.04
-    container:
-      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-sf-pandoc3.9-v232
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Install tool
-        run: |
-          python3 -m venv .venv
-          . .venv/bin/activate
-          python -m pip install --upgrade pip
-          pip install -e tools/artifact-projection
-      - name: Run fixtures (deletions disabled)
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push toolchain image
+        uses: docker/build-push-action@v6
+        with:
+          context: tools/artifact-projection/docker
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-sf-pandoc3.9
+
+  fixtures_no_deletions:
+    needs: [build_toolchain_image]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run fixtures (deletions disabled) inside toolchain container
         env:
           ARTIFACT_PROJECTION_ALLOW_DELETIONS: "false"
         run: |
-          . .venv/bin/activate
-          python -m artifact_projection.fixtures_cli
+          docker run --rm             -e ARTIFACT_PROJECTION_ALLOW_DELETIONS="${{ env.ARTIFACT_PROJECTION_ALLOW_DELETIONS }}"             -v "${{ github.workspace }}:/repo"             -w /repo             ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-sf-pandoc3.9             bash -lc 'python3 -m venv .venv && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -e tools/artifact-projection && python -m artifact_projection.fixtures_cli'
 
   fixtures_with_deletions:
+    needs: [build_toolchain_image]
     runs-on: ubuntu-24.04
-    container:
-      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-sf-pandoc3.9-v232
     steps:
       - uses: actions/checkout@v4
-      - name: Install tool
-        run: |
-          python3 -m venv .venv
-          . .venv/bin/activate
-          python -m pip install --upgrade pip
-          pip install -e tools/artifact-projection
-      - name: Run fixtures (deletions enabled)
+
+      - name: Run fixtures (deletions enabled) inside toolchain container
         env:
           ARTIFACT_PROJECTION_ALLOW_DELETIONS: "true"
         run: |
-          . .venv/bin/activate
-          python -m artifact_projection.fixtures_cli --allow-deletions
+          docker run --rm             -e ARTIFACT_PROJECTION_ALLOW_DELETIONS="${{ env.ARTIFACT_PROJECTION_ALLOW_DELETIONS }}"             -v "${{ github.workspace }}:/repo"             -w /repo             ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-sf-pandoc3.9             bash -lc 'python3 -m venv .venv && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -e tools/artifact-projection && python -m artifact_projection.fixtures_cli --allow-deletions'
 
   project:
     needs: [fixtures_no_deletions]
     runs-on: ubuntu-24.04
-    container:
-      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-sf-pandoc3.9-v232
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Install tool
-        run: |
-          python3 -m venv .venv
-          . .venv/bin/activate
-          python -m pip install --upgrade pip
-          pip install -e tools/artifact-projection
-      - name: Run projection
+
+      - name: Run projection inside toolchain container
         env:
           ARTIFACT_PROJECTION_ALLOW_DELETIONS: "false"
         run: |
-          . .venv/bin/activate
-          python -m artifact_projection --config tools/artifact-projection/artifact-projection.json
+          docker run --rm             -e ARTIFACT_PROJECTION_ALLOW_DELETIONS="${{ env.ARTIFACT_PROJECTION_ALLOW_DELETIONS }}"             -v "${{ github.workspace }}:/repo"             -w /repo             ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-sf-pandoc3.9             bash -lc 'python3 -m venv .venv && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -e tools/artifact-projection && python -m artifact_projection --config tools/artifact-projection/artifact-projection.json'
+
       - name: Commit changes
         run: |
           if [[ -n "$(git status --porcelain)" ]]; then
