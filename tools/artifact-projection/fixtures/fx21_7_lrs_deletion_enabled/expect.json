@@ -9,5 +9,6 @@
     "config.json",
     "markdown/orphan.md"
   ],
-  "expected_outcome": "EXPORTED_CLEAN"
+  "expected_outcome": "EXPORTED_CLEAN",
+  "expected_rc": 0
 }

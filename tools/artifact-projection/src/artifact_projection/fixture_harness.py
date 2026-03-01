@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+def _copy_fixture_repo(src_repo: Path) -> Path:
+    import tempfile
+    tmp = Path(tempfile.mkdtemp(prefix="artifact-projection-fixture-"))
+    dst = tmp / "repo"
+    shutil.copytree(src_repo, dst, dirs_exist_ok=False)
+    return dst
+
 import json
 import os
 import shutil
@@ -153,6 +160,7 @@ def run_fixtures(*, allow_deletions: bool) -> int:
     env["ARTIFACT_PROJECTION_ALLOW_DELETIONS"] = "true" if allow_deletions else "false"
 
     for fx in discover_fixtures():
+        work_root = _copy_fixture_repo(fx.repo_dir)
         expect = _load_json(fx.expect_path)
         # Per-fixture allow_deletions override (fixture suite contains both cases).
         per_allow = expect.get("allow_deletions")
@@ -173,7 +181,7 @@ def run_fixtures(*, allow_deletions: bool) -> int:
         with tempfile.TemporaryDirectory(prefix=f"ap_fixture_{fx.fixture_id}_") as td:
             td_path = Path(td)
             repo_copy = td_path / "repo"
-            shutil.copytree(fx.repo_dir, repo_copy)
+            shutil.copytree(work_root, repo_copy)
 
             before_changed = _snapshot_paths(repo_copy, expect_changed)
             before_unchanged = _snapshot_paths(repo_copy, expect_unchanged)
@@ -226,7 +234,7 @@ def run_fixtures(*, allow_deletions: bool) -> int:
                         else:
                             snap[rel] = p.read_bytes()
                     return snap
-                if snap_all(repo_copy) != snap_all(fx.repo_dir):
+                if snap_all(repo_copy) != snap_all(work_root):
                     failures.append(f"{fx.fixture_id}: failure changed repo-visible state")
                     continue
 

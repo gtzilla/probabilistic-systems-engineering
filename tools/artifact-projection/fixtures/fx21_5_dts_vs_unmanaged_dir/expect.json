@@ -1,9 +1,10 @@
 {
-  "expected_outcome": "FAILED_POLICY",
   "expect_changed_paths": [],
   "expect_unchanged_paths": [
     "pdf/a.pdf",
     "config.json",
-    "markdown/a.md/"
-  ]
+    "markdown/a.md/.keep"
+  ],
+  "expected_outcome": "FAILED_POLICY",
+  "expected_rc": 1
 }
