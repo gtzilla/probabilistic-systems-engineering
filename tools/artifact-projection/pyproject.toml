@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "artifact-projection"
 version = "2.4.10"
-description = "Artifact Projection Tool (Convergence Contract v2.2)"
+description = "Artifact Projection Tool (Convergence Contract v2.3.1)"
 requires-python = ">=3.11"
 dependencies = [
   "PyMuPDF"
