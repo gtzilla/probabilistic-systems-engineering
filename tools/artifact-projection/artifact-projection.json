@@ -1,0 +1,10 @@
+{
+  "engine_id": "ubuntu-24.04+pdf2htmlex-0.18.8.rc1+pandoc-3.9-gfm",
+  "roots": [
+    {
+      "root_id": "pdf",
+      "root_path": "pdf",
+      "recursive": true
+    }
+  ]
+}

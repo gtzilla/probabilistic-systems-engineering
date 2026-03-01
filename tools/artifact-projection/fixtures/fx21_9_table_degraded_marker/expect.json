@@ -1,0 +1,11 @@
+{
+  "expected_outcome": "EXPORTED_CLEAN",
+  "expect_changed_paths": [
+    "markdown/t.md",
+    "markdown/t.meta.json"
+  ],
+  "expect_unchanged_paths": [
+    "pdf/t.pdf",
+    "config.json"
+  ]
+}

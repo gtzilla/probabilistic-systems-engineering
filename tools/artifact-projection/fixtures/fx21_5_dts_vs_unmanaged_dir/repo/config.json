@@ -1,0 +1,10 @@
+{
+  "engine_id": "fixture-stable-v1",
+  "roots": [
+    {
+      "root_id": "pdf",
+      "root_path": "pdf",
+      "recursive": true
+    }
+  ]
+}

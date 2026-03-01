@@ -1,0 +1,66 @@
+name: Artifact Projection
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  fixtures_no_deletions:
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-pandoc3.9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install tool
+        run: pip install -e tools/artifact-projection
+      - name: Run fixtures (deletions disabled)
+        env:
+          ARTIFACT_PROJECTION_ALLOW_DELETIONS: "false"
+        run: |
+          python -m artifact_projection.fixtures_cli
+
+  fixtures_with_deletions:
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-pandoc3.9
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tool
+        run: pip install -e tools/artifact-projection
+      - name: Run fixtures (deletions enabled)
+        env:
+          ARTIFACT_PROJECTION_ALLOW_DELETIONS: "true"
+        run: |
+          python -m artifact_projection.fixtures_cli --allow-deletions
+
+  project:
+    needs: [fixtures_no_deletions]
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/artifact-projection-toolchain:ubuntu24.04-pdf2htmlex0.18.8rc1-pandoc3.9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install tool
+        run: pip install -e tools/artifact-projection
+      - name: Run projection
+        env:
+          ARTIFACT_PROJECTION_ALLOW_DELETIONS: "false"
+        run: |
+          python -m artifact_projection --config tools/artifact-projection/artifact-projection.json
+      - name: Commit changes
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git config user.name "artifact-projection-bot"
+            git config user.email "artifact-projection-bot@users.noreply.github.com"
+            git add markdown
+            git commit -m "artifact-projection: converge"
+            git push
+          fi
