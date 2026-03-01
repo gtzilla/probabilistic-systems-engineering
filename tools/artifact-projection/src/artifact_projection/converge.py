@@ -54,15 +54,23 @@ def _detect_multi_root_ambiguity(matches: List[Tuple[Root, Path, str]]) -> None:
         seen[rel] = r.root_id
 
 
-def _deterministic_output_base(source_rel: str) -> str:
-    # Output base path under markdown/ - currently: strip leading root dirs? Contract allows deterministic mapping;
-    # simplest: use basename without extension, but preserve subdirs excluding top-level root folder if present.
-    # Here we map to same relative path without .pdf extension.
+def _deterministic_output_base(*, root_path: str, source_rel: str) -> str:
+    # Output base path relative to the configured root_path, without .pdf extension.
+    # Example: root_path="pdf", source_rel="pdf/a.pdf" -> "a"
+    # Example: root_path="papers", source_rel="papers/sub/x.pdf" -> "sub/x"
     if not source_rel.lower().endswith(".pdf"):
         raise FailedOperational("source_rel is not a pdf")
-    base = source_rel[:-4]  # drop .pdf
-    # If source under papers/foo.pdf => papers/foo. Output under markdown/foo (drop top-level folder)?
-    # Existing contract language in v2.2 uses <output_rel_path>; we keep full relative path to avoid collisions.
+    rp = root_path.strip("/")
+    sr = source_rel.strip("/")
+    if rp == ".":
+        within = sr
+    else:
+        prefix = rp + "/"
+        if not sr.startswith(prefix):
+            # This should not happen if eligibility was computed correctly.
+            raise FailedOperational(f"source_rel {source_rel} is not under root_path {root_path}")
+        within = sr[len(prefix):]
+    base = within[:-4]  # drop .pdf
     return base
 
 
@@ -155,7 +163,7 @@ def run_convergence(*, repo_root: Path, config_path: Path) -> str:
     # Build deterministic mapping list
     dts_pairs: List[Tuple[str, str, str]] = []
     for r, abs_p, source_rel in matches:
-        output_base = _deterministic_output_base(source_rel)
+        output_base = _deterministic_output_base(root_path=r.root_path, source_rel=source_rel)
         md_rel, meta_rel = _compute_dts_paths(output_base)
         dts_pairs.append((source_rel, md_rel, meta_rel))
 
@@ -178,7 +186,7 @@ def run_convergence(*, repo_root: Path, config_path: Path) -> str:
     staged_meta: List[Tuple[str, bytes]] = []
 
     for r, abs_p, source_rel in matches:
-        output_base = _deterministic_output_base(source_rel)
+        output_base = _deterministic_output_base(root_path=r.root_path, source_rel=source_rel)
         md_rel, meta_rel = _compute_dts_paths(output_base)
 
         pdf_bytes = abs_p.read_bytes()
