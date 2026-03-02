@@ -78,12 +78,12 @@ inexpensive and specification precision becomes scarce.
 
 Introduces a 7-step loop:
 
-1.  Contract-first inversion\
-2.  Adversarial hardening\
-3.  Independent derivation\
-4.  Clause-level evaluation\
-5.  Divergence localization\
-6.  Clause refinement\
+1.  Contract-first inversion
+2.  Adversarial hardening
+3.  Independent derivation
+4.  Clause-level evaluation
+5.  Divergence localization
+6.  Clause refinement
 7.  Re-sampling and convergence measurement
 
 ------------------------------------------------------------------------
@@ -135,6 +135,14 @@ If new:
 -   VDG: Validation Stage 1\
 -   Contract-Centered Engineering: Empirical demonstration published\
 -   All work: Experimental and evolving
+
+------------------------------------------------------------------------
+
+## Markdown
+
+Files in `markdown/` are created automatically from parent PDFs. This feature is experimental. 
+Converted documents are not checked for errors or omissions. Please refer to the PDF as the authority
+document.
 
 ------------------------------------------------------------------------
 
