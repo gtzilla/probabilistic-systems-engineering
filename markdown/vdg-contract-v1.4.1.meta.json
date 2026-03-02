@@ -1,0 +1,7 @@
+{
+  "schema_version": "2.3.1",
+  "source_path": "contracts/vdg-contract-v1.4.1.pdf",
+  "root_id": "contracts",
+  "pdf_sha256": "0471b6f050ed512005c7dc219c8e5a957fc88459fba41a20afb3e05ff4ab42fe",
+  "engine_id": "ubuntu-24.04+pymupdf+pandoc-3.9-gfm"
+}

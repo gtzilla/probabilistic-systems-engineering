@@ -1,0 +1,7 @@
+{
+  "schema_version": "2.3.1",
+  "source_path": "contracts/convergence-contract-v2.6.3.pdf",
+  "root_id": "contracts",
+  "pdf_sha256": "9a7ca81acad919aa9434206185268bf7226328480288926af296478087c31562",
+  "engine_id": "ubuntu-24.04+pymupdf+pandoc-3.9-gfm"
+}

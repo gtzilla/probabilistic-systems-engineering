@@ -1,0 +1,7 @@
+{
+  "schema_version": "2.3.1",
+  "source_path": "papers/thesis-experimental-methodology-v3.0.1.pdf",
+  "root_id": "papers",
+  "pdf_sha256": "56deca966fe2395a52efc626f048ef7affead821d6671ed1a33557642c3e8214",
+  "engine_id": "ubuntu-24.04+pymupdf+pandoc-3.9-gfm"
+}
