@@ -1,2 +1,12 @@
 .DS_Store
 .pyc
+
+# Python venv
+.venv/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Packaging/build metadata (should not be committed)
+tools/artifact-projection/src/*.egg-info/
