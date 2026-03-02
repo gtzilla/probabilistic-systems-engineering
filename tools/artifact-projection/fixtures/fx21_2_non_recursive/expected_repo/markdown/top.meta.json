@@ -1,7 +1,0 @@
-{
-  "schema_version": "2.3.1",
-  "source_path": "pdf/top.pdf",
-  "root_id": "pdf",
-  "pdf_sha256": "5413c09c102492f565b87612a2c98931de95d87451ed3ca645cc63fe216ca2c0",
-  "engine_id": "fixture-stable-v1"
-}

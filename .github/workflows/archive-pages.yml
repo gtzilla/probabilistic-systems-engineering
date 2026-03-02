@@ -1,0 +1,105 @@
+name: Archive Pages
+
+on:
+  push:
+    branches: [ main, publish, extra ]
+    paths:
+      - 'incoming/papers/**'
+      - 'incoming/contracts/**'
+      - 'incoming/replication/**'
+      - 'contracts/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  schedule:
+    - cron: '17 10 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  LIVE_BUILD_URL: https://archive.gtzilla.com/build.json
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.should_deploy.outputs.should_deploy }}
+
+    steps:
+      - name: Decide whether this run should deploy
+        id: should_deploy
+        shell: bash
+        run: |
+          SHOULD_DEPLOY=true
+          REASON="push/manual"
+
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            REASON="scheduled reconcile"
+
+            if curl -fsSL "$LIVE_BUILD_URL" -o live-build.json; then
+              LIVE_SHA="$(python -c 'import json, pathlib; print(json.loads(pathlib.Path("live-build.json").read_text(encoding="utf-8")).get("source_sha", ""))' 2>/dev/null || true)"
+
+              if [ -n "$LIVE_SHA" ] && [ "$LIVE_SHA" = "${GITHUB_SHA}" ]; then
+                SHOULD_DEPLOY=false
+                REASON="already current"
+              else
+                REASON="drift detected"
+              fi
+            else
+              REASON="no live build manifest; healing deploy required"
+            fi
+          fi
+
+          echo "should_deploy=$SHOULD_DEPLOY" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Archive publish decision"
+            echo "- event: ${{ github.event_name }}"
+            echo "- source sha: ${GITHUB_SHA}"
+            echo "- should deploy: $SHOULD_DEPLOY"
+            echo "- reason: $REASON"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Checkout
+        if: steps.should_deploy.outputs.should_deploy == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        if: steps.should_deploy.outputs.should_deploy == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build archive
+        if: steps.should_deploy.outputs.should_deploy == 'true'
+        run: python scripts/build_archive.py
+
+      - name: Configure Pages
+        if: steps.should_deploy.outputs.should_deploy == 'true'
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        if: steps.should_deploy.outputs.should_deploy == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    if: needs.build.outputs.should_deploy == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

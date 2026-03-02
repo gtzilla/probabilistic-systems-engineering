@@ -1,1 +1,0 @@
-unmanaged casefold collision sentinel
