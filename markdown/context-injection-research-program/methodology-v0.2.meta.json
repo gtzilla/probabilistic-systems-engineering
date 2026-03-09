@@ -1,0 +1,7 @@
+{
+  "schema_version": "2.3.1",
+  "source_path": "papers/context-injection-research-program/methodology-v0.2.pdf",
+  "root_id": "papers",
+  "pdf_sha256": "32d601f623c83b871591c10a3d2bd5e965c9b9fdb456dffae5c5a3b884a056ba",
+  "engine_id": "ubuntu-24.04+pymupdf+pandoc-3.9-gfm"
+}

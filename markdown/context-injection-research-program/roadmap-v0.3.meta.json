@@ -1,0 +1,7 @@
+{
+  "schema_version": "2.3.1",
+  "source_path": "papers/context-injection-research-program/roadmap-v0.3.pdf",
+  "root_id": "papers",
+  "pdf_sha256": "72a72751354870eef1b6b7cd035dd7973183912e1c685686396ef41debe2b5da",
+  "engine_id": "ubuntu-24.04+pymupdf+pandoc-3.9-gfm"
+}
