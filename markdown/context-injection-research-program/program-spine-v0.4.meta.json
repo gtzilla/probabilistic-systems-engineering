@@ -1,0 +1,7 @@
+{
+  "schema_version": "2.3.1",
+  "source_path": "papers/context-injection-research-program/program-spine-v0.4.pdf",
+  "root_id": "papers",
+  "pdf_sha256": "161b7bc75e5589c4ca143051862d3a0dae7c45a1a843803dadf5dd596aca2ae0",
+  "engine_id": "ubuntu-24.04+pymupdf+pandoc-3.9-gfm"
+}
