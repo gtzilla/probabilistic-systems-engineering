@@ -1,5 +1,0 @@
-.git
-markdown
-__pycache__
-*.pyc
-tools/artifact-projection/.venv

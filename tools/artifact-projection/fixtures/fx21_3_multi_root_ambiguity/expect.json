@@ -1,8 +1,0 @@
-{
-  "expected_outcome": "FAILED_POLICY",
-  "expect_changed_paths": [],
-  "expect_unchanged_paths": [
-    "pdf/sub/a.pdf",
-    "config.json"
-  ]
-}
