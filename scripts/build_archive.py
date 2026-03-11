@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import html
+import re
 import shutil
 import sys
 import zipfile
@@ -28,6 +29,53 @@ def find_exactly_one(folder: Path, pattern: str, label: str) -> Path:
 
 def safe_text(s: str) -> str:
     return html.escape(s, quote=True)
+
+
+def normalize_exported_html(raw_html: str) -> str:
+    """
+    Clean obvious Google Docs export junk in the top preamble only.
+
+    Rules:
+    - remove empty <p class="... title ...">...</p> blocks
+    - remove duplicate non-empty title paragraphs in the preamble
+    - stop touching content once the first structural section marker appears
+      (<hr>, <h1>, <h2>, <h3>)
+    """
+
+    split_match = re.search(
+        r"(<hr\b[^>]*>|<h1\b[^>]*>|<h2\b[^>]*>|<h3\b[^>]*>)",
+        raw_html,
+        flags=re.IGNORECASE,
+    )
+    if not split_match:
+        return raw_html
+
+    preamble = raw_html[: split_match.start()]
+    rest = raw_html[split_match.start() :]
+
+    title_pat = re.compile(
+        r'(<p\b[^>]*class="[^"]*\btitle\b[^"]*"[^>]*>.*?</p>)',
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    tag_pat = re.compile(r"<[^>]+>")
+    seen_titles: set[str] = set()
+
+    def repl(match: re.Match[str]) -> str:
+        block = match.group(1)
+        text = tag_pat.sub("", block)
+        text = html.unescape(text).strip()
+
+        if not text:
+            return ""
+
+        if text in seen_titles:
+            return ""
+
+        seen_titles.add(text)
+        return block
+
+    cleaned_preamble = title_pat.sub(repl, preamble)
+    return cleaned_preamble + rest
 
 
 def wrap_document_html(raw_html: str, pdf_href: str) -> str:
@@ -200,7 +248,9 @@ def build_doc(type_name: str, slug_dir: Path, tmp_root: Path) -> dict[str, str]:
             shutil.copy2(child, dest)
 
     pdf_href = pdf.name
-    wrapped_html = wrap_document_html(source_html.read_text(encoding="utf-8"), pdf_href)
+    raw_html = source_html.read_text(encoding="utf-8")
+    raw_html = normalize_exported_html(raw_html)
+    wrapped_html = wrap_document_html(raw_html, pdf_href)
     (out_dir / "index.html").write_text(wrapped_html, encoding="utf-8")
     shutil.copy2(pdf, out_dir / pdf.name)
 
@@ -234,10 +284,12 @@ def render_index(entries: list[dict[str, str]]) -> str:
 </section>
 """
 
-    body = "\n".join([
-        render_group("Papers", grouped["papers"]),
-        render_group("Contracts", grouped["contracts"]),
-    ])
+    body = "\n".join(
+        [
+            render_group("Papers", grouped["papers"]),
+            render_group("Contracts", grouped["contracts"]),
+        ]
+    )
 
     return f"""<!doctype html>
 <html lang="en">
