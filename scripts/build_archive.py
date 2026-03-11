@@ -20,7 +20,7 @@ def fail(msg: str) -> None:
 
 
 def find_exactly_one(folder: Path, pattern: str, label: str) -> Path:
-    matches = sorted(folder.glob(pattern))
+    matches = sorted(p for p in folder.glob(pattern) if p.is_file())
     if len(matches) != 1:
         fail(f"{folder}: expected exactly one {label} matching {pattern}, found {len(matches)}")
     return matches[0]
@@ -30,7 +30,7 @@ def safe_text(s: str) -> str:
     return html.escape(s, quote=True)
 
 
-def wrap_document_html(raw_html: str, pdf_url: str) -> str:
+def wrap_document_html(raw_html: str, pdf_href: str) -> str:
     style = """
 <style>
   .pse-topbar {
@@ -79,10 +79,10 @@ def wrap_document_html(raw_html: str, pdf_url: str) -> str:
     topbar = f"""
 <header class="pse-topbar">
   <div class="pse-topbar-inner">
-    <a class="pse-site-link" href="/">{safe_text(SITE_NAME)}</a>
+    <a class="pse-site-link" href="../../">{safe_text(SITE_NAME)}</a>
     <nav class="pse-nav">
-      <a href="/">Home</a>
-      <a href="{safe_text(pdf_url)}">PDF</a>
+      <a href="../../">Home</a>
+      <a href="{safe_text(pdf_href)}">PDF</a>
     </nav>
   </div>
 </header>
@@ -105,6 +105,8 @@ def wrap_document_html(raw_html: str, pdf_url: str) -> str:
         body_tag_end = raw_html.find(">", body_open)
         if body_tag_end != -1:
             raw_html = raw_html[: body_tag_end + 1] + topbar + raw_html[body_tag_end + 1 :]
+        else:
+            raw_html = topbar + raw_html
     else:
         raw_html = topbar + raw_html
 
@@ -124,27 +126,30 @@ def build_doc(type_name: str, slug_dir: Path, tmp_root: Path) -> dict[str, str]:
 
     extract_dir = tmp_root / type_name / slug
     extract_dir.mkdir(parents=True, exist_ok=True)
+
     with zipfile.ZipFile(zf) as z:
         z.extractall(extract_dir)
 
-    html_files = sorted(extract_dir.rglob("*.html"))
+    html_files = sorted(p for p in extract_dir.rglob("*.html") if p.is_file())
     if len(html_files) != 1:
         fail(f"{slug_dir}: expected exactly one HTML file after extraction, found {len(html_files)}")
-    source_html = html_files[0]
 
+    source_html = html_files[0]
     out_dir = DIST / type_name / slug
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # copy all extracted files/folders as-is into output, preserving relative structure
+    # Copy extracted assets/files except the source HTML itself.
     for child in extract_dir.iterdir():
+        if child.resolve() == source_html.resolve():
+            continue
         dest = out_dir / child.name
         if child.is_dir():
             shutil.copytree(child, dest, dirs_exist_ok=True)
         else:
             shutil.copy2(child, dest)
 
-    pdf_url = f"/{type_name}/{slug}/{pdf.name}"
-    wrapped_html = wrap_document_html(source_html.read_text(encoding="utf-8"), pdf_url)
+    pdf_href = pdf.name
+    wrapped_html = wrap_document_html(source_html.read_text(encoding="utf-8"), pdf_href)
     (out_dir / "index.html").write_text(wrapped_html, encoding="utf-8")
     shutil.copy2(pdf, out_dir / pdf.name)
 
@@ -152,9 +157,9 @@ def build_doc(type_name: str, slug_dir: Path, tmp_root: Path) -> dict[str, str]:
         "type": type_name,
         "slug": slug,
         "pdf_name": pdf.name,
-        "title": pdf.name,
-        "url": f"/{type_name}/{slug}/",
-        "pdf_url": pdf_url,
+        "title": pdf.stem,
+        "url": f"./{type_name}/{slug}/",
+        "pdf_url": f"./{type_name}/{slug}/{pdf.name}",
     }
 
 
@@ -177,6 +182,7 @@ def render_index(entries: list[dict[str, str]]) -> str:
         render_group("Papers", grouped["papers"]),
         render_group("Contracts", grouped["contracts"]),
     ])
+
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -184,11 +190,25 @@ def render_index(entries: list[dict[str, str]]) -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{safe_text(SITE_NAME)}</title>
   <style>
-    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 2rem auto; max-width: 900px; padding: 0 1rem; line-height: 1.5; }}
-    h1 {{ margin-bottom: 1.5rem; }}
-    section {{ margin: 2rem 0; }}
-    ul {{ padding-left: 1.25rem; }}
-    li {{ margin: .4rem 0; }}
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      margin: 2rem auto;
+      max-width: 900px;
+      padding: 0 1rem;
+      line-height: 1.5;
+    }}
+    h1 {{
+      margin-bottom: 1.5rem;
+    }}
+    section {{
+      margin: 2rem 0;
+    }}
+    ul {{
+      padding-left: 1.25rem;
+    }}
+    li {{
+      margin: .4rem 0;
+    }}
   </style>
 </head>
 <body>
@@ -215,6 +235,9 @@ def main() -> int:
             type_root = INCOMING / type_name
             if not type_root.exists():
                 continue
+            if not type_root.is_dir():
+                fail(f"{type_root} exists but is not a directory")
+
             for slug_dir in sorted(p for p in type_root.iterdir() if p.is_dir()):
                 entries.append(build_doc(type_name, slug_dir, tmp_root))
 
