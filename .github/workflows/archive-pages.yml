@@ -6,7 +6,9 @@ on:
     paths:
       - 'incoming/papers/**'
       - 'incoming/contracts/**'
+      - 'contracts/**'
       - 'scripts/build_archive.py'
+      - 'scripts/templates/**'
       - '.github/workflows/archive-pages.yml'
   workflow_dispatch:
 

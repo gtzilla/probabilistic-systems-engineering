@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 INCOMING = ROOT / "incoming"
 DIST = ROOT / "dist"
+TEMPLATES = ROOT / "scripts" / "templates"
 SITE_NAME = "Probabilistic Systems Engineering"
 CONTENT_TYPES = ["papers", "contracts"]
 
@@ -20,6 +21,10 @@ def fail(msg: str) -> None:
     raise SystemExit(1)
 
 
+def safe_text(s: str) -> str:
+    return html.escape(s, quote=True)
+
+
 def find_exactly_one(folder: Path, pattern: str, label: str) -> Path:
     matches = sorted(p for p in folder.glob(pattern) if p.is_file())
     if len(matches) != 1:
@@ -27,8 +32,18 @@ def find_exactly_one(folder: Path, pattern: str, label: str) -> Path:
     return matches[0]
 
 
-def safe_text(s: str) -> str:
-    return html.escape(s, quote=True)
+def load_template(name: str) -> str:
+    path = TEMPLATES / name
+    if not path.exists():
+        fail(f"Missing template: {path}")
+    return path.read_text(encoding="utf-8")
+
+
+def render_template(template: str, values: dict[str, str]) -> str:
+    out = template
+    for key, value in values.items():
+        out = out.replace(f"{{{{{key}}}}}", value)
+    return out
 
 
 def normalize_exported_html(raw_html: str) -> str:
@@ -81,16 +96,10 @@ def normalize_exported_html(raw_html: str) -> str:
 def inject_head_metadata(raw_html: str, doc_title: str) -> str:
     page_title = f"{doc_title} | {SITE_NAME}"
     description = f"{doc_title} — published in {SITE_NAME}."
-    metadata = f"""
-  <title>{safe_text(page_title)}</title>
-  <meta name="description" content="{safe_text(description)}">
-  <meta name="author" content="Gregory Tomlinson">
-"""
 
-    # Replace existing <title> if present
     raw_html = re.sub(
         r"<title\b[^>]*>.*?</title>",
-        metadata.strip().splitlines()[0],
+        f"<title>{safe_text(page_title)}</title>",
         raw_html,
         flags=re.IGNORECASE | re.DOTALL,
         count=1,
@@ -99,7 +108,6 @@ def inject_head_metadata(raw_html: str, doc_title: str) -> str:
     lower = raw_html.lower()
     head_close = lower.find("</head>")
     if head_close != -1:
-        # Only add description/author if they aren't already there
         before_close = raw_html[:head_close]
         additions = []
         if "<meta name=\"description\"" not in before_close.lower():
@@ -110,7 +118,6 @@ def inject_head_metadata(raw_html: str, doc_title: str) -> str:
             raw_html = raw_html[:head_close] + "\n" + "\n".join(additions) + "\n" + raw_html[head_close:]
         return raw_html
 
-    # Fallback: if somehow no head exists, prepend minimal head
     return (
         "<head>\n"
         f"  <title>{safe_text(page_title)}</title>\n"
@@ -121,146 +128,30 @@ def inject_head_metadata(raw_html: str, doc_title: str) -> str:
     )
 
 
-def wrap_document_html(raw_html: str, pdf_href: str, doc_title: str) -> str:
-    style = """
-<style>
-  html {
-    margin: 0;
-    padding: 0;
-    background: #fff;
-  }
+def extract_body_inner_html(raw_html: str) -> str:
+    match = re.search(r"<body\b[^>]*>(.*)</body>", raw_html, flags=re.IGNORECASE | re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return raw_html.strip()
 
-  body,
-  body.doc-content,
-  body[class] {
-    margin: 0 !important;
-    padding: 0 !important;
-    width: auto !important;
-    max-width: none !important;
-    min-width: 0 !important;
-    background: #fff;
-    color: #111;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    line-height: 1.5;
-    box-sizing: border-box;
-  }
 
-  .pse-topbar {
-    border-bottom: 1px solid #e5e5e5;
-    margin-bottom: 2rem;
-  }
+def render_document_page(raw_html: str, pdf_href: str, doc_title: str) -> str:
+    normalized = normalize_exported_html(raw_html)
+    normalized = inject_head_metadata(normalized, doc_title)
+    body_html = extract_body_inner_html(normalized)
 
-  .pse-topbar-inner {
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 0.9rem 1rem;
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-    justify-content: space-between;
-    box-sizing: border-box;
-  }
-
-  .pse-site-link {
-    color: #111;
-    text-decoration: none;
-    font-weight: 600;
-  }
-
-  .pse-site-link:hover,
-  .pse-nav a:hover {
-    text-decoration: underline;
-  }
-
-  .pse-nav {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-  }
-
-  .pse-nav a {
-    color: #444;
-    text-decoration: none;
-  }
-
-  .pse-doc-shell {
-    width: 100%;
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 0 1rem 2rem;
-    box-sizing: border-box;
-  }
-
-  .pse-doc-shell > * {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box;
-  }
-
-  .pse-doc-shell img {
-    max-width: 100% !important;
-    height: auto !important;
-  }
-
-  .pse-footer {
-    margin: 3rem auto 1.5rem;
-    max-width: 760px;
-    padding: 0 1rem;
-    color: #666;
-    font-size: 0.95rem;
-    box-sizing: border-box;
-  }
-</style>
-"""
-
-    topbar = f"""
-<header class="pse-topbar">
-  <div class="pse-topbar-inner">
-    <a class="pse-site-link" href="../../">{safe_text(SITE_NAME)}</a>
-    <nav class="pse-nav">
-      <a href="../../">Home</a>
-      <a href="{safe_text(pdf_href)}">PDF</a>
-    </nav>
-  </div>
-</header>
-"""
-
-    footer = """
-<footer class="pse-footer">Authored by Gregory Tomlinson</footer>
-"""
-
-    raw_html = inject_head_metadata(raw_html, doc_title)
-
-    lower = raw_html.lower()
-
-    head_close = lower.find("</head>")
-    if head_close != -1:
-        raw_html = raw_html[:head_close] + style + raw_html[head_close:]
-    else:
-        raw_html = style + raw_html
-
-    body_open = raw_html.lower().find("<body")
-    if body_open != -1:
-        body_tag_end = raw_html.find(">", body_open)
-        if body_tag_end != -1:
-            raw_html = (
-                raw_html[: body_tag_end + 1]
-                + topbar
-                + '<main class="pse-doc-shell">'
-                + raw_html[body_tag_end + 1 :]
-            )
-        else:
-            raw_html = topbar + '<main class="pse-doc-shell">' + raw_html
-    else:
-        raw_html = topbar + '<main class="pse-doc-shell">' + raw_html
-
-    body_close = raw_html.lower().rfind("</body>")
-    if body_close != -1:
-        raw_html = raw_html[:body_close] + "</main>" + footer + raw_html[body_close:]
-    else:
-        raw_html = raw_html + "</main>" + footer
-
-    return raw_html
+    template = load_template("document_shell.html")
+    return render_template(
+        template,
+        {
+            "PAGE_TITLE": safe_text(f"{doc_title} | {SITE_NAME}"),
+            "PAGE_DESCRIPTION": safe_text(f"{doc_title} — published in {SITE_NAME}."),
+            "SITE_NAME": safe_text(SITE_NAME),
+            "HOME_HREF": "../../",
+            "PDF_HREF": safe_text(pdf_href),
+            "DOCUMENT_BODY": body_html,
+        },
+    )
 
 
 def build_doc(type_name: str, slug_dir: Path, tmp_root: Path) -> dict[str, str]:
@@ -295,8 +186,7 @@ def build_doc(type_name: str, slug_dir: Path, tmp_root: Path) -> dict[str, str]:
     pdf_href = pdf.name
     doc_title = pdf.stem
     raw_html = source_html.read_text(encoding="utf-8")
-    raw_html = normalize_exported_html(raw_html)
-    wrapped_html = wrap_document_html(raw_html, pdf_href, doc_title)
+    wrapped_html = render_document_page(raw_html, pdf_href, doc_title)
     (out_dir / "index.html").write_text(wrapped_html, encoding="utf-8")
     shutil.copy2(pdf, out_dir / pdf.name)
 
@@ -310,16 +200,7 @@ def build_doc(type_name: str, slug_dir: Path, tmp_root: Path) -> dict[str, str]:
     }
 
 
-def collect_pdf_only_entries(entries: list[dict[str, str]]) -> list[dict[str, str]]:
-    """
-    Add PDF-only entries from durable repo folders.
-
-    Current rule:
-    - only scan contracts/ for PDF-only items
-    - if a slug already exists from incoming/contracts/, skip the PDF-only entry
-    - copy PDF-only contract PDFs into dist/contracts/<slug>/ so links work
-    """
-
+def collect_pdf_only_contract_entries(entries: list[dict[str, str]]) -> list[dict[str, str]]:
     existing_contract_slugs = {
         entry["slug"]
         for entry in entries
@@ -343,7 +224,6 @@ def collect_pdf_only_entries(entries: list[dict[str, str]]) -> list[dict[str, st
 
         pdf = pdfs[0]
 
-        # Ensure the PDF actually exists in the built site so the homepage link works.
         out_dir = DIST / "contracts" / slug
         out_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(pdf, out_dir / pdf.name)
@@ -363,134 +243,36 @@ def collect_pdf_only_entries(entries: list[dict[str, str]]) -> list[dict[str, st
     return entries
 
 
+def render_group(label: str, items: list[dict[str, str]]) -> str:
+    lis = []
+    for item in sorted(items, key=lambda x: x["title"].lower()):
+        is_pdf_only = item.get("pdf_only") == "true"
+        if is_pdf_only:
+            lis.append(
+                f'<li>{safe_text(item["title"])} — <a href="{safe_text(item["pdf_url"])}">PDF</a></li>'
+            )
+        else:
+            lis.append(
+                f'<li><a href="{safe_text(item["url"])}">{safe_text(item["title"])}</a>'
+                f' — <a href="{safe_text(item["pdf_url"])}">PDF</a></li>'
+            )
+    return "\n".join(lis) if lis else "<li>None yet.</li>"
+
+
 def render_index(entries: list[dict[str, str]]) -> str:
     grouped: dict[str, list[dict[str, str]]] = {k: [] for k in CONTENT_TYPES}
     for entry in entries:
         grouped[entry["type"]].append(entry)
 
-    def render_group(label: str, items: list[dict[str, str]]) -> str:
-        lis = []
-        for item in sorted(items, key=lambda x: x["title"].lower()):
-            is_pdf_only = item.get("pdf_only") == "true"
-            if is_pdf_only:
-                lis.append(
-                    f'<li>{safe_text(item["title"])} — <a href="{safe_text(item["pdf_url"])}">PDF</a></li>'
-                )
-            else:
-                lis.append(
-                    f'<li><a href="{safe_text(item["url"])}">{safe_text(item["title"])}</a>'
-                    f' — <a href="{safe_text(item["pdf_url"])}">PDF</a></li>'
-                )
-        inner = "\n".join(lis) if lis else "<li>None yet.</li>"
-        return f"""
-<section class="archive-section">
-  <h2>{label}</h2>
-  <ul>{inner}</ul>
-</section>
-"""
-
-    body = "\n".join(
-        [
-            render_group("Papers", grouped["papers"]),
-            render_group("Contracts", grouped["contracts"]),
-        ]
+    template = load_template("index.html")
+    return render_template(
+        template,
+        {
+            "SITE_NAME": safe_text(SITE_NAME),
+            "PAPERS_LIST": render_group("Papers", grouped["papers"]),
+            "CONTRACTS_LIST": render_group("Contracts", grouped["contracts"]),
+        },
     )
-
-    return f"""<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{safe_text(SITE_NAME)}</title>
-  <style>
-    :root {{
-      --text: #111;
-      --muted: #666;
-      --border: #e5e5e5;
-      --link: #222;
-      --bg: #fff;
-    }}
-
-    html, body {{
-      margin: 0;
-      padding: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      line-height: 1.5;
-    }}
-
-    body {{
-      display: flex;
-      justify-content: center;
-    }}
-
-    .page {{
-      width: 100%;
-      max-width: 900px;
-      padding: 3rem 1.25rem 4rem;
-      box-sizing: border-box;
-    }}
-
-    .hero {{
-      text-align: center;
-      margin-bottom: 3rem;
-    }}
-
-    .hero h1 {{
-      margin: 0 0 0.5rem;
-      font-size: 2.1rem;
-      line-height: 1.15;
-      letter-spacing: -0.02em;
-    }}
-
-    .hero p {{
-      margin: 0;
-      color: var(--muted);
-      font-size: 1rem;
-    }}
-
-    .archive-section {{
-      margin: 2.5rem 0;
-      padding-top: 1rem;
-      border-top: 1px solid var(--border);
-    }}
-
-    .archive-section h2 {{
-      margin: 0 0 1rem;
-      font-size: 1.15rem;
-    }}
-
-    ul {{
-      margin: 0;
-      padding-left: 1.25rem;
-    }}
-
-    li {{
-      margin: 0.5rem 0;
-    }}
-
-    a {{
-      color: var(--link);
-      text-decoration: none;
-    }}
-
-    a:hover {{
-      text-decoration: underline;
-    }}
-  </style>
-</head>
-<body>
-  <main class="page">
-    <header class="hero">
-      <h1>{safe_text(SITE_NAME)}</h1>
-      <p>Archive listing for papers and contracts.</p>
-    </header>
-    {body}
-  </main>
-</body>
-</html>
-"""
 
 
 def main() -> int:
@@ -515,7 +297,7 @@ def main() -> int:
             for slug_dir in sorted(p for p in type_root.iterdir() if p.is_dir()):
                 entries.append(build_doc(type_name, slug_dir, tmp_root))
 
-        entries = collect_pdf_only_entries(entries)
+        entries = collect_pdf_only_contract_entries(entries)
 
         (DIST / "index.html").write_text(render_index(entries), encoding="utf-8")
         print(f"Built archive into {DIST}")
