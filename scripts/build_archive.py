@@ -51,7 +51,7 @@ def wrap_document_html(raw_html: str, pdf_href: str) -> str:
   }
 
   .pse-topbar-inner {
-    max-width: 1100px;
+    max-width: 820px;
     margin: 0 auto;
     padding: 0.9rem 1rem;
     display: flex;
@@ -84,15 +84,27 @@ def wrap_document_html(raw_html: str, pdf_href: str) -> str:
   }
 
   .pse-doc-shell {
-    max-width: 1100px;
+    max-width: 820px;
     margin: 0 auto;
     padding: 0 1rem 2rem;
     box-sizing: border-box;
   }
 
+  /* Force the exported Google Docs wrapper to sit in the centered column */
+  .pse-doc-shell > * {
+    max-width: 100%;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .pse-doc-shell img {
+    max-width: 100%;
+    height: auto;
+  }
+
   .pse-footer {
     margin: 3rem auto 1.5rem;
-    max-width: 1100px;
+    max-width: 820px;
     padding: 0 1rem;
     color: #666;
     font-size: 0.95rem;
