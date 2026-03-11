@@ -2,7 +2,7 @@ name: Archive Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, publish ]
     paths:
       - 'incoming/papers/**'
       - 'incoming/contracts/**'
