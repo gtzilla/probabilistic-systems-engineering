@@ -78,7 +78,50 @@ def normalize_exported_html(raw_html: str) -> str:
     return cleaned_preamble + rest
 
 
-def wrap_document_html(raw_html: str, pdf_href: str) -> str:
+def inject_head_metadata(raw_html: str, doc_title: str) -> str:
+    page_title = f"{doc_title} | {SITE_NAME}"
+    description = f"{doc_title} — published in {SITE_NAME}."
+    metadata = f"""
+  <title>{safe_text(page_title)}</title>
+  <meta name="description" content="{safe_text(description)}">
+  <meta name="author" content="Gregory Tomlinson">
+"""
+
+    # Replace existing <title> if present
+    raw_html = re.sub(
+        r"<title\b[^>]*>.*?</title>",
+        metadata.strip().splitlines()[0],
+        raw_html,
+        flags=re.IGNORECASE | re.DOTALL,
+        count=1,
+    )
+
+    lower = raw_html.lower()
+    head_close = lower.find("</head>")
+    if head_close != -1:
+        # Only add description/author if they aren't already there
+        before_close = raw_html[:head_close]
+        additions = []
+        if "<meta name=\"description\"" not in before_close.lower():
+            additions.append(f'  <meta name="description" content="{safe_text(description)}">')
+        if "<meta name=\"author\"" not in before_close.lower():
+            additions.append('  <meta name="author" content="Gregory Tomlinson">')
+        if additions:
+            raw_html = raw_html[:head_close] + "\n" + "\n".join(additions) + "\n" + raw_html[head_close:]
+        return raw_html
+
+    # Fallback: if somehow no head exists, prepend minimal head
+    return (
+        "<head>\n"
+        f"  <title>{safe_text(page_title)}</title>\n"
+        f'  <meta name="description" content="{safe_text(description)}">\n'
+        '  <meta name="author" content="Gregory Tomlinson">\n'
+        "</head>\n"
+        + raw_html
+    )
+
+
+def wrap_document_html(raw_html: str, pdf_href: str, doc_title: str) -> str:
     style = """
 <style>
   html {
@@ -186,6 +229,8 @@ def wrap_document_html(raw_html: str, pdf_href: str) -> str:
 <footer class="pse-footer">Authored by Gregory Tomlinson</footer>
 """
 
+    raw_html = inject_head_metadata(raw_html, doc_title)
+
     lower = raw_html.lower()
 
     head_close = lower.find("</head>")
@@ -248,9 +293,10 @@ def build_doc(type_name: str, slug_dir: Path, tmp_root: Path) -> dict[str, str]:
             shutil.copy2(child, dest)
 
     pdf_href = pdf.name
+    doc_title = pdf.stem
     raw_html = source_html.read_text(encoding="utf-8")
     raw_html = normalize_exported_html(raw_html)
-    wrapped_html = wrap_document_html(raw_html, pdf_href)
+    wrapped_html = wrap_document_html(raw_html, pdf_href, doc_title)
     (out_dir / "index.html").write_text(wrapped_html, encoding="utf-8")
     shutil.copy2(pdf, out_dir / pdf.name)
 
