@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{PAGE_TITLE}}</title>
+  <meta name="description" content="{{PAGE_DESCRIPTION}}">
+  <meta name="author" content="Gregory Tomlinson">
+  <style>
+    html {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+    }
+
+    body,
+    body.doc-content,
+    body[class] {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: auto !important;
+      max-width: none !important;
+      min-width: 0 !important;
+      background: #fff;
+      color: #111;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+      box-sizing: border-box;
+    }
+
+    .pse-topbar {
+      border-bottom: 1px solid #e5e5e5;
+      margin-bottom: 2rem;
+    }
+
+    .pse-topbar-inner {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 0.9rem 1rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      justify-content: space-between;
+      box-sizing: border-box;
+    }
+
+    .pse-site-link {
+      color: #111;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .pse-site-link:hover,
+    .pse-nav a:hover {
+      text-decoration: underline;
+    }
+
+    .pse-nav {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .pse-nav a {
+      color: #444;
+      text-decoration: none;
+    }
+
+    .pse-doc-shell {
+      width: 100%;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 0 1rem 2rem;
+      box-sizing: border-box;
+    }
+
+    .pse-doc-shell > * {
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box;
+    }
+
+    .pse-doc-shell img {
+      max-width: 100% !important;
+      height: auto !important;
+    }
+
+    .pse-footer {
+      margin: 3rem auto 1.5rem;
+      max-width: 760px;
+      padding: 0 1rem;
+      color: #666;
+      font-size: 0.95rem;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <header class="pse-topbar">
+    <div class="pse-topbar-inner">
+      <a class="pse-site-link" href="{{HOME_HREF}}">{{SITE_NAME}}</a>
+      <nav class="pse-nav">
+        <a href="{{HOME_HREF}}">Home</a>
+        <a href="{{PDF_HREF}}">PDF</a>
+      </nav>
+    </div>
+  </header>
+  <main class="pse-doc-shell">
+    {{DOCUMENT_BODY}}
+  </main>
+  <footer class="pse-footer">Authored by Gregory Tomlinson</footer>
+</body>
+</html>
