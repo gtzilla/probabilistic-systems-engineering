@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import hashlib
 import html
+import json
+import os
 import re
 import shutil
 import sys
 import zipfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -164,6 +168,30 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str) -> str:
     )
 
 
+
+
+def compute_dist_hash(dist_root: Path) -> str:
+    hasher = hashlib.sha256()
+    for path in sorted(p for p in dist_root.rglob("*") if p.is_file() and p.name != "build.json"):
+        rel = path.relative_to(dist_root).as_posix().encode("utf-8")
+        digest = hashlib.sha256(path.read_bytes()).hexdigest().encode("utf-8")
+        hasher.update(rel)
+        hasher.update(b"\0")
+        hasher.update(digest)
+        hasher.update(b"\0")
+    return hasher.hexdigest()
+
+
+def write_build_manifest(dist_root: Path) -> None:
+    manifest = {
+        "site": SITE_NAME,
+        "source_sha": os.getenv("GITHUB_SHA", ""),
+        "source_ref": os.getenv("GITHUB_REF_NAME", ""),
+        "built_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "dist_hash": compute_dist_hash(dist_root),
+    }
+    (dist_root / "build.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
 def build_doc(type_name: str, slug_dir: Path, tmp_root: Path) -> dict[str, str]:
     slug = slug_dir.name
     pdf = find_exactly_one(slug_dir, "*.pdf", "PDF")
@@ -310,6 +338,7 @@ def main() -> int:
         entries = collect_pdf_only_contract_entries(entries)
 
         (DIST / "index.html").write_text(render_index(entries), encoding="utf-8")
+        write_build_manifest(DIST)
         print(f"Built archive into {DIST}")
         return 0
     finally:

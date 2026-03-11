@@ -8,10 +8,20 @@
   <meta name="author" content="Gregory Tomlinson">
   {{EXPORTED_STYLES}}
   <style>
+    :root {
+      --pse-bg: #ffffff;
+      --pse-text: #111111;
+      --pse-muted: #6b7280;
+      --pse-border: #dddddd;
+      --pse-link: #1f2937;
+      --pse-shell: 48rem;
+    }
+
     html {
       margin: 0;
       padding: 0;
-      background: #fff;
+      background: var(--pse-bg);
+      -webkit-text-size-adjust: 100%;
     }
 
     body,
@@ -22,33 +32,39 @@
       width: auto !important;
       max-width: none !important;
       min-width: 0 !important;
-      background: #fff;
-      color: #111;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      line-height: 1.5;
+      background: var(--pse-bg);
+      color: var(--pse-text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
       box-sizing: border-box;
     }
 
+    *, *::before, *::after {
+      box-sizing: inherit;
+    }
+
     .pse-topbar {
-      border-bottom: 1px solid #e5e5e5;
-      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--pse-border);
+      margin-bottom: 1.5rem;
+      background: var(--pse-bg);
     }
 
     .pse-topbar-inner {
-      max-width: 760px;
+      max-width: calc(var(--pse-shell) + 6rem);
       margin: 0 auto;
-      padding: 0.9rem 1rem;
+      padding: 1rem 1rem 0.95rem;
       display: flex;
       gap: 1rem;
       align-items: center;
       justify-content: space-between;
-      box-sizing: border-box;
     }
 
     .pse-site-link {
-      color: #111;
+      color: var(--pse-text);
       text-decoration: none;
-      font-weight: 600;
+      font-weight: 700;
+      font-size: 1.05rem;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
     }
 
     .pse-site-link:hover,
@@ -58,21 +74,23 @@
 
     .pse-nav {
       display: flex;
+      flex-wrap: wrap;
       gap: 1rem;
       align-items: center;
+      font-size: 1rem;
     }
 
     .pse-nav a {
-      color: #444;
+      color: #4b5563;
       text-decoration: none;
     }
 
     .pse-doc-shell {
       width: 100%;
-      max-width: 760px;
+      max-width: var(--pse-shell);
       margin: 0 auto;
-      padding: 0 1rem 2rem;
-      box-sizing: border-box;
+      padding: 0 1.125rem 3rem;
+      color: var(--pse-text);
     }
 
     .pse-doc-shell > * {
@@ -86,13 +104,103 @@
       height: auto !important;
     }
 
+    .pse-doc-shell p,
+    .pse-doc-shell li,
+    .pse-doc-shell blockquote {
+      font-size: 1.14rem !important;
+      line-height: 1.72 !important;
+      color: var(--pse-text) !important;
+    }
+
+    .pse-doc-shell p {
+      margin: 0 0 1.15rem !important;
+    }
+
+    .pse-doc-shell li {
+      margin: 0.3rem 0 !important;
+    }
+
+    .pse-doc-shell p span,
+    .pse-doc-shell li span,
+    .pse-doc-shell blockquote span {
+      font-size: inherit !important;
+      line-height: inherit !important;
+    }
+
+    .pse-doc-shell .title,
+    .pse-doc-shell p.title {
+      font-size: clamp(2.6rem, 7vw, 4.4rem) !important;
+      line-height: 1.02 !important;
+      letter-spacing: -0.03em !important;
+      font-weight: 700 !important;
+      margin: 0 0 0.85rem !important;
+      color: var(--pse-text) !important;
+    }
+
+    .pse-doc-shell .subtitle,
+    .pse-doc-shell p.subtitle {
+      font-size: clamp(1.25rem, 4vw, 2rem) !important;
+      line-height: 1.2 !important;
+      color: var(--pse-muted) !important;
+      margin: 0 0 1.35rem !important;
+    }
+
+    .pse-doc-shell h1,
+    .pse-doc-shell h2,
+    .pse-doc-shell h3,
+    .pse-doc-shell h4,
+    .pse-doc-shell h5,
+    .pse-doc-shell h6 {
+      color: var(--pse-text) !important;
+      letter-spacing: -0.02em !important;
+      line-height: 1.12 !important;
+      margin: 2.6rem 0 1rem !important;
+    }
+
+    .pse-doc-shell h1 { font-size: clamp(2rem, 5vw, 3rem) !important; }
+    .pse-doc-shell h2 { font-size: clamp(1.65rem, 4vw, 2.35rem) !important; }
+    .pse-doc-shell h3 { font-size: clamp(1.35rem, 3vw, 1.75rem) !important; }
+
+    .pse-doc-shell hr {
+      margin: 2.5rem 0 !important;
+      border: 0;
+      border-top: 1px solid var(--pse-border);
+    }
+
     .pse-footer {
       margin: 3rem auto 1.5rem;
-      max-width: 760px;
-      padding: 0 1rem;
-      color: #666;
+      max-width: var(--pse-shell);
+      padding: 0 1.125rem;
+      color: var(--pse-muted);
       font-size: 0.95rem;
-      box-sizing: border-box;
+    }
+
+    @media (max-width: 820px) {
+      .pse-topbar-inner {
+        display: block;
+        padding-top: 0.9rem;
+      }
+
+      .pse-site-link {
+        display: block;
+        margin-bottom: 0.7rem;
+      }
+
+      .pse-nav {
+        gap: 0.85rem;
+      }
+
+      .pse-doc-shell {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+
+      .pse-doc-shell p,
+      .pse-doc-shell li,
+      .pse-doc-shell blockquote {
+        font-size: 1.22rem !important;
+        line-height: 1.78 !important;
+      }
     }
   </style>
 </head>
