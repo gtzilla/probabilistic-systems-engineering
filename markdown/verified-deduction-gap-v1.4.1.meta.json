@@ -1,7 +1,0 @@
-{
-  "schema_version": "2.3.1",
-  "source_path": "papers/verified-deduction-gap-v1.4.1.pdf",
-  "root_id": "papers",
-  "pdf_sha256": "0e13a2c6fd1522c4f9c39b903dd21fe795f953ee4f7abb8d31df880585642152",
-  "engine_id": "ubuntu-24.04+pymupdf+pandoc-3.9-gfm"
-}
