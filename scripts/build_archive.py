@@ -33,10 +33,23 @@ def safe_text(s: str) -> str:
 def wrap_document_html(raw_html: str, pdf_href: str) -> str:
     style = """
 <style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #fff;
+  }
+
+  body {
+    color: #111;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.5;
+  }
+
   .pse-topbar {
     border-bottom: 1px solid #e5e5e5;
     margin-bottom: 2rem;
   }
+
   .pse-topbar-inner {
     max-width: 1100px;
     margin: 0 auto;
@@ -45,33 +58,45 @@ def wrap_document_html(raw_html: str, pdf_href: str) -> str:
     gap: 1rem;
     align-items: center;
     justify-content: space-between;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    box-sizing: border-box;
   }
+
   .pse-site-link {
     color: #111;
     text-decoration: none;
     font-weight: 600;
   }
+
   .pse-site-link:hover,
   .pse-nav a:hover {
     text-decoration: underline;
   }
+
   .pse-nav {
     display: flex;
     gap: 1rem;
     align-items: center;
   }
+
   .pse-nav a {
     color: #444;
     text-decoration: none;
   }
+
+  .pse-doc-shell {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 1rem 2rem;
+    box-sizing: border-box;
+  }
+
   .pse-footer {
     margin: 3rem auto 1.5rem;
     max-width: 1100px;
     padding: 0 1rem;
     color: #666;
     font-size: 0.95rem;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    box-sizing: border-box;
   }
 </style>
 """
@@ -104,17 +129,22 @@ def wrap_document_html(raw_html: str, pdf_href: str) -> str:
     if body_open != -1:
         body_tag_end = raw_html.find(">", body_open)
         if body_tag_end != -1:
-            raw_html = raw_html[: body_tag_end + 1] + topbar + raw_html[body_tag_end + 1 :]
+            raw_html = (
+                raw_html[: body_tag_end + 1]
+                + topbar
+                + '<main class="pse-doc-shell">'
+                + raw_html[body_tag_end + 1 :]
+            )
         else:
-            raw_html = topbar + raw_html
+            raw_html = topbar + '<main class="pse-doc-shell">' + raw_html
     else:
-        raw_html = topbar + raw_html
+        raw_html = topbar + '<main class="pse-doc-shell">' + raw_html
 
     body_close = raw_html.lower().rfind("</body>")
     if body_close != -1:
-        raw_html = raw_html[:body_close] + footer + raw_html[body_close:]
+        raw_html = raw_html[:body_close] + "</main>" + footer + raw_html[body_close:]
     else:
-        raw_html = raw_html + footer
+        raw_html = raw_html + "</main>" + footer
 
     return raw_html
 
@@ -176,7 +206,12 @@ def render_index(entries: list[dict[str, str]]) -> str:
                 f' — <a href="{safe_text(item["pdf_url"])}">PDF</a></li>'
             )
         inner = "\n".join(lis) if lis else "<li>None yet.</li>"
-        return f"<section><h2>{label}</h2><ul>{inner}</ul></section>"
+        return f"""
+<section class="archive-section">
+  <h2>{label}</h2>
+  <ul>{inner}</ul>
+</section>
+"""
 
     body = "\n".join([
         render_group("Papers", grouped["papers"]),
@@ -190,30 +225,91 @@ def render_index(entries: list[dict[str, str]]) -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{safe_text(SITE_NAME)}</title>
   <style>
-    body {{
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      margin: 2rem auto;
-      max-width: 900px;
-      padding: 0 1rem;
+    :root {{
+      --text: #111;
+      --muted: #666;
+      --border: #e5e5e5;
+      --link: #222;
+      --bg: #fff;
+    }}
+
+    html, body {{
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       line-height: 1.5;
     }}
-    h1 {{
-      margin-bottom: 1.5rem;
+
+    body {{
+      display: flex;
+      justify-content: center;
     }}
-    section {{
-      margin: 2rem 0;
+
+    .page {{
+      width: 100%;
+      max-width: 900px;
+      padding: 3rem 1.25rem 4rem;
+      box-sizing: border-box;
     }}
+
+    .hero {{
+      text-align: center;
+      margin-bottom: 3rem;
+    }}
+
+    .hero h1 {{
+      margin: 0 0 0.5rem;
+      font-size: 2.1rem;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+    }}
+
+    .hero p {{
+      margin: 0;
+      color: var(--muted);
+      font-size: 1rem;
+    }}
+
+    .archive-section {{
+      margin: 2.5rem 0;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }}
+
+    .archive-section h2 {{
+      margin: 0 0 1rem;
+      font-size: 1.15rem;
+    }}
+
     ul {{
+      margin: 0;
       padding-left: 1.25rem;
     }}
+
     li {{
-      margin: .4rem 0;
+      margin: 0.5rem 0;
+    }}
+
+    a {{
+      color: var(--link);
+      text-decoration: none;
+    }}
+
+    a:hover {{
+      text-decoration: underline;
     }}
   </style>
 </head>
 <body>
-  <h1>{safe_text(SITE_NAME)}</h1>
-  {body}
+  <main class="page">
+    <header class="hero">
+      <h1>{safe_text(SITE_NAME)}</h1>
+      <p>Archive listing for papers and contracts.</p>
+    </header>
+    {body}
+  </main>
 </body>
 </html>
 """
