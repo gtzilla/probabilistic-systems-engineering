@@ -264,6 +264,59 @@ def build_doc(type_name: str, slug_dir: Path, tmp_root: Path) -> dict[str, str]:
     }
 
 
+def collect_pdf_only_entries(entries: list[dict[str, str]]) -> list[dict[str, str]]:
+    """
+    Add PDF-only entries from durable repo folders.
+
+    Current rule:
+    - only scan contracts/ for PDF-only items
+    - if a slug already exists from incoming/contracts/, skip the PDF-only entry
+    - copy PDF-only contract PDFs into dist/contracts/<slug>/ so links work
+    """
+
+    existing_contract_slugs = {
+        entry["slug"]
+        for entry in entries
+        if entry["type"] == "contracts"
+    }
+
+    contracts_root = ROOT / "contracts"
+    if not contracts_root.exists() or not contracts_root.is_dir():
+        return entries
+
+    for slug_dir in sorted(p for p in contracts_root.iterdir() if p.is_dir()):
+        slug = slug_dir.name
+        if slug in existing_contract_slugs:
+            continue
+
+        pdfs = sorted(p for p in slug_dir.glob("*.pdf") if p.is_file())
+        if len(pdfs) == 0:
+            continue
+        if len(pdfs) > 1:
+            fail(f"{slug_dir}: expected at most one PDF for PDF-only contract listing, found {len(pdfs)}")
+
+        pdf = pdfs[0]
+
+        # Ensure the PDF actually exists in the built site so the homepage link works.
+        out_dir = DIST / "contracts" / slug
+        out_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(pdf, out_dir / pdf.name)
+
+        entries.append(
+            {
+                "type": "contracts",
+                "slug": slug,
+                "pdf_name": pdf.name,
+                "title": pdf.stem,
+                "url": "",
+                "pdf_url": f"./contracts/{slug}/{pdf.name}",
+                "pdf_only": "true",
+            }
+        )
+
+    return entries
+
+
 def render_index(entries: list[dict[str, str]]) -> str:
     grouped: dict[str, list[dict[str, str]]] = {k: [] for k in CONTENT_TYPES}
     for entry in entries:
@@ -272,10 +325,16 @@ def render_index(entries: list[dict[str, str]]) -> str:
     def render_group(label: str, items: list[dict[str, str]]) -> str:
         lis = []
         for item in sorted(items, key=lambda x: x["title"].lower()):
-            lis.append(
-                f'<li><a href="{safe_text(item["url"])}">{safe_text(item["title"])}</a>'
-                f' — <a href="{safe_text(item["pdf_url"])}">PDF</a></li>'
-            )
+            is_pdf_only = item.get("pdf_only") == "true"
+            if is_pdf_only:
+                lis.append(
+                    f'<li>{safe_text(item["title"])} — <a href="{safe_text(item["pdf_url"])}">PDF</a></li>'
+                )
+            else:
+                lis.append(
+                    f'<li><a href="{safe_text(item["url"])}">{safe_text(item["title"])}</a>'
+                    f' — <a href="{safe_text(item["pdf_url"])}">PDF</a></li>'
+                )
         inner = "\n".join(lis) if lis else "<li>None yet.</li>"
         return f"""
 <section class="archive-section">
@@ -409,6 +468,8 @@ def main() -> int:
 
             for slug_dir in sorted(p for p in type_root.iterdir() if p.is_dir()):
                 entries.append(build_doc(type_name, slug_dir, tmp_root))
+
+        entries = collect_pdf_only_entries(entries)
 
         (DIST / "index.html").write_text(render_index(entries), encoding="utf-8")
         print(f"Built archive into {DIST}")
