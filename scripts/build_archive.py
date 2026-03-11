@@ -128,6 +128,15 @@ def inject_head_metadata(raw_html: str, doc_title: str) -> str:
     )
 
 
+def extract_head_styles(raw_html: str) -> str:
+    """
+    Return all <style>...</style> blocks from the exported HTML head/body.
+    Google Docs puts critical document styling here.
+    """
+    matches = re.findall(r"(<style\b[^>]*>.*?</style>)", raw_html, flags=re.IGNORECASE | re.DOTALL)
+    return "\n".join(matches)
+
+
 def extract_body_inner_html(raw_html: str) -> str:
     match = re.search(r"<body\b[^>]*>(.*)</body>", raw_html, flags=re.IGNORECASE | re.DOTALL)
     if match:
@@ -137,7 +146,7 @@ def extract_body_inner_html(raw_html: str) -> str:
 
 def render_document_page(raw_html: str, pdf_href: str, doc_title: str) -> str:
     normalized = normalize_exported_html(raw_html)
-    normalized = inject_head_metadata(normalized, doc_title)
+    exported_styles = extract_head_styles(normalized)
     body_html = extract_body_inner_html(normalized)
 
     template = load_template("document_shell.html")
@@ -149,6 +158,7 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str) -> str:
             "SITE_NAME": safe_text(SITE_NAME),
             "HOME_HREF": "../../",
             "PDF_HREF": safe_text(pdf_href),
+            "EXPORTED_STYLES": exported_styles,
             "DOCUMENT_BODY": body_html,
         },
     )
