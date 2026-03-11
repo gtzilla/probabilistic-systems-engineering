@@ -30,6 +30,93 @@ def safe_text(s: str) -> str:
     return html.escape(s, quote=True)
 
 
+def wrap_document_html(raw_html: str, pdf_url: str) -> str:
+    style = """
+<style>
+  .pse-topbar {
+    border-bottom: 1px solid #e5e5e5;
+    margin-bottom: 2rem;
+  }
+  .pse-topbar-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0.9rem 1rem;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    justify-content: space-between;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .pse-site-link {
+    color: #111;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .pse-site-link:hover,
+  .pse-nav a:hover {
+    text-decoration: underline;
+  }
+  .pse-nav {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+  .pse-nav a {
+    color: #444;
+    text-decoration: none;
+  }
+  .pse-footer {
+    margin: 3rem auto 1.5rem;
+    max-width: 1100px;
+    padding: 0 1rem;
+    color: #666;
+    font-size: 0.95rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+</style>
+"""
+
+    topbar = f"""
+<header class="pse-topbar">
+  <div class="pse-topbar-inner">
+    <a class="pse-site-link" href="/">{safe_text(SITE_NAME)}</a>
+    <nav class="pse-nav">
+      <a href="/">Home</a>
+      <a href="{safe_text(pdf_url)}">PDF</a>
+    </nav>
+  </div>
+</header>
+"""
+
+    footer = """
+<footer class="pse-footer">Authored by Gregory Tomlinson</footer>
+"""
+
+    lower = raw_html.lower()
+
+    head_close = lower.find("</head>")
+    if head_close != -1:
+        raw_html = raw_html[:head_close] + style + raw_html[head_close:]
+    else:
+        raw_html = style + raw_html
+
+    body_open = raw_html.lower().find("<body")
+    if body_open != -1:
+        body_tag_end = raw_html.find(">", body_open)
+        if body_tag_end != -1:
+            raw_html = raw_html[: body_tag_end + 1] + topbar + raw_html[body_tag_end + 1 :]
+    else:
+        raw_html = topbar + raw_html
+
+    body_close = raw_html.lower().rfind("</body>")
+    if body_close != -1:
+        raw_html = raw_html[:body_close] + footer + raw_html[body_close:]
+    else:
+        raw_html = raw_html + footer
+
+    return raw_html
+
+
 def build_doc(type_name: str, slug_dir: Path, tmp_root: Path) -> dict[str, str]:
     slug = slug_dir.name
     pdf = find_exactly_one(slug_dir, "*.pdf", "PDF")
@@ -56,8 +143,9 @@ def build_doc(type_name: str, slug_dir: Path, tmp_root: Path) -> dict[str, str]:
         else:
             shutil.copy2(child, dest)
 
-    # normalize main HTML to index.html
-    shutil.copy2(source_html, out_dir / "index.html")
+    pdf_url = f"/{type_name}/{slug}/{pdf.name}"
+    wrapped_html = wrap_document_html(source_html.read_text(encoding="utf-8"), pdf_url)
+    (out_dir / "index.html").write_text(wrapped_html, encoding="utf-8")
     shutil.copy2(pdf, out_dir / pdf.name)
 
     return {
@@ -66,7 +154,7 @@ def build_doc(type_name: str, slug_dir: Path, tmp_root: Path) -> dict[str, str]:
         "pdf_name": pdf.name,
         "title": pdf.name,
         "url": f"/{type_name}/{slug}/",
-        "pdf_url": f"/{type_name}/{slug}/{pdf.name}",
+        "pdf_url": pdf_url,
     }
 
 
@@ -90,10 +178,10 @@ def render_index(entries: list[dict[str, str]]) -> str:
         render_group("Contracts", grouped["contracts"]),
     ])
     return f"""<!doctype html>
-<html lang=\"en\">
+<html lang="en">
 <head>
-  <meta charset=\"utf-8\">
-  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{safe_text(SITE_NAME)}</title>
   <style>
     body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 2rem auto; max-width: 900px; padding: 0 1rem; line-height: 1.5; }}
