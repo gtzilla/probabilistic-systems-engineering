@@ -33,16 +33,25 @@ def safe_text(s: str) -> str:
 def wrap_document_html(raw_html: str, pdf_href: str) -> str:
     style = """
 <style>
-  html, body {
+  html {
     margin: 0;
     padding: 0;
     background: #fff;
   }
 
-  body {
+  body,
+  body.doc-content,
+  body[class] {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    background: #fff;
     color: #111;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     line-height: 1.5;
+    box-sizing: border-box;
   }
 
   .pse-topbar {
@@ -51,7 +60,7 @@ def wrap_document_html(raw_html: str, pdf_href: str) -> str:
   }
 
   .pse-topbar-inner {
-    max-width: 820px;
+    max-width: 760px;
     margin: 0 auto;
     padding: 0.9rem 1rem;
     display: flex;
@@ -84,27 +93,27 @@ def wrap_document_html(raw_html: str, pdf_href: str) -> str:
   }
 
   .pse-doc-shell {
-    max-width: 820px;
+    width: 100%;
+    max-width: 760px;
     margin: 0 auto;
     padding: 0 1rem 2rem;
     box-sizing: border-box;
   }
 
-  /* Force the exported Google Docs wrapper to sit in the centered column */
   .pse-doc-shell > * {
-    max-width: 100%;
-    margin-left: auto !important;
-    margin-right: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
   }
 
   .pse-doc-shell img {
-    max-width: 100%;
-    height: auto;
+    max-width: 100% !important;
+    height: auto !important;
   }
 
   .pse-footer {
     margin: 3rem auto 1.5rem;
-    max-width: 820px;
+    max-width: 760px;
     padding: 0 1rem;
     color: #666;
     font-size: 0.95rem;
