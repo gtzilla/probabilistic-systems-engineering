@@ -609,6 +609,10 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
     exported_styles = extract_head_styles(normalized)
     body_html = refine_body_html(extract_body_inner_html(normalized))
 
+    slug = str(metadata["slug"])
+    depth = len([part for part in slug.split("/") if part])
+    home_href = "../" * (depth + 1)
+
     template = load_template("document_shell.html")
     return render_template(
         template,
@@ -616,7 +620,7 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
             "PAGE_TITLE": safe_text(f"{doc_title} | {SITE_NAME}"),
             "PAGE_DESCRIPTION": safe_text(str(metadata["description"])),
             "SITE_NAME": safe_text(SITE_NAME),
-            "HOME_HREF": "../../",
+            "HOME_HREF": home_href,
             "PDF_HREF": safe_text(pdf_href),
             "CANONICAL_URL": safe_text(str(metadata["html_url"])),
             "STRUCTURED_DATA_JSON": build_structured_data(metadata),
