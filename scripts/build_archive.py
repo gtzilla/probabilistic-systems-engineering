@@ -80,6 +80,37 @@ def detect_version(text: str) -> str:
     return match.group(0) if match else ""
 
 
+def parse_version_tuple(version: str) -> tuple[int, ...]:
+    if not version:
+        return tuple()
+    normalized = version.lower()
+    if normalized.startswith("v"):
+        normalized = normalized[1:]
+    parts = [part for part in normalized.split(".") if part]
+    values: list[int] = []
+    for part in parts:
+        if not part.isdigit():
+            return tuple()
+        values.append(int(part))
+    return tuple(values)
+
+
+def slug_family_info(slug: str) -> tuple[str, str, tuple[int, ...]]:
+    parts = [part for part in slug.split("/") if part]
+    if not parts:
+        return ("", "", tuple())
+
+    leaf = parts[-1]
+    match = re.match(r"^(?P<family>.+)-(?P<version>v\d+(?:\.\d+)*)$", leaf, flags=re.IGNORECASE)
+    if not match:
+        return ("", "", tuple())
+
+    family_leaf = match.group("family")
+    version = match.group("version")
+    family_parts = parts[:-1] + [family_leaf]
+    return ("/".join(family_parts), version, parse_version_tuple(version))
+
+
 def estimate_reading_time_minutes(text: str) -> int:
     words = len(re.findall(r"\S+", text))
     if words <= 0:
@@ -192,6 +223,8 @@ def derive_document_metadata(
     version = detect_version(doc_title)
     slug_parts = [part for part in slug.split("/") if part]
     group_key = slug_parts[0] if len(slug_parts) > 1 else ""
+    family_key, slug_version, version_tuple = slug_family_info(slug)
+    effective_version = slug_version or version
     html_path = f"/{type_name}/{slug}/"
     pdf_path = f"/{type_name}/{slug}/{pdf_name}"
 
@@ -207,7 +240,9 @@ def derive_document_metadata(
         "pdf_path": pdf_path,
         "pdf_url": f"{SITE_URL}{pdf_path}",
         "group_key": group_key,
-        "version": version,
+        "family_key": family_key,
+        "version": effective_version,
+        "version_tuple": list(version_tuple),
         "description": description,
         "word_count": len(re.findall(r"\S+", full_text)),
         "reading_time_minutes": estimate_reading_time_minutes(full_text),
@@ -713,6 +748,86 @@ def inject_discovery_markup(html_text: str, references_html: str, related_html: 
     return html_text + discovery_html
 
 
+def build_version_relations(metadata_index: list[dict[str, object]]) -> dict[str, dict[str, object]]:
+    families: dict[str, list[dict[str, object]]] = {}
+    for item in metadata_index:
+        family_key = str(item.get("family_key", "") or "")
+        version_tuple = tuple(item.get("version_tuple", []))
+        if not family_key or not version_tuple:
+            continue
+        families.setdefault(family_key, []).append(item)
+
+    relations: dict[str, dict[str, object]] = {}
+    for family_key, docs in families.items():
+        docs_sorted = sorted(
+            docs,
+            key=lambda d: (
+                tuple(d.get("version_tuple", [])),
+                str(d.get("title", "")).lower(),
+                str(d.get("slug", "")),
+            ),
+            reverse=True,
+        )
+        if not docs_sorted:
+            continue
+        latest = docs_sorted[0]
+        latest_slug = str(latest["slug"])
+
+        for idx, doc in enumerate(docs_sorted):
+            slug = str(doc["slug"])
+            newer = docs_sorted[:idx]
+            older = docs_sorted[idx + 1:]
+            relations[slug] = {
+                "family_key": family_key,
+                "latest_slug": latest_slug,
+                "is_latest": slug == latest_slug,
+                "newer": newer,
+                "older": older,
+            }
+    return relations
+
+
+def render_version_sections(relation: dict[str, object] | None) -> str:
+    if not relation:
+        return ""
+
+    pieces: list[str] = []
+
+    newer = relation.get("newer", [])
+    if newer:
+        newest = newer[0]
+        pieces.append(
+            '<section class="pse-discovery">'
+            '<h2>Version status</h2>'
+            '<ul class="pse-discovery-list">'
+            '<li class="pse-discovery-item">'
+            f'Newer version available: <a href="{safe_text(str(newest["html_path"]))}">{safe_text(str(newest["title"]))}</a>'
+            '</li>'
+            '</ul>'
+            '</section>'
+        )
+
+    older = relation.get("older", [])
+    if older:
+        links = []
+        for item in older[:3]:
+            links.append(
+                '<li class="pse-discovery-item">'
+                f'<a href="{safe_text(str(item["html_path"]))}">{safe_text(str(item["title"]))}</a>'
+                '</li>'
+            )
+        pieces.append(
+            '<section class="pse-discovery">'
+            '<h2>Older versions</h2>'
+            '<ul class="pse-discovery-list">'
+            + "".join(links) +
+            '</ul>'
+            '</section>'
+        )
+
+    return "".join(pieces)
+
+
 def explicit_reference_match(source_ctx: dict[str, object], target_ctx: dict[str, object]) -> bool:
     norm_text = str(source_ctx["norm_text"])
     title_phrase = str(target_ctx["title_phrase"])
@@ -844,17 +959,19 @@ def inject_discovery_sections(
     contexts: dict[str, dict[str, object]],
 ) -> None:
     discovery_sections = build_discovery_sections(metadata_index, contexts)
+    version_relations = build_version_relations(metadata_index)
 
     for item in metadata_index:
         source_slug = str(item["slug"])
         references_html, related_html = discovery_sections.get(source_slug, ("", ""))
+        version_html = render_version_sections(version_relations.get(source_slug))
 
         out_path = dist_root / str(item["content_type"]) / Path(source_slug) / "index.html"
         if not out_path.exists():
             continue
 
         html_text = out_path.read_text(encoding="utf-8")
-        html_text = inject_discovery_markup(html_text, references_html, related_html)
+        html_text = inject_discovery_markup(html_text, version_html + references_html, related_html)
         out_path.write_text(html_text, encoding="utf-8")
 
 
@@ -1027,9 +1144,37 @@ def render_sections(items: list[dict[str, str]], empty_label: str) -> str:
     return "\n".join(blocks)
 
 
-def render_index(entries: list[dict[str, str]]) -> str:
-    grouped: dict[str, list[dict[str, str]]] = {k: [] for k in CONTENT_TYPES}
+def latest_index_entries(entries: list[dict[str, str]]) -> list[dict[str, str]]:
+    family_buckets: dict[tuple[str, str], list[dict[str, str]]] = {}
+    passthrough: list[dict[str, str]] = []
+
     for entry in entries:
+        family_key, version, version_tuple = slug_family_info(entry["slug"])
+        if not family_key or not version_tuple:
+            passthrough.append(entry)
+            continue
+        family_buckets.setdefault((entry["type"], family_key), []).append(entry)
+
+    latest_only: list[dict[str, str]] = list(passthrough)
+    for (_type_name, _family_key), bucket in family_buckets.items():
+        bucket_sorted = sorted(
+            bucket,
+            key=lambda e: (
+                slug_family_info(e["slug"])[2],
+                e["title"].lower(),
+                e["slug"],
+            ),
+            reverse=True,
+        )
+        latest_only.append(bucket_sorted[0])
+
+    return latest_only
+
+
+def render_index(entries: list[dict[str, str]]) -> str:
+    visible_entries = latest_index_entries(entries)
+    grouped: dict[str, list[dict[str, str]]] = {k: [] for k in CONTENT_TYPES}
+    for entry in visible_entries:
         grouped[entry["type"]].append(entry)
 
     template = load_template("index.html")
