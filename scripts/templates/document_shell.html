@@ -123,21 +123,14 @@
       line-height: inherit !important;
     }
 
+    /* Important: do NOT force native list markers back on.
+       Google Docs exports often carry their own marker system. */
     .pse-doc-shell ul,
     .pse-doc-shell ol {
-      width: auto !important;
+      margin-top: 0 !important;
+      margin-bottom: 1.35rem !important;
+      padding-left: 1.25rem !important;
       max-width: 100% !important;
-      margin: 0 0 1.35rem 0 !important;
-      padding-left: 1.45em !important;
-      list-style-position: outside !important;
-    }
-
-    .pse-doc-shell ul {
-      list-style-type: disc !important;
-    }
-
-    .pse-doc-shell ol {
-      list-style-type: decimal !important;
     }
 
     .pse-doc-shell ul ul,
@@ -146,15 +139,13 @@
     .pse-doc-shell ol ol {
       margin-top: 0.45rem !important;
       margin-bottom: 0.6rem !important;
-      padding-left: 1.35em !important;
+      padding-left: 1.1rem !important;
     }
 
     .pse-doc-shell li {
-      display: list-item !important;
       width: auto !important;
       max-width: 100% !important;
       margin: 0.3rem 0 !important;
-      padding-left: 0 !important;
     }
 
     .pse-doc-shell li > p:last-child {
@@ -238,14 +229,14 @@
 
       .pse-doc-shell ul,
       .pse-doc-shell ol {
-        padding-left: 1.3em !important;
+        padding-left: 1.1rem !important;
       }
 
       .pse-doc-shell ul ul,
       .pse-doc-shell ul ol,
       .pse-doc-shell ol ul,
       .pse-doc-shell ol ol {
-        padding-left: 1.2em !important;
+        padding-left: 1rem !important;
       }
     }
   </style>
