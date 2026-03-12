@@ -528,8 +528,7 @@ def render_sections(items: list[dict[str, str]], empty_label: str) -> str:
 
     blocks: list[str] = []
     for group_name, group_items in grouped.items():
-        rendered_items = "
-".join(render_item_card(item) for item in group_items)
+        rendered_items = "\n".join(render_item_card(item) for item in group_items)
         blocks.append(
             '<section class="group-block">'
             f'<h3>{safe_text(group_name)}</h3>'
@@ -538,8 +537,7 @@ def render_sections(items: list[dict[str, str]], empty_label: str) -> str:
             '</ul>'
             '</section>'
         )
-    return "
-".join(blocks)
+    return "\n".join(blocks)
 
 
 def render_index(entries: list[dict[str, str]]) -> str:
