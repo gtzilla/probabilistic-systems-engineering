@@ -189,6 +189,26 @@ def refine_body_html(body_html: str) -> str:
         text = strip_tags(inner_html)
         return not text
 
+
+    def normalize_p_attrs(attrs: str) -> str:
+        class_match = re.search(r'class\s*=\s*"([^"]*)"', attrs, flags=re.IGNORECASE)
+        if not class_match:
+            return attrs
+
+        classes = [
+            c for c in class_match.group(1).split()
+            if not re.fullmatch(r"c\d+", c)
+        ]
+        if classes:
+            return re.sub(
+                r'class\s*=\s*"([^"]*)"',
+                'class="' + " ".join(classes) + '"',
+                attrs,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+        return re.sub(r'\s*class\s*=\s*"([^"]*)"', '', attrs, count=1, flags=re.IGNORECASE)
+
     paragraph_pattern = re.compile(r"<p\b(?P<attrs>[^>]*)>(?P<body>.*?)</p>", flags=re.IGNORECASE | re.DOTALL)
     pieces: list[dict[str, str | bool]] = []
     last_end = 0
@@ -197,7 +217,7 @@ def refine_body_html(body_html: str) -> str:
         if match.start() > last_end:
             pieces.append({"kind": "raw", "html": body_html[last_end:match.start()]})
 
-        attrs = match.group("attrs") or ""
+        attrs = normalize_p_attrs(match.group("attrs") or "")
         inner = match.group("body") or ""
         full = match.group(0)
         text = strip_tags(inner)
