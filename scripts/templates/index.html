@@ -59,6 +59,21 @@
       line-height: 1.55;
     }
 
+    .start-here {
+      margin-top: 1rem;
+      max-width: 48rem;
+      padding: 0.85rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--panel-soft);
+      font-size: 0.98rem;
+      line-height: 1.5;
+    }
+
+    .start-here strong {
+      color: var(--text);
+    }
+
     .hero-meta {
       margin-top: 0.9rem;
       color: var(--muted);
@@ -71,7 +86,7 @@
 
     .archive-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 1.35rem;
       align-items: start;
     }
@@ -203,6 +218,7 @@
     <header class="hero">
       <h1>{{SITE_NAME}}</h1>
       <p>{{HERO_TEXT}}</p>
+      <div class="start-here"><strong>Start here:</strong> {{START_HERE_TEXT}}</div>
       <div class="hero-meta">By {{AUTHOR_NAME}} · Primary archive: <a href="https://archive.gtzilla.com/">archive.gtzilla.com</a></div>
     </header>
 
@@ -210,6 +226,12 @@
       <section class="archive-section">
         <h2>Papers</h2>
         {{PAPERS_SECTIONS}}
+      </section>
+
+      <section class="archive-section">
+        <h2>Replication Materials</h2>
+        <p class="empty-state" style="margin: 0 0 1rem;">Operational materials for reproducing the experiments and running the methodology. Start with Program Spine for orientation.</p>
+        {{REPLICATION_SECTIONS}}
       </section>
 
       <section class="archive-section">

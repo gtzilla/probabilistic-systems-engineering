@@ -19,7 +19,7 @@ INCOMING = ROOT / "incoming"
 DIST = ROOT / "dist"
 TEMPLATES = ROOT / "scripts" / "templates"
 SITE_NAME = "Probabilistic Systems Engineering"
-CONTENT_TYPES = ["papers", "contracts"]
+CONTENT_TYPES = ["papers", "contracts", "replication"]
 
 
 def fail(msg: str) -> None:
@@ -613,8 +613,12 @@ def render_index(entries: list[dict[str, str]]) -> str:
             "HERO_TEXT": safe_text(
                 "Research archive on probabilistic systems, contract-centered engineering, iterative stability, and authority in AI-assisted development."
             ),
+            "START_HERE_TEXT": safe_text(
+                "New here? Start with Is This Engineering for context, then Contract-Centered Engineering v2.16 for the core argument."
+            ),
             "PAPERS_SECTIONS": render_sections(grouped["papers"], "No papers yet."),
             "CONTRACTS_SECTIONS": render_sections(grouped["contracts"], "No contracts yet."),
+            "REPLICATION_SECTIONS": render_sections(grouped["replication"], "No replication materials yet."),
         },
     )
 

@@ -6,6 +6,7 @@ on:
     paths:
       - 'incoming/papers/**'
       - 'incoming/contracts/**'
+      - 'incoming/replication/**'
       - 'contracts/**'
       - 'scripts/**'
       - '.github/workflows/**'

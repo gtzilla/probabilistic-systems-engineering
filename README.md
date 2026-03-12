@@ -10,12 +10,13 @@ Use the live archive for reading and sharing:
 
 - https://archive.gtzilla.com/
 
-The site includes published papers and contracts related to:
+The site includes published papers, contracts, and replication materials related to:
 
 - probabilistic systems engineering
 - contract-centered engineering
 - iterative stability
 - context injection research
+- replication materials and operational artifacts
 - authority and variance in AI-assisted development
 
 ## Repository role
