@@ -1,7 +1,0 @@
-{
-  "schema_version": "2.3.1",
-  "source_path": "papers/context-injection-research-program/thesis-v1.1.pdf",
-  "root_id": "papers",
-  "pdf_sha256": "917a7d9ad4235eefbde7a128d7aa7472e94f17c59a87e656a032d673cff4e0e0",
-  "engine_id": "ubuntu-24.04+pymupdf+pandoc-3.9-gfm"
-}
