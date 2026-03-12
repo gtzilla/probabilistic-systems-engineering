@@ -498,20 +498,32 @@ def humanize_slug(slug: str) -> str:
 def split_group_and_leaf(slug: str) -> tuple[str, str]:
     parts = [p for p in slug.split("/") if p]
     if len(parts) <= 1:
-        return ("Independent Documents", slug)
+        return ("", slug)
     return (humanize_slug(parts[0]), parts[-1])
 
 
 def render_item_card(item: dict[str, str]) -> str:
     is_pdf_only = item.get("pdf_only") == "true"
+    primary_href = item.get("url") if (not is_pdf_only and item.get("url")) else item.get("pdf_url", "")
+
     actions: list[str] = []
     if not is_pdf_only and item.get("url"):
         actions.append(f'<a class="item-action" href="{safe_text(item["url"])}">Read</a>')
     actions.append(f'<a class="item-action" href="{safe_text(item["pdf_url"])}">PDF</a>')
     meta = " · ".join(actions)
+
+    if primary_href:
+        title_html = (
+            f'<a class="item-title-link" href="{safe_text(primary_href)}">'
+            f'{safe_text(item["title"])}'
+            '</a>'
+        )
+    else:
+        title_html = safe_text(item["title"])
+
     return (
         '<li class="archive-item">'
-        f'<div class="item-title">{safe_text(item["title"])}</div>'
+        f'<div class="item-title">{title_html}</div>'
         f'<div class="item-actions">{meta}</div>'
         '</li>'
     )
@@ -529,9 +541,10 @@ def render_sections(items: list[dict[str, str]], empty_label: str) -> str:
     blocks: list[str] = []
     for group_name, group_items in grouped.items():
         rendered_items = "\n".join(render_item_card(item) for item in group_items)
+        heading_html = f'<h3>{safe_text(group_name)}</h3>' if group_name else ''
         blocks.append(
             '<section class="group-block">'
-            f'<h3>{safe_text(group_name)}</h3>'
+            f'{heading_html}'
             '<ul class="archive-list">'
             f'{rendered_items}'
             '</ul>'
