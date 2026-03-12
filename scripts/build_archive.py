@@ -698,13 +698,13 @@ def inject_discovery_markup(html_text: str, references_html: str, related_html: 
     if not discovery_html:
         return html_text
 
-    marker = '<footer class="pse-footer">'
-    if marker in html_text:
-        return html_text.replace(marker, discovery_html + "\n  " + marker, 1)
-
     marker = "</main>"
     if marker in html_text:
         return html_text.replace(marker, discovery_html + "\n  </main>", 1)
+
+    marker = '<footer class="pse-footer">'
+    if marker in html_text:
+        return html_text.replace(marker, discovery_html + "\n  " + marker, 1)
 
     return html_text + discovery_html
 
