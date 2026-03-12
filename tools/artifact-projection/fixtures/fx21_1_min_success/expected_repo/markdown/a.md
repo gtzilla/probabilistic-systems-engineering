@@ -1,3 +1,0 @@
-# a.pdf
-
-Fixture projection.
