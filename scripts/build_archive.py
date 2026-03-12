@@ -149,6 +149,33 @@ def extract_body_inner_html(raw_html: str) -> str:
 
 
 def refine_body_html(body_html: str) -> str:
+    def normalize_li_classes(match: re.Match[str]) -> str:
+        attrs = match.group("attrs") or ""
+        class_match = re.search(r'class\s*=\s*"([^"]*)"', attrs, flags=re.IGNORECASE)
+        if not class_match:
+            return match.group(0)
+
+        classes = [c for c in class_match.group(1).split() if not re.fullmatch(r"c\d+", c)]
+        if classes:
+            new_attrs = re.sub(
+                r'class\s*=\s*"([^"]*)"',
+                'class="' + " ".join(classes) + '"',
+                attrs,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+        else:
+            new_attrs = re.sub(r'\s*class\s*=\s*"([^"]*)"', '', attrs, count=1, flags=re.IGNORECASE)
+
+        return f"<li{new_attrs}>"
+
+    body_html = re.sub(
+        r"<li\b(?P<attrs>[^>]*)>",
+        normalize_li_classes,
+        body_html,
+        flags=re.IGNORECASE,
+    )
+
     def strip_tags(raw: str) -> str:
         text = re.sub(r"<[^>]+>", " ", raw)
         return html.unescape(re.sub(r"\s+", " ", text)).strip()
