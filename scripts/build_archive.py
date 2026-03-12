@@ -19,6 +19,7 @@ INCOMING = ROOT / "incoming"
 DIST = ROOT / "dist"
 TEMPLATES = ROOT / "scripts" / "templates"
 SITE_NAME = "Probabilistic Systems Engineering"
+SITE_URL = "https://archive.gtzilla.com"
 CONTENT_TYPES = ["papers", "contracts", "replication"]
 
 
@@ -50,6 +51,152 @@ def render_template(template: str, values: dict[str, str]) -> str:
     for key, value in values.items():
         out = out.replace(f"{{{{{key}}}}}", value)
     return out
+
+
+def safe_json(value: object) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def strip_tags_to_text(raw: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", raw)
+    return html.unescape(re.sub(r"\s+", " ", text)).strip()
+
+
+def extract_candidate_paragraph_texts(body_html: str) -> list[str]:
+    paragraphs: list[str] = []
+    for match in re.finditer(r"<p\b[^>]*>(.*?)</p>", body_html, flags=re.IGNORECASE | re.DOTALL):
+        inner = match.group(1)
+        if re.search(r"<(img|svg|table|hr)\b", inner, flags=re.IGNORECASE):
+            continue
+        text = strip_tags_to_text(inner)
+        if not text:
+            continue
+        paragraphs.append(text)
+    return paragraphs
+
+
+def detect_version(text: str) -> str:
+    match = re.search(r"\bv\d+(?:\.\d+)*\b", text, flags=re.IGNORECASE)
+    return match.group(0) if match else ""
+
+
+def estimate_reading_time_minutes(text: str) -> int:
+    words = len(re.findall(r"\S+", text))
+    if words <= 0:
+        return 1
+    return max(1, (words + 219) // 220)
+
+
+def metadata_kind_for_type(type_name: str) -> tuple[str, str]:
+    if type_name == "papers":
+        return ("paper", "ScholarlyArticle")
+    if type_name == "contracts":
+        return ("contract", "TechArticle")
+    if type_name == "replication":
+        return ("replication-material", "TechArticle")
+    return (type_name, "CreativeWork")
+
+
+def derive_document_metadata(type_name: str, slug: str, doc_title: str, pdf_name: str, body_html: str) -> dict[str, object]:
+    paragraphs = extract_candidate_paragraph_texts(body_html)
+    abstract = ""
+    for paragraph in paragraphs:
+        if len(paragraph) >= 80:
+            abstract = paragraph
+            break
+    if not abstract and paragraphs:
+        abstract = paragraphs[0]
+    if len(abstract) > 320:
+        abstract = abstract[:317].rstrip() + "..."
+
+    full_text = " ".join(paragraphs)
+    kind, schema_type = metadata_kind_for_type(type_name)
+    version = detect_version(doc_title)
+    slug_parts = [part for part in slug.split("/") if part]
+    group_key = slug_parts[0] if len(slug_parts) > 1 else ""
+    html_path = f"/{type_name}/{slug}/"
+    pdf_path = f"/{type_name}/{slug}/{pdf_name}"
+
+    metadata: dict[str, object] = {
+        "kind": kind,
+        "schema_type": schema_type,
+        "content_type": type_name,
+        "slug": slug,
+        "title": doc_title,
+        "author": "Gregory Tomlinson",
+        "html_path": html_path,
+        "html_url": f"{SITE_URL}{html_path}",
+        "pdf_path": pdf_path,
+        "pdf_url": f"{SITE_URL}{pdf_path}",
+        "group_key": group_key,
+        "version": version,
+        "description": abstract or f"{doc_title} — published in {SITE_NAME}.",
+        "word_count": len(re.findall(r"\S+", full_text)),
+        "reading_time_minutes": estimate_reading_time_minutes(full_text),
+    }
+    return metadata
+
+
+def build_structured_data(metadata: dict[str, object]) -> str:
+    payload = {
+        "@context": "https://schema.org",
+        "@type": metadata["schema_type"],
+        "name": metadata["title"],
+        "headline": metadata["title"],
+        "author": {
+            "@type": "Person",
+            "name": metadata["author"],
+        },
+        "description": metadata["description"],
+        "url": metadata["html_url"],
+        "mainEntityOfPage": metadata["html_url"],
+        "encoding": {
+            "@type": "MediaObject",
+            "contentUrl": metadata["pdf_url"],
+            "encodingFormat": "application/pdf",
+            "name": metadata["pdf_url"].rsplit("/", 1)[-1],
+        },
+        "isAccessibleForFree": True,
+        "keywords": [metadata["content_type"], metadata["kind"]],
+        "timeRequired": f"PT{metadata['reading_time_minutes']}M",
+    }
+    if metadata.get("version"):
+        payload["version"] = metadata["version"]
+    if metadata.get("group_key"):
+        payload["isPartOf"] = {
+            "@type": "CreativeWorkSeries",
+            "name": str(metadata["group_key"]).replace("-", " ").title(),
+        }
+    return safe_json(payload)
+
+
+def write_site_metadata_index(dist_root: Path, entries: list[dict[str, str]], metadata_index: list[dict[str, object]]) -> None:
+    payload = {
+        "site": SITE_NAME,
+        "site_url": SITE_URL,
+        "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "documents": metadata_index,
+    }
+    metadata_dir = dist_root / "metadata"
+    metadata_dir.mkdir(parents=True, exist_ok=True)
+    (metadata_dir / "documents.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def write_sitemap(dist_root: Path, entries: list[dict[str, str]]) -> None:
+    urls = [f"{SITE_URL}/"]
+    for entry in entries:
+        if entry.get("url"):
+            urls.append(f"{SITE_URL}/{entry['url'].lstrip('./')}")
+    xml = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+    for url in urls:
+        xml.append('  <url>')
+        xml.append(f'    <loc>{safe_text(url)}</loc>')
+        xml.append('  </url>')
+    xml.append('</urlset>')
+    (dist_root / 'sitemap.xml').write_text("\n".join(xml) + "\n", encoding='utf-8')
 
 
 def normalize_exported_html(raw_html: str) -> str:
@@ -374,7 +521,7 @@ def refine_body_html(body_html: str) -> str:
     return "".join(out)
 
 
-def render_document_page(raw_html: str, pdf_href: str, doc_title: str) -> str:
+def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata: dict[str, object]) -> str:
     normalized = normalize_exported_html(raw_html)
     exported_styles = extract_head_styles(normalized)
     body_html = refine_body_html(extract_body_inner_html(normalized))
@@ -384,10 +531,12 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str) -> str:
         template,
         {
             "PAGE_TITLE": safe_text(f"{doc_title} | {SITE_NAME}"),
-            "PAGE_DESCRIPTION": safe_text(f"{doc_title} — published in {SITE_NAME}."),
+            "PAGE_DESCRIPTION": safe_text(str(metadata["description"])),
             "SITE_NAME": safe_text(SITE_NAME),
             "HOME_HREF": "../../",
             "PDF_HREF": safe_text(pdf_href),
+            "CANONICAL_URL": safe_text(str(metadata["html_url"])),
+            "STRUCTURED_DATA_JSON": build_structured_data(metadata),
             "EXPORTED_STYLES": exported_styles,
             "DOCUMENT_BODY": body_html,
         },
@@ -441,7 +590,7 @@ def discover_doc_dirs(type_root: Path) -> list[tuple[Path, str]]:
     return sorted(docs, key=lambda item: item[1])
 
 
-def build_doc(type_name: str, doc_dir: Path, relative_slug: str, tmp_root: Path) -> dict[str, str]:
+def build_doc(type_name: str, doc_dir: Path, relative_slug: str, tmp_root: Path) -> tuple[dict[str, str], dict[str, object]]:
     slug = relative_slug
     pdf = find_exactly_one(doc_dir, "*.pdf", "PDF")
     zf = find_exactly_one(doc_dir, "*.zip", "ZIP")
@@ -473,18 +622,21 @@ def build_doc(type_name: str, doc_dir: Path, relative_slug: str, tmp_root: Path)
     pdf_href = pdf.name
     doc_title = pdf.stem
     raw_html = source_html.read_text(encoding="utf-8")
-    wrapped_html = render_document_page(raw_html, pdf_href, doc_title)
+    normalized = normalize_exported_html(raw_html)
+    body_html = refine_body_html(extract_body_inner_html(normalized))
+    metadata = derive_document_metadata(type_name, relative_slug, doc_title, pdf.name, body_html)
+    wrapped_html = render_document_page(raw_html, pdf_href, doc_title, metadata)
     (out_dir / "index.html").write_text(wrapped_html, encoding="utf-8")
     shutil.copy2(pdf, out_dir / pdf.name)
 
-    return {
+    return ({
         "type": type_name,
         "slug": slug,
         "pdf_name": pdf.name,
         "title": pdf.stem,
         "url": f"./{type_name}/{slug}/",
         "pdf_url": f"./{type_name}/{slug}/{pdf.name}",
-    }
+    }, metadata)
 
 
 def collect_pdf_only_contract_entries(entries: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -633,6 +785,7 @@ def main() -> int:
     tmp_root.mkdir(parents=True, exist_ok=True)
 
     entries: list[dict[str, str]] = []
+    metadata_index: list[dict[str, object]] = []
     try:
         for type_name in CONTENT_TYPES:
             type_root = INCOMING / type_name
@@ -642,11 +795,15 @@ def main() -> int:
                 fail(f"{type_root} exists but is not a directory")
 
             for doc_dir, relative_slug in discover_doc_dirs(type_root):
-                entries.append(build_doc(type_name, doc_dir, relative_slug, tmp_root))
+                entry, metadata = build_doc(type_name, doc_dir, relative_slug, tmp_root)
+                entries.append(entry)
+                metadata_index.append(metadata)
 
         entries = collect_pdf_only_contract_entries(entries)
 
         (DIST / "index.html").write_text(render_index(entries), encoding="utf-8")
+        write_site_metadata_index(DIST, entries, metadata_index)
+        write_sitemap(DIST, entries)
         write_build_manifest(DIST)
         print(f"Built archive into {DIST}")
         return 0
