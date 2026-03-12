@@ -247,6 +247,33 @@ def refine_body_html(body_html: str) -> str:
         if piece.get("kind") == "p" and not piece.get("is_empty")
     ]
 
+
+    title_piece_indexes = [
+        idx
+        for idx, piece in enumerate(pieces)
+        if piece.get("kind") == "p" and "title" in set(piece.get("class_list", []))
+    ]
+
+    canonical_title_text = ""
+    non_empty_title_texts = [
+        str(pieces[idx].get("text", "")).strip()
+        for idx in title_piece_indexes
+        if str(pieces[idx].get("text", "")).strip()
+    ]
+    if non_empty_title_texts:
+        counts = Counter(non_empty_title_texts)
+        canonical_title_text = sorted(
+            counts.items(),
+            key=lambda item: (-item[1], -len(item[0]), item[0].lower()),
+        )[0][0]
+
+    title_indexes_to_keep: set[int] = set()
+    if canonical_title_text:
+        for idx in title_piece_indexes:
+            if str(pieces[idx].get("text", "")).strip() == canonical_title_text:
+                title_indexes_to_keep.add(idx)
+                break
+
     def add_class(attrs: str, class_name: str) -> str:
         class_match = re.search(r'class\s*=\s*"([^"]*)"', attrs, flags=re.IGNORECASE)
         if class_match:
@@ -316,6 +343,10 @@ def refine_body_html(body_html: str) -> str:
             continue
 
         if piece.get("is_empty"):
+            continue
+
+        class_list = set(piece.get("class_list", []))
+        if "title" in class_list and idx not in title_indexes_to_keep:
             continue
 
         attrs = str(piece.get("attrs", ""))
