@@ -374,12 +374,33 @@ def write_build_manifest(dist_root: Path) -> None:
 
 
 
-def build_doc(type_name: str, slug_dir: Path, tmp_root: Path) -> dict[str, str]:
-    slug = slug_dir.name
-    pdf = find_exactly_one(slug_dir, "*.pdf", "PDF")
-    zf = find_exactly_one(slug_dir, "*.zip", "ZIP")
+def discover_doc_dirs(type_root: Path) -> list[tuple[Path, str]]:
+    docs: list[tuple[Path, str]] = []
 
-    extract_dir = tmp_root / type_name / slug
+    for dirpath, dirnames, filenames in os.walk(type_root):
+        current = Path(dirpath)
+        dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
+        files = [name for name in filenames if not name.startswith(".")]
+        pdfs = [name for name in files if name.lower().endswith(".pdf")]
+        zips = [name for name in files if name.lower().endswith(".zip")]
+
+        if pdfs or zips:
+            if len(pdfs) != 1:
+                fail(f"{current}: expected exactly one PDF matching *.pdf, found {len(pdfs)}")
+            if len(zips) != 1:
+                fail(f"{current}: expected exactly one ZIP matching *.zip, found {len(zips)}")
+            docs.append((current, current.relative_to(type_root).as_posix()))
+            dirnames[:] = []
+
+    return sorted(docs, key=lambda item: item[1])
+
+
+def build_doc(type_name: str, doc_dir: Path, relative_slug: str, tmp_root: Path) -> dict[str, str]:
+    slug = relative_slug
+    pdf = find_exactly_one(doc_dir, "*.pdf", "PDF")
+    zf = find_exactly_one(doc_dir, "*.zip", "ZIP")
+
+    extract_dir = tmp_root / type_name / Path(relative_slug)
     extract_dir.mkdir(parents=True, exist_ok=True)
 
     with zipfile.ZipFile(zf) as z:
@@ -387,10 +408,10 @@ def build_doc(type_name: str, slug_dir: Path, tmp_root: Path) -> dict[str, str]:
 
     html_files = sorted(p for p in extract_dir.rglob("*.html") if p.is_file())
     if len(html_files) != 1:
-        fail(f"{slug_dir}: expected exactly one HTML file after extraction, found {len(html_files)}")
+        fail(f"{doc_dir}: expected exactly one HTML file after extraction, found {len(html_files)}")
 
     source_html = html_files[0]
-    out_dir = DIST / type_name / slug
+    out_dir = DIST / type_name / Path(relative_slug)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Copy extracted assets/files except the source HTML itself.
@@ -514,8 +535,8 @@ def main() -> int:
             if not type_root.is_dir():
                 fail(f"{type_root} exists but is not a directory")
 
-            for slug_dir in sorted(p for p in type_root.iterdir() if p.is_dir()):
-                entries.append(build_doc(type_name, slug_dir, tmp_root))
+            for doc_dir, relative_slug in discover_doc_dirs(type_root):
+                entries.append(build_doc(type_name, doc_dir, relative_slug, tmp_root))
 
         entries = collect_pdf_only_contract_entries(entries)
 
