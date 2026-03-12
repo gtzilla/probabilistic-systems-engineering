@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+from collections import Counter
+
 import hashlib
 import html
 import json
