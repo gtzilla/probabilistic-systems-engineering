@@ -7,6 +7,7 @@ on:
       - 'incoming/papers/**'
       - 'incoming/contracts/**'
       - 'contracts/**'
+      - 'papers/**'
       - 'scripts/**'
       - '.github/workflows/**'
   schedule:
@@ -14,7 +15,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -79,6 +80,22 @@ jobs:
       - name: Build archive
         if: steps.should_deploy.outputs.should_deploy == 'true'
         run: python scripts/build_archive.py
+
+      - name: Commit durable PDF artifacts
+        if: steps.should_deploy.outputs.should_deploy == 'true' && github.event_name != 'schedule'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add papers contracts
+
+          if git diff --cached --quiet; then
+            echo "No durable PDF artifact changes to commit."
+          else
+            git commit -m "Persist durable PDF artifacts"
+            git push
+          fi
 
       - name: Configure Pages
         if: steps.should_deploy.outputs.should_deploy == 'true'
