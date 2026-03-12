@@ -9,11 +9,11 @@
       --text: #111111;
       --muted: #6b7280;
       --border: #e5e7eb;
-      --link: #1f2937;
+      --link: #111827;
       --bg: #ffffff;
       --panel: #ffffff;
       --panel-soft: #fcfcfd;
-      --shadow: 0 8px 30px rgba(17, 24, 39, 0.05);
+      --shadow: 0 10px 28px rgba(17, 24, 39, 0.04);
     }
 
     html, body {
@@ -32,14 +32,14 @@
 
     .page {
       width: 100%;
-      max-width: 72rem;
+      max-width: 76rem;
       margin: 0 auto;
       padding: 2.75rem 1.25rem 4rem;
       box-sizing: border-box;
     }
 
     .hero {
-      margin-bottom: 2.1rem;
+      margin-bottom: 2rem;
       padding-bottom: 1.25rem;
       border-bottom: 1px solid var(--border);
     }
@@ -53,10 +53,20 @@
 
     .hero p {
       margin: 0;
-      max-width: 44rem;
+      max-width: 48rem;
       color: var(--muted);
       font-size: 1.06rem;
       line-height: 1.55;
+    }
+
+    .hero-meta {
+      margin-top: 0.9rem;
+      color: var(--muted);
+      font-size: 0.98rem;
+    }
+
+    .hero-meta a {
+      color: inherit;
     }
 
     .archive-grid {
@@ -75,37 +85,68 @@
     }
 
     .archive-section h2 {
-      margin: 0 0 0.9rem;
+      margin: 0 0 1rem;
       font-size: 1.3rem;
       line-height: 1.2;
       letter-spacing: -0.02em;
     }
 
-    ul {
+    .group-block + .group-block {
+      margin-top: 1.25rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .group-block h3 {
+      margin: 0 0 0.7rem;
+      font-size: 0.96rem;
+      line-height: 1.25;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+
+    .archive-list {
       list-style: none;
       margin: 0;
       padding: 0;
     }
 
-    li {
+    .archive-item {
       margin: 0;
-      padding: 0.9rem 0;
+      padding: 0.85rem 0;
       border-top: 1px solid var(--border);
       line-height: 1.5;
     }
 
-    li:first-child {
+    .archive-item:first-child {
       border-top: 0;
       padding-top: 0.1rem;
     }
 
-    a {
+    .item-title {
+      font-size: 1rem;
+      line-height: 1.45;
+    }
+
+    .item-actions {
+      margin-top: 0.32rem;
+      font-size: 0.94rem;
+      color: var(--muted);
+    }
+
+    .item-action {
       color: var(--link);
       text-decoration: none;
     }
 
-    a:hover {
+    .item-action:hover {
       text-decoration: underline;
+    }
+
+    .empty-state {
+      color: var(--muted);
+      font-size: 0.98rem;
     }
 
     @media (max-width: 900px) {
@@ -142,7 +183,7 @@
         border-radius: 18px;
       }
 
-      li {
+      .archive-item {
         padding: 0.95rem 0;
       }
     }
@@ -152,22 +193,19 @@
   <main class="page">
     <header class="hero">
       <h1>{{SITE_NAME}}</h1>
-      <p>Archive listing for papers and contracts.</p>
+      <p>{{HERO_TEXT}}</p>
+      <div class="hero-meta">By {{AUTHOR_NAME}} · Primary archive: <a href="https://archive.gtzilla.com/">archive.gtzilla.com</a></div>
     </header>
 
     <div class="archive-grid">
       <section class="archive-section">
         <h2>Papers</h2>
-        <ul>
-          {{PAPERS_LIST}}
-        </ul>
+        {{PAPERS_SECTIONS}}
       </section>
 
       <section class="archive-section">
         <h2>Contracts</h2>
-        <ul>
-          {{CONTRACTS_LIST}}
-        </ul>
+        {{CONTRACTS_SECTIONS}}
       </section>
     </div>
   </main>

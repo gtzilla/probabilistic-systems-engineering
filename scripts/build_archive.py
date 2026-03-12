@@ -484,20 +484,62 @@ def collect_pdf_only_contract_entries(entries: list[dict[str, str]]) -> list[dic
     return entries
 
 
-def render_group(label: str, items: list[dict[str, str]]) -> str:
-    lis = []
-    for item in sorted(items, key=lambda x: x["title"].lower()):
-        is_pdf_only = item.get("pdf_only") == "true"
-        if is_pdf_only:
-            lis.append(
-                f'<li>{safe_text(item["title"])} — <a href="{safe_text(item["pdf_url"])}">PDF</a></li>'
-            )
+def humanize_slug(slug: str) -> str:
+    parts = [part for part in slug.split("-") if part]
+    out: list[str] = []
+    for part in parts:
+        if re.fullmatch(r"v\d+(?:\.\d+)*", part, flags=re.IGNORECASE):
+            out.append(part)
         else:
-            lis.append(
-                f'<li><a href="{safe_text(item["url"])}">{safe_text(item["title"])}</a>'
-                f' — <a href="{safe_text(item["pdf_url"])}">PDF</a></li>'
-            )
-    return "\n".join(lis) if lis else "<li>None yet.</li>"
+            out.append(part.capitalize())
+    return " ".join(out) if out else slug
+
+
+def split_group_and_leaf(slug: str) -> tuple[str, str]:
+    parts = [p for p in slug.split("/") if p]
+    if len(parts) <= 1:
+        return ("Independent Documents", slug)
+    return (humanize_slug(parts[0]), parts[-1])
+
+
+def render_item_card(item: dict[str, str]) -> str:
+    is_pdf_only = item.get("pdf_only") == "true"
+    actions: list[str] = []
+    if not is_pdf_only and item.get("url"):
+        actions.append(f'<a class="item-action" href="{safe_text(item["url"])}">Read</a>')
+    actions.append(f'<a class="item-action" href="{safe_text(item["pdf_url"])}">PDF</a>')
+    meta = " · ".join(actions)
+    return (
+        '<li class="archive-item">'
+        f'<div class="item-title">{safe_text(item["title"])}</div>'
+        f'<div class="item-actions">{meta}</div>'
+        '</li>'
+    )
+
+
+def render_sections(items: list[dict[str, str]], empty_label: str) -> str:
+    if not items:
+        return f'<div class="empty-state">{safe_text(empty_label)}</div>'
+
+    grouped: dict[str, list[dict[str, str]]] = {}
+    for item in sorted(items, key=lambda x: x["title"].lower()):
+        group_name, _leaf = split_group_and_leaf(item["slug"])
+        grouped.setdefault(group_name, []).append(item)
+
+    blocks: list[str] = []
+    for group_name, group_items in grouped.items():
+        rendered_items = "
+".join(render_item_card(item) for item in group_items)
+        blocks.append(
+            '<section class="group-block">'
+            f'<h3>{safe_text(group_name)}</h3>'
+            '<ul class="archive-list">'
+            f'{rendered_items}'
+            '</ul>'
+            '</section>'
+        )
+    return "
+".join(blocks)
 
 
 def render_index(entries: list[dict[str, str]]) -> str:
@@ -510,11 +552,14 @@ def render_index(entries: list[dict[str, str]]) -> str:
         template,
         {
             "SITE_NAME": safe_text(SITE_NAME),
-            "PAPERS_LIST": render_group("Papers", grouped["papers"]),
-            "CONTRACTS_LIST": render_group("Contracts", grouped["contracts"]),
+            "AUTHOR_NAME": safe_text("Gregory Tomlinson"),
+            "HERO_TEXT": safe_text(
+                "Research archive on probabilistic systems, contract-centered engineering, iterative stability, and authority in AI-assisted development."
+            ),
+            "PAPERS_SECTIONS": render_sections(grouped["papers"], "No papers yet."),
+            "CONTRACTS_SECTIONS": render_sections(grouped["contracts"], "No contracts yet."),
         },
     )
-
 
 def main() -> int:
     if DIST.exists():
