@@ -86,9 +86,13 @@
 
     .archive-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 1.35rem;
       align-items: start;
+    }
+
+    .archive-grid-bottom {
+      margin-top: 1.35rem;
     }
 
     .archive-section {
@@ -229,14 +233,16 @@
       </section>
 
       <section class="archive-section">
+        <h2>Contracts</h2>
+        {{CONTRACTS_SECTIONS}}
+      </section>
+    </div>
+
+    <div class="archive-grid archive-grid-bottom">
+      <section class="archive-section">
         <h2>Replication Materials</h2>
         <p class="empty-state" style="margin: 0 0 1rem;">Operational materials for reproducing the experiments and running the methodology. Start with Program Spine for orientation.</p>
         {{REPLICATION_SECTIONS}}
-      </section>
-
-      <section class="archive-section">
-        <h2>Contracts</h2>
-        {{CONTRACTS_SECTIONS}}
       </section>
     </div>
   </main>
