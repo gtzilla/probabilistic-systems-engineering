@@ -247,32 +247,54 @@ def refine_body_html(body_html: str) -> str:
         if piece.get("kind") == "p" and not piece.get("is_empty")
     ]
 
+    def add_class(attrs: str, class_name: str) -> str:
+        class_match = re.search(r'class\s*=\s*"([^"]*)"', attrs, flags=re.IGNORECASE)
+        if class_match:
+            classes = class_match.group(1).split()
+            if class_name not in classes:
+                classes.append(class_name)
+            return re.sub(
+                r'class\s*=\s*"([^"]*)"',
+                'class="' + " ".join(classes) + '"',
+                attrs,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+        return f'{attrs} class="{class_name}"'
+
     callout_indexes: set[int] = set()
+    lead_in_indexes: set[int] = set()
+    compact_indexes: set[int] = set()
+
     for pos, idx in enumerate(visible_paragraph_indexes):
         piece = pieces[idx]
         text = str(piece.get("text", ""))
         class_list = set(piece.get("class_list", []))
-        if len(text) < 110 or len(text) > 420:
-            continue
         if piece.get("has_structural"):
             continue
         if {"title", "subtitle", "pse-callout"} & class_list:
             continue
-        if pos == 0:
+
+        if text.endswith(":") and len(text) <= 140 and pos + 1 < len(visible_paragraph_indexes):
+            lead_in_indexes.add(idx)
             continue
 
-        prev_piece = pieces[visible_paragraph_indexes[pos - 1]]
-        prev_text = str(prev_piece.get("text", ""))
-        if not prev_text.endswith(":"):
-            continue
+        if 110 <= len(text) <= 420 and pos > 0:
+            prev_piece = pieces[visible_paragraph_indexes[pos - 1]]
+            prev_text = str(prev_piece.get("text", ""))
+            if prev_text.endswith(":"):
+                if pos + 1 < len(visible_paragraph_indexes):
+                    next_piece = pieces[visible_paragraph_indexes[pos + 1]]
+                    next_text = str(next_piece.get("text", ""))
+                    if not next_text.endswith(":"):
+                        callout_indexes.add(idx)
+                        continue
+                else:
+                    callout_indexes.add(idx)
+                    continue
 
-        if pos + 1 < len(visible_paragraph_indexes):
-            next_piece = pieces[visible_paragraph_indexes[pos + 1]]
-            next_text = str(next_piece.get("text", ""))
-            if next_text.endswith(":"):
-                continue
-
-        callout_indexes.add(idx)
+        if len(text) <= 95:
+            compact_indexes.add(idx)
 
     out: list[str] = []
     for idx, piece in enumerate(pieces):
@@ -283,27 +305,25 @@ def refine_body_html(body_html: str) -> str:
         if piece.get("is_empty"):
             continue
 
+        attrs = str(piece.get("attrs", ""))
+        inner = str(piece.get("inner", ""))
+
         if idx in callout_indexes:
-            attrs = str(piece.get("attrs", ""))
-            inner = str(piece.get("inner", ""))
-            class_match = re.search(r'class\s*=\s*"([^"]*)"', attrs, flags=re.IGNORECASE)
-            if class_match:
-                classes = class_match.group(1).split()
-                if "pse-callout" not in classes:
-                    classes.append("pse-callout")
-                attrs = re.sub(
-                    r'class\s*=\s*"([^"]*)"',
-                    'class="' + " ".join(classes) + '"',
-                    attrs,
-                    count=1,
-                    flags=re.IGNORECASE,
-                )
-            else:
-                attrs = f'{attrs} class="pse-callout"'
+            attrs = add_class(attrs, "pse-callout")
             out.append(f"<p{attrs}>{inner}</p>")
             continue
 
-        out.append(str(piece.get("html", "")))
+        if idx in lead_in_indexes:
+            attrs = add_class(attrs, "pse-lead-in")
+            out.append(f"<p{attrs}>{inner}</p>")
+            continue
+
+        if idx in compact_indexes:
+            attrs = add_class(attrs, "pse-compact")
+            out.append(f"<p{attrs}>{inner}</p>")
+            continue
+
+        out.append(f"<p{attrs}>{inner}</p>")
 
     return "".join(out)
 
