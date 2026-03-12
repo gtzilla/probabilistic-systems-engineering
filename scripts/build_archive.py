@@ -149,51 +149,116 @@ def extract_body_inner_html(raw_html: str) -> str:
 
 
 def refine_body_html(body_html: str) -> str:
-    from bs4 import BeautifulSoup
+    def strip_tags(raw: str) -> str:
+        text = re.sub(r"<[^>]+>", " ", raw)
+        return html.unescape(re.sub(r"\s+", " ", text)).strip()
 
-    soup = BeautifulSoup(f'<div id="__pse_root__">{body_html}</div>', 'html.parser')
-    root = soup.find(id='__pse_root__')
-    if root is None:
-        return body_html
+    def has_structural_content(raw: str) -> bool:
+        return bool(re.search(r"<(img|svg|table|hr)\b", raw, flags=re.IGNORECASE))
 
-    def visible_text(node) -> str:
-        return html.unescape(node.get_text(' ', strip=True)).strip()
+    def is_empty_paragraph(inner_html: str) -> bool:
+        if has_structural_content(inner_html):
+            return False
+        text = strip_tags(inner_html)
+        return not text
 
-    # Remove empty spacer paragraphs emitted by Google Docs export.
-    for p in list(root.find_all('p')):
-        if visible_text(p):
-            continue
-        if p.find(['img', 'svg', 'table', 'hr']):
-            continue
-        p.decompose()
+    paragraph_pattern = re.compile(r"<p\b(?P<attrs>[^>]*)>(?P<body>.*?)</p>", flags=re.IGNORECASE | re.DOTALL)
+    pieces: list[dict[str, str | bool]] = []
+    last_end = 0
 
-    # Mark isolated thesis / claim paragraphs that follow a lead-in ending in ':'.
-    paragraphs = [p for p in root.find_all('p') if visible_text(p)]
-    for idx, p in enumerate(paragraphs):
-        text = visible_text(p)
+    for match in paragraph_pattern.finditer(body_html):
+        if match.start() > last_end:
+            pieces.append({"kind": "raw", "html": body_html[last_end:match.start()]})
+
+        attrs = match.group("attrs") or ""
+        inner = match.group("body") or ""
+        full = match.group(0)
+        text = strip_tags(inner)
+        classes_match = re.search(r'class\s*=\s*"([^"]*)"', attrs, flags=re.IGNORECASE)
+        class_list = (classes_match.group(1).split() if classes_match else [])
+
+        pieces.append(
+            {
+                "kind": "p",
+                "html": full,
+                "attrs": attrs,
+                "inner": inner,
+                "text": text,
+                "is_empty": is_empty_paragraph(inner),
+                "has_structural": has_structural_content(inner),
+                "class_list": class_list,
+            }
+        )
+        last_end = match.end()
+
+    if last_end < len(body_html):
+        pieces.append({"kind": "raw", "html": body_html[last_end:]})
+
+    visible_paragraph_indexes = [
+        idx
+        for idx, piece in enumerate(pieces)
+        if piece.get("kind") == "p" and not piece.get("is_empty")
+    ]
+
+    callout_indexes: set[int] = set()
+    for pos, idx in enumerate(visible_paragraph_indexes):
+        piece = pieces[idx]
+        text = str(piece.get("text", ""))
+        class_list = set(piece.get("class_list", []))
         if len(text) < 110 or len(text) > 420:
             continue
-        if p.find(['img', 'svg', 'table']):
+        if piece.get("has_structural"):
             continue
-        classes = p.get('class', [])
-        if 'title' in classes or 'subtitle' in classes or 'pse-callout' in classes:
+        if {"title", "subtitle", "pse-callout"} & class_list:
             continue
-
-        prev_p = paragraphs[idx - 1] if idx > 0 else None
-        if prev_p is None:
-            continue
-        prev_text = visible_text(prev_p)
-        if not prev_text.endswith(':'):
+        if pos == 0:
             continue
 
-        next_p = paragraphs[idx + 1] if idx + 1 < len(paragraphs) else None
-        next_text = visible_text(next_p) if next_p is not None else ''
-        if next_text.endswith(':'):
+        prev_piece = pieces[visible_paragraph_indexes[pos - 1]]
+        prev_text = str(prev_piece.get("text", ""))
+        if not prev_text.endswith(":"):
             continue
 
-        p['class'] = classes + ['pse-callout']
+        if pos + 1 < len(visible_paragraph_indexes):
+            next_piece = pieces[visible_paragraph_indexes[pos + 1]]
+            next_text = str(next_piece.get("text", ""))
+            if next_text.endswith(":"):
+                continue
 
-    return ''.join(str(child) for child in root.children)
+        callout_indexes.add(idx)
+
+    out: list[str] = []
+    for idx, piece in enumerate(pieces):
+        if piece.get("kind") != "p":
+            out.append(str(piece.get("html", "")))
+            continue
+
+        if piece.get("is_empty"):
+            continue
+
+        if idx in callout_indexes:
+            attrs = str(piece.get("attrs", ""))
+            inner = str(piece.get("inner", ""))
+            class_match = re.search(r'class\s*=\s*"([^"]*)"', attrs, flags=re.IGNORECASE)
+            if class_match:
+                classes = class_match.group(1).split()
+                if "pse-callout" not in classes:
+                    classes.append("pse-callout")
+                attrs = re.sub(
+                    r'class\s*=\s*"([^"]*)"',
+                    'class="' + " ".join(classes) + '"',
+                    attrs,
+                    count=1,
+                    flags=re.IGNORECASE,
+                )
+            else:
+                attrs = f'{attrs} class="pse-callout"'
+            out.append(f"<p{attrs}>{inner}</p>")
+            continue
+
+        out.append(str(piece.get("html", "")))
+
+    return "".join(out)
 
 
 def render_document_page(raw_html: str, pdf_href: str, doc_title: str) -> str:
