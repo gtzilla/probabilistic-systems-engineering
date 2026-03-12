@@ -148,10 +148,58 @@ def extract_body_inner_html(raw_html: str) -> str:
     return raw_html.strip()
 
 
+def refine_body_html(body_html: str) -> str:
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(f'<div id="__pse_root__">{body_html}</div>', 'html.parser')
+    root = soup.find(id='__pse_root__')
+    if root is None:
+        return body_html
+
+    def visible_text(node) -> str:
+        return html.unescape(node.get_text(' ', strip=True)).strip()
+
+    # Remove empty spacer paragraphs emitted by Google Docs export.
+    for p in list(root.find_all('p')):
+        if visible_text(p):
+            continue
+        if p.find(['img', 'svg', 'table', 'hr']):
+            continue
+        p.decompose()
+
+    # Mark isolated thesis / claim paragraphs that follow a lead-in ending in ':'.
+    paragraphs = [p for p in root.find_all('p') if visible_text(p)]
+    for idx, p in enumerate(paragraphs):
+        text = visible_text(p)
+        if len(text) < 110 or len(text) > 420:
+            continue
+        if p.find(['img', 'svg', 'table']):
+            continue
+        classes = p.get('class', [])
+        if 'title' in classes or 'subtitle' in classes or 'pse-callout' in classes:
+            continue
+
+        prev_p = paragraphs[idx - 1] if idx > 0 else None
+        if prev_p is None:
+            continue
+        prev_text = visible_text(prev_p)
+        if not prev_text.endswith(':'):
+            continue
+
+        next_p = paragraphs[idx + 1] if idx + 1 < len(paragraphs) else None
+        next_text = visible_text(next_p) if next_p is not None else ''
+        if next_text.endswith(':'):
+            continue
+
+        p['class'] = classes + ['pse-callout']
+
+    return ''.join(str(child) for child in root.children)
+
+
 def render_document_page(raw_html: str, pdf_href: str, doc_title: str) -> str:
     normalized = normalize_exported_html(raw_html)
     exported_styles = extract_head_styles(normalized)
-    body_html = extract_body_inner_html(normalized)
+    body_html = refine_body_html(extract_body_inner_html(normalized))
 
     template = load_template("document_shell.html")
     return render_template(
