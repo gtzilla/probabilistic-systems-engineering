@@ -8,10 +8,12 @@
     :root {
       --text: #111111;
       --muted: #6b7280;
-      --border: #dddddd;
+      --border: #e5e7eb;
       --link: #1f2937;
       --bg: #ffffff;
-      --panel: #fafafa;
+      --panel: #ffffff;
+      --panel-soft: #fcfcfd;
+      --shadow: 0 8px 30px rgba(17, 24, 39, 0.05);
     }
 
     html, body {
@@ -32,48 +34,49 @@
       width: 100%;
       max-width: 72rem;
       margin: 0 auto;
-      padding: 2.5rem 1.25rem 4rem;
+      padding: 2.75rem 1.25rem 4rem;
       box-sizing: border-box;
     }
 
     .hero {
-      margin-bottom: 2.75rem;
-      padding-bottom: 1.4rem;
+      margin-bottom: 2.1rem;
+      padding-bottom: 1.25rem;
       border-bottom: 1px solid var(--border);
     }
 
     .hero h1 {
       margin: 0 0 0.55rem;
-      font-size: clamp(2.1rem, 5vw, 3.3rem);
-      line-height: 1.05;
+      font-size: clamp(2.15rem, 5vw, 3.35rem);
+      line-height: 1.04;
       letter-spacing: -0.03em;
     }
 
     .hero p {
       margin: 0;
-      max-width: 46rem;
+      max-width: 44rem;
       color: var(--muted);
-      font-size: 1.08rem;
+      font-size: 1.06rem;
       line-height: 1.55;
     }
 
     .archive-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 1.25rem;
+      gap: 1.35rem;
       align-items: start;
     }
 
     .archive-section {
-      background: var(--panel);
+      background: linear-gradient(180deg, var(--panel-soft) 0%, var(--panel) 100%);
       border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 1.1rem 1.1rem 1rem;
+      border-radius: 20px;
+      padding: 1.2rem 1.2rem 1rem;
+      box-shadow: var(--shadow);
     }
 
     .archive-section h2 {
       margin: 0 0 0.9rem;
-      font-size: 1.25rem;
+      font-size: 1.3rem;
       line-height: 1.2;
       letter-spacing: -0.02em;
     }
@@ -86,8 +89,9 @@
 
     li {
       margin: 0;
-      padding: 0.85rem 0;
+      padding: 0.9rem 0;
       border-top: 1px solid var(--border);
+      line-height: 1.5;
     }
 
     li:first-child {
@@ -121,8 +125,8 @@
       }
 
       .hero {
-        margin-bottom: 1.5rem;
-        padding-bottom: 1rem;
+        margin-bottom: 1.35rem;
+        padding-bottom: 0.95rem;
       }
 
       .hero h1 {
@@ -135,11 +139,11 @@
 
       .archive-section {
         padding: 1rem;
-        border-radius: 14px;
+        border-radius: 18px;
       }
 
       li {
-        padding: 0.9rem 0;
+        padding: 0.95rem 0;
       }
     }
   </style>
