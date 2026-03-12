@@ -97,8 +97,7 @@ def metadata_kind_for_type(type_name: str) -> tuple[str, str]:
     return (type_name, "CreativeWork")
 
 
-def derive_document_metadata(type_name: str, slug: str, doc_title: str, pdf_name: str, body_html: str) -> dict[str, object]:
-    paragraphs = extract_candidate_paragraph_texts(body_html)
+def derive_description(paragraphs: list[str], doc_title: str) -> str:
     abstract = ""
     for paragraph in paragraphs:
         if len(paragraph) >= 80:
@@ -108,6 +107,85 @@ def derive_document_metadata(type_name: str, slug: str, doc_title: str, pdf_name
         abstract = paragraphs[0]
     if len(abstract) > 320:
         abstract = abstract[:317].rstrip() + "..."
+    return abstract or f"{doc_title} — published in {SITE_NAME}."
+
+
+STOPWORDS = {
+    "the", "and", "for", "with", "from", "this", "that", "into", "your", "about", "through",
+    "under", "what", "when", "where", "which", "while", "have", "been", "will", "their", "more",
+    "than", "only", "also", "does", "did", "not", "are", "was", "were", "how", "why", "who",
+    "onto", "over", "then", "them", "they", "using", "used", "between", "because",
+    "paper", "papers", "contract", "contracts", "report", "system", "program", "materials",
+    "material", "version", "artifact", "artifacts", "document", "documents", "study", "work",
+}
+
+
+def normalize_for_match(text: str) -> str:
+    lowered = html.unescape(text).lower()
+    lowered = re.sub(r"[^a-z0-9]+", " ", lowered)
+    return re.sub(r"\s+", " ", lowered).strip()
+
+
+def significant_tokens(text: str) -> list[str]:
+    tokens = []
+    for token in normalize_for_match(text).split():
+        if len(token) < 4:
+            continue
+        if token in STOPWORDS:
+            continue
+        if re.fullmatch(r"v\d+(?:\.\d+)*", token):
+            continue
+        tokens.append(token)
+    return tokens
+
+
+def unique_preserve_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for value in values:
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        out.append(value)
+    return out
+
+
+def slug_reference_phrases(slug: str) -> list[str]:
+    parts = [p for p in slug.split("/") if p]
+    phrases: list[str] = []
+    if not parts:
+        return []
+    phrases.append(normalize_for_match(parts[-1].replace("-", " ")))
+    phrases.append(normalize_for_match(slug.replace("/", " ").replace("-", " ")))
+    return unique_preserve_order([p for p in phrases if len(p) >= 12])
+
+
+def document_match_context(metadata: dict[str, object], full_text: str) -> dict[str, object]:
+    title = str(metadata["title"])
+    description = str(metadata.get("description", ""))
+    slug = str(metadata["slug"])
+    version = str(metadata.get("version", ""))
+    title_tokens = unique_preserve_order(significant_tokens(title))
+    description_tokens = unique_preserve_order(significant_tokens(description))
+    return {
+        "norm_text": normalize_for_match(full_text),
+        "title_phrase": normalize_for_match(title),
+        "slug_phrases": slug_reference_phrases(slug),
+        "title_tokens": title_tokens,
+        "description_tokens": description_tokens,
+        "version": version.lower(),
+    }
+
+
+def derive_document_metadata(
+    type_name: str,
+    slug: str,
+    doc_title: str,
+    pdf_name: str,
+    body_html: str,
+) -> tuple[dict[str, object], dict[str, object]]:
+    paragraphs = extract_candidate_paragraph_texts(body_html)
+    description = derive_description(paragraphs, doc_title)
 
     full_text = " ".join(paragraphs)
     kind, schema_type = metadata_kind_for_type(type_name)
@@ -130,11 +208,11 @@ def derive_document_metadata(type_name: str, slug: str, doc_title: str, pdf_name
         "pdf_url": f"{SITE_URL}{pdf_path}",
         "group_key": group_key,
         "version": version,
-        "description": abstract or f"{doc_title} — published in {SITE_NAME}.",
+        "description": description,
         "word_count": len(re.findall(r"\S+", full_text)),
         "reading_time_minutes": estimate_reading_time_minutes(full_text),
     }
-    return metadata
+    return metadata, document_match_context(metadata, full_text)
 
 
 def build_structured_data(metadata: dict[str, object]) -> str:
@@ -170,7 +248,11 @@ def build_structured_data(metadata: dict[str, object]) -> str:
     return safe_json(payload)
 
 
-def write_site_metadata_index(dist_root: Path, entries: list[dict[str, str]], metadata_index: list[dict[str, object]]) -> None:
+def write_site_metadata_index(
+    dist_root: Path,
+    entries: list[dict[str, str]],
+    metadata_index: list[dict[str, object]],
+) -> None:
     payload = {
         "site": SITE_NAME,
         "site_url": SITE_URL,
@@ -179,7 +261,10 @@ def write_site_metadata_index(dist_root: Path, entries: list[dict[str, str]], me
     }
     metadata_dir = dist_root / "metadata"
     metadata_dir.mkdir(parents=True, exist_ok=True)
-    (metadata_dir / "documents.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    (metadata_dir / "documents.json").write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
 
 
 def write_sitemap(dist_root: Path, entries: list[dict[str, str]]) -> None:
@@ -192,11 +277,11 @@ def write_sitemap(dist_root: Path, entries: list[dict[str, str]]) -> None:
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ]
     for url in urls:
-        xml.append('  <url>')
-        xml.append(f'    <loc>{safe_text(url)}</loc>')
-        xml.append('  </url>')
-    xml.append('</urlset>')
-    (dist_root / 'sitemap.xml').write_text("\n".join(xml) + "\n", encoding='utf-8')
+        xml.append("  <url>")
+        xml.append(f"    <loc>{safe_text(url)}</loc>")
+        xml.append("  </url>")
+    xml.append("</urlset>")
+    (dist_root / "sitemap.xml").write_text("\n".join(xml) + "\n", encoding="utf-8")
 
 
 def normalize_exported_html(raw_html: str) -> str:
@@ -263,9 +348,9 @@ def inject_head_metadata(raw_html: str, doc_title: str) -> str:
     if head_close != -1:
         before_close = raw_html[:head_close]
         additions = []
-        if "<meta name=\"description\"" not in before_close.lower():
+        if '<meta name="description"' not in before_close.lower():
             additions.append(f'  <meta name="description" content="{safe_text(description)}">')
-        if "<meta name=\"author\"" not in before_close.lower():
+        if '<meta name="author"' not in before_close.lower():
             additions.append('  <meta name="author" content="Gregory Tomlinson">')
         if additions:
             raw_html = raw_html[:head_close] + "\n" + "\n".join(additions) + "\n" + raw_html[head_close:]
@@ -314,7 +399,7 @@ def refine_body_html(body_html: str) -> str:
                 flags=re.IGNORECASE,
             )
         else:
-            new_attrs = re.sub(r'\s*class\s*=\s*"([^"]*)"', '', attrs, count=1, flags=re.IGNORECASE)
+            new_attrs = re.sub(r'\s*class\s*=\s*"([^"]*)"', "", attrs, count=1, flags=re.IGNORECASE)
 
         return f"<li{new_attrs}>"
 
@@ -338,7 +423,6 @@ def refine_body_html(body_html: str) -> str:
         text = strip_tags(inner_html)
         return not text
 
-
     def normalize_p_attrs(attrs: str) -> str:
         class_match = re.search(r'class\s*=\s*"([^"]*)"', attrs, flags=re.IGNORECASE)
         if not class_match:
@@ -356,10 +440,10 @@ def refine_body_html(body_html: str) -> str:
                 count=1,
                 flags=re.IGNORECASE,
             )
-        return re.sub(r'\s*class\s*=\s*"([^"]*)"', '', attrs, count=1, flags=re.IGNORECASE)
+        return re.sub(r'\s*class\s*=\s*"([^"]*)"', "", attrs, count=1, flags=re.IGNORECASE)
 
     paragraph_pattern = re.compile(r"<p\b(?P<attrs>[^>]*)>(?P<body>.*?)</p>", flags=re.IGNORECASE | re.DOTALL)
-    pieces: list[dict[str, str | bool]] = []
+    pieces: list[dict[str, str | bool | list[str]]] = []
     last_end = 0
 
     for match in paragraph_pattern.finditer(body_html):
@@ -395,7 +479,6 @@ def refine_body_html(body_html: str) -> str:
         for idx, piece in enumerate(pieces)
         if piece.get("kind") == "p" and not piece.get("is_empty")
     ]
-
 
     title_piece_indexes = [
         idx
@@ -543,8 +626,6 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
     )
 
 
-
-
 def compute_dist_hash(dist_root: Path) -> str:
     hasher = hashlib.sha256()
     for path in sorted(p for p in dist_root.rglob("*") if p.is_file() and p.name != "build.json"):
@@ -568,7 +649,6 @@ def write_build_manifest(dist_root: Path) -> None:
     (dist_root / "build.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
 
-
 def discover_doc_dirs(type_root: Path) -> list[tuple[Path, str]]:
     docs: list[tuple[Path, str]] = []
 
@@ -590,7 +670,196 @@ def discover_doc_dirs(type_root: Path) -> list[tuple[Path, str]]:
     return sorted(docs, key=lambda item: item[1])
 
 
-def build_doc(type_name: str, doc_dir: Path, relative_slug: str, tmp_root: Path) -> tuple[dict[str, str], dict[str, object]]:
+def render_discovery_links(items: list[dict[str, object]], label: str) -> str:
+    if not items:
+        return ""
+
+    links: list[str] = []
+    for item in items:
+        links.append(
+            '<li class="pse-discovery-item">'
+            f'<a href="{safe_text(str(item["html_path"]))}">{safe_text(str(item["title"]))}</a>'
+            f'<span class="pse-discovery-kind">{safe_text(str(item["kind_label"]))}</span>'
+            '</li>'
+        )
+
+    return (
+        '<section class="pse-discovery">'
+        f"<h2>{safe_text(label)}</h2>"
+        '<ul class="pse-discovery-list">'
+        + "".join(links)
+        + "</ul>"
+        "</section>"
+    )
+
+
+def inject_discovery_markup(html_text: str, references_html: str, related_html: str) -> str:
+    discovery_html = references_html + related_html
+    if not discovery_html:
+        return html_text
+
+    marker = '<footer class="pse-footer">'
+    if marker in html_text:
+        return html_text.replace(marker, discovery_html + "\n  " + marker, 1)
+
+    marker = "</main>"
+    if marker in html_text:
+        return html_text.replace(marker, discovery_html + "\n  </main>", 1)
+
+    return html_text + discovery_html
+
+
+def explicit_reference_match(source_ctx: dict[str, object], target_ctx: dict[str, object]) -> bool:
+    norm_text = str(source_ctx["norm_text"])
+    title_phrase = str(target_ctx["title_phrase"])
+
+    if len(title_phrase) >= 16 and title_phrase in norm_text:
+        return True
+
+    for phrase in target_ctx["slug_phrases"]:
+        if phrase and phrase in norm_text:
+            return True
+
+    version = str(target_ctx.get("version", ""))
+    title_tokens = list(target_ctx.get("title_tokens", []))
+    if version and version in norm_text:
+        matched = sum(1 for token in title_tokens if token in norm_text)
+        if matched >= 2:
+            return True
+
+    return False
+
+
+def related_score(
+    source_meta: dict[str, object],
+    source_ctx: dict[str, object],
+    target_meta: dict[str, object],
+    target_ctx: dict[str, object],
+    explicit_ref: bool,
+) -> int:
+    score = 0
+
+    if explicit_ref:
+        score += 100
+
+    if source_meta.get("group_key") and source_meta.get("group_key") == target_meta.get("group_key"):
+        score += 35
+
+    if source_meta.get("content_type") == target_meta.get("content_type"):
+        score += 10
+
+    title_overlap = len(set(source_ctx["title_tokens"]) & set(target_ctx["title_tokens"]))
+    desc_overlap = len(set(source_ctx["description_tokens"]) & set(target_ctx["description_tokens"]))
+
+    score += min(25, title_overlap * 5)
+    score += min(20, desc_overlap * 4)
+
+    if source_meta.get("content_type") != target_meta.get("content_type"):
+        pair = {str(source_meta.get("content_type")), str(target_meta.get("content_type"))}
+        if pair in ({"papers", "contracts"}, {"papers", "replication"}):
+            score += 5
+
+    return score
+
+
+def build_discovery_sections(
+    metadata_index: list[dict[str, object]],
+    contexts: dict[str, dict[str, object]],
+) -> dict[str, tuple[str, str]]:
+    results: dict[str, tuple[str, str]] = {}
+
+    for item in metadata_index:
+        source_slug = str(item["slug"])
+        source_ctx = contexts[source_slug]
+
+        references: list[dict[str, object]] = []
+        related_candidates: list[tuple[int, dict[str, object], bool]] = []
+
+        for target in metadata_index:
+            target_slug = str(target["slug"])
+            if target_slug == source_slug:
+                continue
+
+            target_ctx = contexts[target_slug]
+            is_reference = explicit_reference_match(source_ctx, target_ctx)
+
+            if is_reference:
+                references.append(target)
+
+            score = related_score(item, source_ctx, target, target_ctx, is_reference)
+            related_candidates.append((score, target, is_reference))
+
+        ref_seen: set[str] = set()
+        ref_items: list[dict[str, object]] = []
+
+        for target in sorted(references, key=lambda x: (str(x["title"]).lower(), str(x["slug"]))):
+            target_slug = str(target["slug"])
+            if target_slug in ref_seen:
+                continue
+            ref_seen.add(target_slug)
+            ref_items.append(
+                {
+                    "title": target["title"],
+                    "html_path": target["html_path"],
+                    "kind_label": str(target["kind"]).replace("-", " ").title(),
+                }
+            )
+
+        related_candidates.sort(key=lambda row: (-row[0], str(row[1]["title"]).lower(), str(row[1]["slug"])))
+        related_items: list[dict[str, object]] = []
+        related_seen: set[str] = set(ref_seen)
+
+        for score, target, _is_reference in related_candidates:
+            if score < 35:
+                continue
+            target_slug = str(target["slug"])
+            if target_slug in related_seen:
+                continue
+            related_seen.add(target_slug)
+            related_items.append(
+                {
+                    "title": target["title"],
+                    "html_path": target["html_path"],
+                    "kind_label": str(target["kind"]).replace("-", " ").title(),
+                }
+            )
+            if len(related_items) >= 2:
+                break
+
+        results[source_slug] = (
+            render_discovery_links(ref_items, "Referenced artifacts"),
+            render_discovery_links(related_items, "Read next"),
+        )
+
+    return results
+
+
+def inject_discovery_sections(
+    dist_root: Path,
+    metadata_index: list[dict[str, object]],
+    contexts: dict[str, dict[str, object]],
+) -> None:
+    discovery_sections = build_discovery_sections(metadata_index, contexts)
+
+    for item in metadata_index:
+        source_slug = str(item["slug"])
+        references_html, related_html = discovery_sections.get(source_slug, ("", ""))
+
+        out_path = dist_root / str(item["content_type"]) / Path(source_slug) / "index.html"
+        if not out_path.exists():
+            continue
+
+        html_text = out_path.read_text(encoding="utf-8")
+        html_text = inject_discovery_markup(html_text, references_html, related_html)
+        out_path.write_text(html_text, encoding="utf-8")
+
+
+def build_doc(
+    type_name: str,
+    doc_dir: Path,
+    relative_slug: str,
+    tmp_root: Path,
+) -> tuple[dict[str, str], dict[str, object], dict[str, object]]:
     slug = relative_slug
     pdf = find_exactly_one(doc_dir, "*.pdf", "PDF")
     zf = find_exactly_one(doc_dir, "*.zip", "ZIP")
@@ -609,7 +878,6 @@ def build_doc(type_name: str, doc_dir: Path, relative_slug: str, tmp_root: Path)
     out_dir = DIST / type_name / Path(relative_slug)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Copy extracted assets/files except the source HTML itself.
     for child in extract_dir.iterdir():
         if child.resolve() == source_html.resolve():
             continue
@@ -624,19 +892,23 @@ def build_doc(type_name: str, doc_dir: Path, relative_slug: str, tmp_root: Path)
     raw_html = source_html.read_text(encoding="utf-8")
     normalized = normalize_exported_html(raw_html)
     body_html = refine_body_html(extract_body_inner_html(normalized))
-    metadata = derive_document_metadata(type_name, relative_slug, doc_title, pdf.name, body_html)
+    metadata, match_context = derive_document_metadata(type_name, relative_slug, doc_title, pdf.name, body_html)
     wrapped_html = render_document_page(raw_html, pdf_href, doc_title, metadata)
     (out_dir / "index.html").write_text(wrapped_html, encoding="utf-8")
     shutil.copy2(pdf, out_dir / pdf.name)
 
-    return ({
-        "type": type_name,
-        "slug": slug,
-        "pdf_name": pdf.name,
-        "title": pdf.stem,
-        "url": f"./{type_name}/{slug}/",
-        "pdf_url": f"./{type_name}/{slug}/{pdf.name}",
-    }, metadata)
+    return (
+        {
+            "type": type_name,
+            "slug": slug,
+            "pdf_name": pdf.name,
+            "title": pdf.stem,
+            "url": f"./{type_name}/{slug}/",
+            "pdf_url": f"./{type_name}/{slug}/{pdf.name}",
+        },
+        metadata,
+        match_context,
+    )
 
 
 def collect_pdf_only_contract_entries(entries: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -714,7 +986,7 @@ def render_item_card(item: dict[str, str]) -> str:
         title_html = (
             f'<a class="item-title-link" href="{safe_text(primary_href)}">'
             f'{safe_text(item["title"])}'
-            '</a>'
+            "</a>"
         )
     else:
         title_html = safe_text(item["title"])
@@ -723,7 +995,7 @@ def render_item_card(item: dict[str, str]) -> str:
         '<li class="archive-item">'
         f'<div class="item-title">{title_html}</div>'
         f'<div class="item-actions">{meta}</div>'
-        '</li>'
+        "</li>"
     )
 
 
@@ -739,14 +1011,14 @@ def render_sections(items: list[dict[str, str]], empty_label: str) -> str:
     blocks: list[str] = []
     for group_name, group_items in grouped.items():
         rendered_items = "\n".join(render_item_card(item) for item in group_items)
-        heading_html = f'<h3>{safe_text(group_name)}</h3>' if group_name else ''
+        heading_html = f"<h3>{safe_text(group_name)}</h3>" if group_name else ""
         blocks.append(
             '<section class="group-block">'
-            f'{heading_html}'
+            f"{heading_html}"
             '<ul class="archive-list">'
-            f'{rendered_items}'
-            '</ul>'
-            '</section>'
+            f"{rendered_items}"
+            "</ul>"
+            "</section>"
         )
     return "\n".join(blocks)
 
@@ -774,6 +1046,7 @@ def render_index(entries: list[dict[str, str]]) -> str:
         },
     )
 
+
 def main() -> int:
     if DIST.exists():
         shutil.rmtree(DIST)
@@ -786,6 +1059,8 @@ def main() -> int:
 
     entries: list[dict[str, str]] = []
     metadata_index: list[dict[str, object]] = []
+    match_contexts: dict[str, dict[str, object]] = {}
+
     try:
         for type_name in CONTENT_TYPES:
             type_root = INCOMING / type_name
@@ -795,13 +1070,15 @@ def main() -> int:
                 fail(f"{type_root} exists but is not a directory")
 
             for doc_dir, relative_slug in discover_doc_dirs(type_root):
-                entry, metadata = build_doc(type_name, doc_dir, relative_slug, tmp_root)
+                entry, metadata, match_context = build_doc(type_name, doc_dir, relative_slug, tmp_root)
                 entries.append(entry)
                 metadata_index.append(metadata)
+                match_contexts[str(metadata["slug"])] = match_context
 
         entries = collect_pdf_only_contract_entries(entries)
 
         (DIST / "index.html").write_text(render_index(entries), encoding="utf-8")
+        inject_discovery_sections(DIST, metadata_index, match_contexts)
         write_site_metadata_index(DIST, entries, metadata_index)
         write_sitemap(DIST, entries)
         write_build_manifest(DIST)
