@@ -1,7 +1,0 @@
-{
-  "schema_version": "2.3.1",
-  "source_path": "papers/context-injection-research-program/replication-v0.7.pdf",
-  "root_id": "papers",
-  "pdf_sha256": "db431ccf17833bba00eccaa1795ea0b38e7c757ac450959f7bc4e2423e0edd65",
-  "engine_id": "ubuntu-24.04+pymupdf+pandoc-3.9-gfm"
-}
