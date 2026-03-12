@@ -266,6 +266,18 @@ def refine_body_html(body_html: str) -> str:
     lead_in_indexes: set[int] = set()
     compact_indexes: set[int] = set()
 
+    def raw_html_has_callout_boundary(raw_html: str) -> bool:
+        return bool(re.search(r"<(hr|h[1-6]|ul|ol)\b", raw_html, flags=re.IGNORECASE))
+
+    def has_boundary_between(prev_idx: int, current_idx: int) -> bool:
+        for piece_between in pieces[prev_idx + 1:current_idx]:
+            if piece_between.get("kind") == "raw":
+                if raw_html_has_callout_boundary(str(piece_between.get("html", ""))):
+                    return True
+            elif piece_between.get("kind") == "p" and piece_between.get("has_structural"):
+                return True
+        return False
+
     for pos, idx in enumerate(visible_paragraph_indexes):
         piece = pieces[idx]
         text = str(piece.get("text", ""))
@@ -280,9 +292,10 @@ def refine_body_html(body_html: str) -> str:
             continue
 
         if 110 <= len(text) <= 420 and pos > 0:
-            prev_piece = pieces[visible_paragraph_indexes[pos - 1]]
+            prev_idx = visible_paragraph_indexes[pos - 1]
+            prev_piece = pieces[prev_idx]
             prev_text = str(prev_piece.get("text", ""))
-            if prev_text.endswith(":"):
+            if prev_text.endswith(":") and not has_boundary_between(prev_idx, idx):
                 if pos + 1 < len(visible_paragraph_indexes):
                     next_piece = pieces[visible_paragraph_indexes[pos + 1]]
                     next_text = str(next_piece.get("text", ""))
