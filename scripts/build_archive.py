@@ -194,11 +194,6 @@ def write_build_manifest(dist_root: Path) -> None:
 
 
 
-def copy_pdf_to_durable_artifact(type_name: str, slug: str, pdf: Path) -> None:
-    durable_dir = ROOT / type_name / slug
-    durable_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(pdf, durable_dir / pdf.name)
-
 def build_doc(type_name: str, slug_dir: Path, tmp_root: Path) -> dict[str, str]:
     slug = slug_dir.name
     pdf = find_exactly_one(slug_dir, "*.pdf", "PDF")
@@ -234,7 +229,6 @@ def build_doc(type_name: str, slug_dir: Path, tmp_root: Path) -> dict[str, str]:
     wrapped_html = render_document_page(raw_html, pdf_href, doc_title)
     (out_dir / "index.html").write_text(wrapped_html, encoding="utf-8")
     shutil.copy2(pdf, out_dir / pdf.name)
-    copy_pdf_to_durable_artifact(type_name, slug, pdf)
 
     return {
         "type": type_name,
