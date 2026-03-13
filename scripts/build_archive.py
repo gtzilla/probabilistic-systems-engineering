@@ -1217,7 +1217,15 @@ def render_home_page(latest_entries: list[dict[str, str]]) -> str:
     for entry in latest_entries:
         grouped[entry['type']].append(entry)
     template = load_template('home.html')
-    return render_template(template, {'SITE_NAME': safe_text(SITE_NAME), 'LATEST_HREF': './latest/', 'ARCHIVE_HREF': './archive/', 'PAPERS_COUNT': str(len(grouped['papers'])), 'CONTRACTS_COUNT': str(len(grouped['contracts'])), 'REPLICATION_COUNT': str(len(grouped['replication']))})
+    return render_template(template, {
+        'SITE_NAME': safe_text(SITE_NAME),
+        'LATEST_HREF': './latest/',
+        'ARCHIVE_HREF': './archive/',
+        'ENTRY_PAPER_HREF': './papers/is-this-engineering/',
+        'PAPERS_COUNT': str(len(grouped['papers'])),
+        'CONTRACTS_COUNT': str(len(grouped['contracts'])),
+        'REPLICATION_COUNT': str(len(grouped['replication'])),
+    })
 
 
 def write_family_redirects(dist_root: Path, family_buckets: dict[tuple[str, str], list[dict[str, str]]]) -> None:
