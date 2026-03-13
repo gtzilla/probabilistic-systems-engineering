@@ -5,15 +5,61 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{SITE_NAME}}</title>
 <style>
-html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;background:#fff;color:#111}
-.page{max-width:56rem;margin:0 auto;padding:3rem 1.25rem 4rem}
-h1{font-size:clamp(2.3rem,6vw,4rem);line-height:1.02;letter-spacing:-.03em;margin:0 0 .85rem}
-.credit{margin:0 0 1rem;color:#6b7280;font-size:.92rem;line-height:1.4}
-p{font-size:1.05rem;line-height:1.6;color:#374151;max-width:46rem}
-.cta{display:flex;gap:1rem;flex-wrap:wrap;margin:2rem 0 1rem}
-.cta a{display:inline-block;padding:.85rem 1rem;border:1px solid #d1d5db;border-radius:12px;text-decoration:none;color:#111;background:#fafafa}
-.cta .primary{background:#111;color:#fff;border-color:#111}
-.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin-top:2rem}.card{display:block;border:1px solid #e5e7eb;border-radius:16px;padding:1rem;background:#fcfcfd;text-decoration:none;color:inherit}.card h2{margin:0 0 .35rem;font-size:1.05rem}.count{color:#6b7280;font-size:.95rem}@media (max-width:800px){.grid{grid-template-columns:1fr}}
+:root{--bg:#fcfcf9;--panel:#ffffff;--text:#171717;--muted:#6b7280;--border:#e6e3dc;--border-strong:#d8d2c6;--accent:#111111}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+body{min-height:100vh}
+.page{max-width:72rem;margin:0 auto;padding:3.5rem 1.5rem 5rem}
+.hero{max-width:46rem}
+h1{margin:0 0 .9rem;font-size:clamp(2.8rem,7vw,5.2rem);line-height:.97;letter-spacing:-.04em;font-weight:700}
+.credit{margin:0 0 1.1rem;color:var(--muted);font-size:.88rem;line-height:1.4}
+.lead{margin:0 0 .9rem;font-size:1.18rem;line-height:1.68;color:#30343a;max-width:42rem}
+.actions{display:flex;gap:.85rem;flex-wrap:wrap;margin:2rem 0 2.5rem}
+.actions a{display:inline-flex;align-items:center;justify-content:center;min-height:2.9rem;padding:0 1rem;border-radius:999px;border:1px solid var(--border-strong);text-decoration:none;color:var(--text);background:var(--panel);font-size:.98rem}
+.actions .primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.08)}
+.actions a:hover{transform:translateY(-1px);transition:transform .15s ease, box-shadow .15s ease;box-shadow:0 10px 24px rgba(0,0,0,.06)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
+.card{display:flex;flex-direction:column;gap:.4rem;min-height:10.5rem;border:1px solid var(--border);border-radius:24px;padding:1.2rem 1.2rem 1.3rem;background:linear-gradient(180deg,#fff,#fdfcf8);text-decoration:none;color:inherit;box-shadow:0 1px 0 rgba(17,17,17,.02)}
+.card:hover{border-color:var(--border-strong);transform:translateY(-2px);transition:transform .16s ease,border-color .16s ease, box-shadow .16s ease;box-shadow:0 16px 40px rgba(17,17,17,.06)}
+.kicker{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.card h2{margin:0;font-size:1.22rem;line-height:1.2;letter-spacing:-.02em}
+.card p{margin:0;color:#4b5563;font-size:.98rem;line-height:1.55}
+.count{margin-top:auto;color:var(--muted);font-size:.92rem}
+@media (max-width:900px){.grid{grid-template-columns:1fr}.page{padding:2.6rem 1.25rem 4rem}.lead{font-size:1.08rem;line-height:1.62}}
 </style>
 </head>
-<body><main class="page"><h1>Probabilistic Systems Engineering</h1><p class="credit">Gregory Tomlinson</p><p>Research on contract-centered engineering, iterative stability, authority, and failure modes in AI-assisted software development.</p><p>Start with the introductory essay, then browse the latest work or the full archive.</p><div class="cta"><a class="primary" href="{{ENTRY_PAPER_HREF}}">Start with Is This Engineering?</a><a href="{{LATEST_HREF}}">Browse latest</a><a href="{{ARCHIVE_HREF}}">Open archive</a></div><div class="grid"><a class="card" href="{{LATEST_HREF}}#papers"><h2>Papers</h2><div class="count">{{PAPERS_COUNT}} current items</div></a><a class="card" href="{{LATEST_HREF}}#contracts"><h2>Contracts</h2><div class="count">{{CONTRACTS_COUNT}} current items</div></a><a class="card" href="{{LATEST_HREF}}#replication"><h2>Replication</h2><div class="count">{{REPLICATION_COUNT}} current items</div></a></div></main></body></html>
+<body>
+<main class="page">
+  <section class="hero">
+    <h1>Probabilistic Systems Engineering</h1>
+    <p class="credit">Gregory Tomlinson</p>
+    <p class="lead">Research on contract-centered engineering, iterative stability, authority, and failure mechanisms in AI-assisted software development.</p>
+    <p class="lead">Start with the introductory essay, then browse the latest work or use the archive as a reference surface.</p>
+    <div class="actions">
+      <a class="primary" href="{{ENTRY_PAPER_HREF}}">Start with Is This Engineering?</a>
+      <a href="{{LATEST_HREF}}">Browse latest</a>
+      <a href="{{ARCHIVE_HREF}}">Open archive</a>
+    </div>
+    <section class="grid">
+      <a class="card" href="{{LATEST_HREF}}#papers">
+        <div class="kicker">Latest</div>
+        <h2>Papers</h2>
+        <p>Core essays, findings, and framework documents.</p>
+        <div class="count">{{PAPERS_COUNT}} current items</div>
+      </a>
+      <a class="card" href="{{LATEST_HREF}}#contracts">
+        <div class="kicker">Latest</div>
+        <h2>Contracts</h2>
+        <p>Operational semantics and authority-bearing system contracts.</p>
+        <div class="count">{{CONTRACTS_COUNT}} current items</div>
+      </a>
+      <a class="card" href="{{LATEST_HREF}}#replication">
+        <div class="kicker">Latest</div>
+        <h2>Replication</h2>
+        <p>Experimental bundles, runbooks, and replication materials.</p>
+        <div class="count">{{REPLICATION_COUNT}} current items</div>
+      </a>
+    </section>
+  </section>
+</main>
+</body>
+</html>
