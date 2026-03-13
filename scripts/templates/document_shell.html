@@ -26,6 +26,8 @@
       padding: 0;
       background: var(--pse-bg);
       -webkit-text-size-adjust: 100%;
+      box-sizing: border-box;
+      overflow-x: hidden;
     }
 
     body,
@@ -38,6 +40,7 @@
       min-width: 0 !important;
       background: var(--pse-bg);
       color: var(--pse-text);
+      overflow-x: hidden;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
       box-sizing: border-box;
     }
@@ -93,7 +96,7 @@
       width: 100%;
       max-width: var(--pse-shell);
       margin: 0 auto;
-      padding: 0 1.125rem 3rem;
+      padding: 0 1.5rem 3.25rem;
       color: var(--pse-text);
     }
 
@@ -103,16 +106,38 @@
       box-sizing: border-box;
     }
 
-    .pse-doc-shell img {
+    .pse-doc-shell img,
+    .pse-doc-shell svg,
+    .pse-doc-shell iframe {
       max-width: 100% !important;
       height: auto !important;
+    }
+
+    .pse-doc-shell table,
+    .pse-doc-shell pre {
+      display: block;
+      max-width: 100% !important;
+      overflow-x: auto !important;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .pse-doc-shell p,
+    .pse-doc-shell li,
+    .pse-doc-shell blockquote,
+    .pse-doc-shell h1,
+    .pse-doc-shell h2,
+    .pse-doc-shell h3,
+    .pse-doc-shell h4,
+    .pse-doc-shell h5,
+    .pse-doc-shell h6 {
+      overflow-wrap: anywhere;
     }
 
     .pse-doc-shell p,
     .pse-doc-shell li,
     .pse-doc-shell blockquote {
       font-size: 1.14rem !important;
-      line-height: 1.72 !important;
+      line-height: 1.74 !important;
       color: var(--pse-text) !important;
     }
 
@@ -130,9 +155,30 @@
 
     .pse-doc-shell p span,
     .pse-doc-shell li span,
-    .pse-doc-shell blockquote span {
+    .pse-doc-shell blockquote span,
+    .pse-doc-shell h1 span,
+    .pse-doc-shell h2 span,
+    .pse-doc-shell h3 span,
+    .pse-doc-shell h4 span,
+    .pse-doc-shell h5 span,
+    .pse-doc-shell h6 span,
+    .pse-doc-shell h1 a,
+    .pse-doc-shell h2 a,
+    .pse-doc-shell h3 a,
+    .pse-doc-shell h4 a,
+    .pse-doc-shell h5 a,
+    .pse-doc-shell h6 a,
+    .pse-doc-shell h1 a span,
+    .pse-doc-shell h2 a span,
+    .pse-doc-shell h3 a span,
+    .pse-doc-shell h4 a span,
+    .pse-doc-shell h5 a span,
+    .pse-doc-shell h6 a span {
       font-size: inherit !important;
       line-height: inherit !important;
+      letter-spacing: inherit !important;
+      font-weight: inherit !important;
+      color: inherit !important;
     }
 
     .pse-doc-shell ul,
@@ -175,7 +221,7 @@
 
     .pse-doc-shell .title,
     .pse-doc-shell p.title {
-      font-size: clamp(2.6rem, 7vw, 4.4rem) !important;
+      font-size: clamp(2.55rem, 6.2vw, 4.15rem) !important;
       line-height: 1.02 !important;
       letter-spacing: -0.03em !important;
       font-weight: 700 !important;
@@ -185,7 +231,7 @@
 
     .pse-doc-shell .subtitle,
     .pse-doc-shell p.subtitle {
-      font-size: clamp(1.25rem, 4vw, 2rem) !important;
+      font-size: clamp(1.18rem, 3.2vw, 1.68rem) !important;
       line-height: 1.2 !important;
       color: var(--pse-muted) !important;
       margin: 0 0 1.35rem !important;
@@ -203,9 +249,37 @@
       margin: 2.6rem 0 1rem !important;
     }
 
+
+    .pse-doc-shell > h2:first-child,
+    .pse-doc-shell > h2:first-of-type,
+    .pse-doc-shell > h2:first-child *,
+    .pse-doc-shell > h2:first-of-type * {
+      font-size: clamp(2.55rem, 6.2vw, 4.15rem) !important;
+      line-height: 1.02 !important;
+      letter-spacing: -0.03em !important;
+      font-weight: 700 !important;
+      color: var(--pse-text) !important;
+    }
+
+    .pse-doc-shell > h2:first-child,
+    .pse-doc-shell > h2:first-of-type {
+      margin: 0 0 0.85rem !important;
+    }
+
+    .pse-doc-shell > h2:first-child + p,
+    .pse-doc-shell > h2:first-child + p *,
+    .pse-doc-shell > h2:first-of-type + p,
+    .pse-doc-shell > h2:first-of-type + p * {
+      font-size: clamp(1.18rem, 3.2vw, 1.68rem) !important;
+      line-height: 1.2 !important;
+      color: var(--pse-muted) !important;
+    }
     .pse-doc-shell h1 { font-size: clamp(2rem, 5vw, 3rem) !important; }
-    .pse-doc-shell h2 { font-size: clamp(1.65rem, 4vw, 2.35rem) !important; }
-    .pse-doc-shell h3 { font-size: clamp(1.35rem, 3vw, 1.75rem) !important; }
+    .pse-doc-shell h2 { font-size: clamp(1.7rem, 4.2vw, 2.3rem) !important; }
+    .pse-doc-shell h3 { font-size: clamp(1.45rem, 3.4vw, 1.9rem) !important; }
+    .pse-doc-shell h4 { font-size: clamp(1.26rem, 2.8vw, 1.58rem) !important; }
+    .pse-doc-shell h5 { font-size: clamp(1.1rem, 2.2vw, 1.3rem) !important; }
+    .pse-doc-shell h6 { font-size: clamp(0.98rem, 1.8vw, 1.08rem) !important; letter-spacing: -0.01em !important; }
 
     .pse-doc-shell hr {
       margin: 2.5rem 0 !important;
@@ -213,10 +287,58 @@
       border-top: 1px solid var(--pse-border);
     }
 
+    .pse-discovery {
+      margin: 2.25rem 0 0 !important;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--pse-border);
+    }
+
+    .pse-discovery h2 {
+      margin: 0 0 0.8rem !important;
+      font-size: 1.1rem !important;
+      line-height: 1.2 !important;
+      letter-spacing: -0.01em !important;
+    }
+
+    .pse-discovery-list {
+      list-style: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    .pse-discovery-item {
+      margin: 0 !important;
+      padding: 0.55rem 0 !important;
+      border-top: 1px solid var(--pse-border);
+      list-style: none !important;
+    }
+
+    .pse-discovery-item:first-child {
+      border-top: 0;
+      padding-top: 0 !important;
+    }
+
+    .pse-discovery-item a {
+      color: var(--pse-link);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .pse-discovery-item a:hover {
+      text-decoration: underline;
+    }
+
+    .pse-discovery-kind {
+      display: inline-block;
+      margin-left: 0.5rem;
+      color: var(--pse-muted);
+      font-size: 0.92rem;
+    }
+
     .pse-footer {
       margin: 3rem auto 1.5rem;
       max-width: var(--pse-shell);
-      padding: 0 1.125rem;
+      padding: 0 1.5rem;
       color: var(--pse-muted);
       font-size: 0.95rem;
     }
@@ -224,7 +346,7 @@
     @media (max-width: 820px) {
       .pse-topbar-inner {
         display: block;
-        padding-top: 0.9rem;
+        padding: 0.9rem 1.25rem 0.95rem;
       }
 
       .pse-site-link {
@@ -237,20 +359,20 @@
       }
 
       .pse-doc-shell {
-        padding-left: 1rem;
-        padding-right: 1rem;
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
       }
 
       .pse-doc-shell p,
       .pse-doc-shell li,
       .pse-doc-shell blockquote {
-        font-size: 1.22rem !important;
-        line-height: 1.78 !important;
+        font-size: 1.18rem !important;
+        line-height: 1.8 !important;
       }
 
       .pse-doc-shell ul,
       .pse-doc-shell ol {
-        padding-left: 3rem !important;
+        padding-left: 2.8rem !important;
       }
 
       .pse-doc-shell ul ul,
