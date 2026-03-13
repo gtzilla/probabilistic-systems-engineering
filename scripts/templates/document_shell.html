@@ -155,9 +155,30 @@
 
     .pse-doc-shell p span,
     .pse-doc-shell li span,
-    .pse-doc-shell blockquote span {
+    .pse-doc-shell blockquote span,
+    .pse-doc-shell h1 span,
+    .pse-doc-shell h2 span,
+    .pse-doc-shell h3 span,
+    .pse-doc-shell h4 span,
+    .pse-doc-shell h5 span,
+    .pse-doc-shell h6 span,
+    .pse-doc-shell h1 a,
+    .pse-doc-shell h2 a,
+    .pse-doc-shell h3 a,
+    .pse-doc-shell h4 a,
+    .pse-doc-shell h5 a,
+    .pse-doc-shell h6 a,
+    .pse-doc-shell h1 a span,
+    .pse-doc-shell h2 a span,
+    .pse-doc-shell h3 a span,
+    .pse-doc-shell h4 a span,
+    .pse-doc-shell h5 a span,
+    .pse-doc-shell h6 a span {
       font-size: inherit !important;
       line-height: inherit !important;
+      letter-spacing: inherit !important;
+      font-weight: inherit !important;
+      color: inherit !important;
     }
 
     .pse-doc-shell ul,
@@ -230,18 +251,25 @@
 
 
     .pse-doc-shell > h2:first-child,
-    .pse-doc-shell > h2:first-of-type:first-child,
-    .pse-doc-shell > h2:first-of-type:first-child span {
+    .pse-doc-shell > h2:first-of-type,
+    .pse-doc-shell > h2:first-child *,
+    .pse-doc-shell > h2:first-of-type * {
       font-size: clamp(3rem, 7.2vw, 5rem) !important;
       line-height: 1.02 !important;
       letter-spacing: -0.03em !important;
       font-weight: 700 !important;
-      margin: 0 0 0.85rem !important;
       color: var(--pse-text) !important;
     }
 
+    .pse-doc-shell > h2:first-child,
+    .pse-doc-shell > h2:first-of-type {
+      margin: 0 0 0.85rem !important;
+    }
+
     .pse-doc-shell > h2:first-child + p,
-    .pse-doc-shell > h2:first-child + p span {
+    .pse-doc-shell > h2:first-child + p *,
+    .pse-doc-shell > h2:first-of-type + p,
+    .pse-doc-shell > h2:first-of-type + p * {
       font-size: clamp(1.35rem, 4vw, 2.2rem) !important;
       line-height: 1.2 !important;
       color: var(--pse-muted) !important;
