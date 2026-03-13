@@ -21,6 +21,7 @@ TEMPLATES = ROOT / "scripts" / "templates"
 SITE_NAME = "Probabilistic Systems Engineering"
 SITE_URL = "https://archive.gtzilla.com"
 CONTENT_TYPES = ["papers", "contracts", "replication"]
+TYPE_LABELS = {"papers": "Papers", "contracts": "Contracts", "replication": "Replication"}
 
 
 def fail(msg: str) -> None:
@@ -303,7 +304,7 @@ def write_site_metadata_index(
 
 
 def write_sitemap(dist_root: Path, entries: list[dict[str, str]]) -> None:
-    urls = [f"{SITE_URL}/"]
+    urls = [f"{SITE_URL}/", f"{SITE_URL}/latest/", f"{SITE_URL}/archive/"]
     for entry in entries:
         if entry.get("url"):
             urls.append(f"{SITE_URL}/{entry['url'].lstrip('./')}")
@@ -975,6 +976,49 @@ def inject_discovery_sections(
         out_path.write_text(html_text, encoding="utf-8")
 
 
+
+def relative_href(from_dir: str, target_path: str) -> str:
+    base = Path(from_dir.strip('/')) if from_dir.strip('/') else Path('.')
+    rel = os.path.relpath('/' + target_path.strip('/'), '/' + str(base).strip('/'))
+    return rel.replace(os.sep, '/')
+
+
+def document_generated_description(body_html: str, doc_title: str) -> str:
+    paragraphs = extract_candidate_paragraph_texts(body_html)
+    description = derive_description(paragraphs, doc_title).strip()
+    fallback = f"{doc_title} — published in {SITE_NAME}."
+    if not description or description == fallback:
+        return ''
+    return description
+
+
+def family_slug_and_version(entry: dict[str, str]) -> tuple[str, tuple[int, ...]]:
+    family_key, _version, version_tuple = slug_family_info(entry["slug"])
+    return family_key, version_tuple
+
+
+def latest_entries_and_families(entries: list[dict[str, str]]) -> tuple[list[dict[str, str]], dict[tuple[str,str], list[dict[str, str]]]]:
+    family_buckets: dict[tuple[str, str], list[dict[str, str]]] = {}
+    passthrough: list[dict[str, str]] = []
+    for entry in entries:
+        family_key, version_tuple = family_slug_and_version(entry)
+        if not family_key or not version_tuple:
+            passthrough.append(entry)
+            continue
+        family_buckets.setdefault((entry["type"], family_key), []).append(entry)
+    latest_only: list[dict[str, str]] = list(passthrough)
+    for key, bucket in family_buckets.items():
+        bucket_sorted = sorted(bucket, key=lambda e: (family_slug_and_version(e)[1], e['title'].lower(), e['slug']), reverse=True)
+        family_buckets[key] = bucket_sorted
+        latest_only.append(bucket_sorted[0])
+    return latest_only, family_buckets
+
+
+def render_redirect_page(target_href: str) -> str:
+    template = load_template("redirect.html")
+    return render_template(template, {"TARGET_HREF": safe_text(target_href), "SITE_NAME": safe_text(SITE_NAME)})
+
+
 def build_doc(
     type_name: str,
     doc_dir: Path,
@@ -1026,6 +1070,7 @@ def build_doc(
             "title": pdf.stem,
             "url": f"./{type_name}/{slug}/",
             "pdf_url": f"./{type_name}/{slug}/{pdf.name}",
+            "description": document_generated_description(body_html, pdf.stem),
         },
         metadata,
         match_context,
@@ -1069,6 +1114,7 @@ def collect_pdf_only_contract_entries(entries: list[dict[str, str]]) -> list[dic
                 "url": "",
                 "pdf_url": f"./contracts/{slug}/{pdf.name}",
                 "pdf_only": "true",
+                "description": "",
             }
         )
 
@@ -1096,106 +1142,111 @@ def split_group_and_leaf(slug: str) -> tuple[str, str]:
 def render_item_card(item: dict[str, str]) -> str:
     is_pdf_only = item.get("pdf_only") == "true"
     primary_href = item.get("url") if (not is_pdf_only and item.get("url")) else item.get("pdf_url", "")
-
     actions: list[str] = []
     if not is_pdf_only and item.get("url"):
         actions.append(f'<a class="item-action" href="{safe_text(item["url"])}">Read</a>')
     actions.append(f'<a class="item-action" href="{safe_text(item["pdf_url"])}">PDF</a>')
     meta = " · ".join(actions)
-
     if primary_href:
-        title_html = (
-            f'<a class="item-title-link" href="{safe_text(primary_href)}">'
-            f'{safe_text(item["title"])}'
-            "</a>"
-        )
+        title_html = f'<a class="item-title-link" href="{safe_text(primary_href)}">{safe_text(item["title"])}' + '</a>'
     else:
         title_html = safe_text(item["title"])
-
-    return (
-        '<li class="archive-item">'
-        f'<div class="item-title">{title_html}</div>'
-        f'<div class="item-actions">{meta}</div>'
-        "</li>"
-    )
+    description = (item.get("description") or "").strip()
+    desc_html = f'<div class="item-description">{safe_text(description)}</div>' if description else ''
+    latest_badge = '<span class="item-badge">Latest</span>' if item.get("is_latest") == "true" else ''
+    version_note = '<span class="item-version-note">Older version</span>' if item.get("is_latest") == "false" else ''
+    return ('<li class="archive-item">' f'<div class="item-title">{title_html}{latest_badge}{version_note}</div>' f'{desc_html}' f'<div class="item-actions">{meta}</div>' '</li>')
 
 
-def render_sections(items: list[dict[str, str]], empty_label: str) -> str:
-    if not items:
+def render_family_block(family_label: str, latest_item: dict[str, str], all_items: list[dict[str, str]], mode: str) -> str:
+    items = []
+    if mode == 'latest':
+        row = dict(latest_item)
+        row['is_latest'] = 'true'
+        items = [row]
+    else:
+        for idx, item in enumerate(all_items):
+            row = dict(item)
+            row['is_latest'] = 'true' if idx == 0 else 'false'
+            items.append(row)
+    rendered_items = ''.join(render_item_card(item) for item in items)
+    heading = f'<h3>{safe_text(family_label)}</h3>' if family_label else ''
+    return '<section class="group-block">' + heading + '<ul class="archive-list">' + rendered_items + '</ul></section>'
+
+
+def render_sections(items: list[dict[str, str]], family_buckets: dict[tuple[str, str], list[dict[str, str]]], type_name: str, mode: str, empty_label: str) -> str:
+    source_items = items if mode == 'latest' else [e for e in items if e['type'] == type_name]
+    if not source_items:
         return f'<div class="empty-state">{safe_text(empty_label)}</div>'
-
-    grouped: dict[str, list[dict[str, str]]] = {}
-    for item in sorted(items, key=lambda x: x["title"].lower()):
-        group_name, _leaf = split_group_and_leaf(item["slug"])
-        grouped.setdefault(group_name, []).append(item)
-
+    flat_items = []
+    family_latest: dict[str, dict[str, str]] = {}
+    for item in source_items:
+        family_key, version_tuple = family_slug_and_version(item)
+        if family_key and version_tuple:
+            family_latest[family_key] = item
+        else:
+            flat_items.append(item)
     blocks: list[str] = []
-    for group_name, group_items in grouped.items():
-        rendered_items = "\n".join(render_item_card(item) for item in group_items)
-        heading_html = f"<h3>{safe_text(group_name)}</h3>" if group_name else ""
-        blocks.append(
-            '<section class="group-block">'
-            f"{heading_html}"
-            '<ul class="archive-list">'
-            f"{rendered_items}"
-            "</ul>"
-            "</section>"
-        )
+    if flat_items:
+        rendered_items = ''.join(render_item_card(dict(item, is_latest='true')) for item in sorted(flat_items, key=lambda x: x['title'].lower()))
+        blocks.append('<section class="group-block"><ul class="archive-list">' + rendered_items + '</ul></section>')
+    for family_key in sorted(family_latest):
+        latest_item = family_latest[family_key]
+        all_items = family_buckets.get((type_name, family_key), [latest_item])
+        family_label = humanize_slug(family_key.split('/')[-1])
+        blocks.append(render_family_block(family_label, latest_item, all_items, mode))
     return "\n".join(blocks)
 
 
-def latest_index_entries(entries: list[dict[str, str]]) -> list[dict[str, str]]:
-    family_buckets: dict[tuple[str, str], list[dict[str, str]]] = {}
-    passthrough: list[dict[str, str]] = []
-
-    for entry in entries:
-        family_key, version, version_tuple = slug_family_info(entry["slug"])
-        if not family_key or not version_tuple:
-            passthrough.append(entry)
-            continue
-        family_buckets.setdefault((entry["type"], family_key), []).append(entry)
-
-    latest_only: list[dict[str, str]] = list(passthrough)
-    for (_type_name, _family_key), bucket in family_buckets.items():
-        bucket_sorted = sorted(
-            bucket,
-            key=lambda e: (
-                slug_family_info(e["slug"])[2],
-                e["title"].lower(),
-                e["slug"],
-            ),
-            reverse=True,
-        )
-        latest_only.append(bucket_sorted[0])
-
-    return latest_only
-
-
-def render_index(entries: list[dict[str, str]]) -> str:
-    visible_entries = latest_index_entries(entries)
+def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tuple[str, str], list[dict[str, str]]], mode: str) -> str:
     grouped: dict[str, list[dict[str, str]]] = {k: [] for k in CONTENT_TYPES}
-    for entry in visible_entries:
-        grouped[entry["type"]].append(entry)
-
-    template = load_template("index.html")
-    return render_template(
-        template,
-        {
-            "SITE_NAME": safe_text(SITE_NAME),
-            "AUTHOR_NAME": safe_text("Gregory Tomlinson"),
-            "HERO_TEXT": safe_text(
-                "Research archive on probabilistic systems, contract-centered engineering, iterative stability, and authority in AI-assisted development."
-            ),
-            "START_HERE_TEXT": safe_text(
-                "New here? Start with Is This Engineering for context, then Contract-Centered Engineering v2.16 for the core argument."
-            ),
-            "PAPERS_SECTIONS": render_sections(grouped["papers"], "No papers yet."),
-            "CONTRACTS_SECTIONS": render_sections(grouped["contracts"], "No contracts yet."),
-            "REPLICATION_SECTIONS": render_sections(grouped["replication"], "No replication materials yet."),
-        },
-    )
+    source_entries = entries if mode == 'latest' else [e for e in entries]
+    for entry in source_entries:
+        grouped[entry['type']].append(entry)
+    template = load_template('listing.html')
+    title = 'Latest' if mode == 'latest' else 'Archive'
+    intro = 'Current latest artifacts across papers, contracts, and replication materials.' if mode == 'latest' else 'Full archive with latest versions and prior version lineage grouped sanely.'
+    home_href = '../' if mode in ('latest','archive') else './'
+    latest_href = './' if mode == 'latest' else '../latest/'
+    archive_href = './' if mode == 'archive' else '../archive/'
+    return render_template(template, {'SITE_NAME': safe_text(SITE_NAME), 'PAGE_TITLE': safe_text(f'{title} | {SITE_NAME}'), 'PAGE_HEADING': safe_text(title), 'PAGE_INTRO': safe_text(intro), 'HOME_HREF': home_href, 'LATEST_HREF': latest_href, 'ARCHIVE_HREF': archive_href, 'PAPERS_SECTIONS': render_sections(grouped['papers'], family_buckets, 'papers', mode, 'No papers yet.'), 'CONTRACTS_SECTIONS': render_sections(grouped['contracts'], family_buckets, 'contracts', mode, 'No contracts yet.'), 'REPLICATION_SECTIONS': render_sections(grouped['replication'], family_buckets, 'replication', mode, 'No replication materials yet.')})
 
 
+def render_home_page(latest_entries: list[dict[str, str]]) -> str:
+    grouped: dict[str, list[dict[str, str]]] = {k: [] for k in CONTENT_TYPES}
+    for entry in latest_entries:
+        grouped[entry['type']].append(entry)
+    template = load_template('home.html')
+    return render_template(template, {'SITE_NAME': safe_text(SITE_NAME), 'LATEST_HREF': './latest/', 'ARCHIVE_HREF': './archive/', 'PAPERS_COUNT': str(len(grouped['papers'])), 'CONTRACTS_COUNT': str(len(grouped['contracts'])), 'REPLICATION_COUNT': str(len(grouped['replication']))})
+
+
+def write_family_redirects(dist_root: Path, family_buckets: dict[tuple[str, str], list[dict[str, str]]]) -> None:
+    for (type_name, family_key), bucket in family_buckets.items():
+        target = bucket[0]
+        out_dir = dist_root / type_name / Path(family_key)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        target_href = relative_href(f'/{type_name}/{family_key}/', f'/{type_name}/{target["slug"]}/')
+        (out_dir / 'index.html').write_text(render_redirect_page(target_href), encoding='utf-8')
+
+
+def inject_discovery_sections(dist_root: Path, metadata_index: list[dict[str, object]], contexts: dict[str, dict[str, object]]) -> None:
+    discovery_sections = build_discovery_sections(metadata_index, contexts)
+    version_relations = build_version_relations(metadata_index)
+    for item in metadata_index:
+        source_slug = str(item['slug'])
+        references_html, related_html = discovery_sections.get(source_slug, ('', ''))
+        relation = version_relations.get(source_slug)
+        footer_html = ''
+        if relation and not relation.get('is_latest'):
+            family_key = str(relation.get('family_key', ''))
+            family_href = relative_href(f'/{item["content_type"]}/{source_slug}/', f'/{item["content_type"]}/{family_key}/')
+            footer_html = '<section class="pse-discovery"><h2>Version status</h2><ul class="pse-discovery-list"><li class="pse-discovery-item">This is not the latest version. <a href="' + safe_text(family_href) + '">See the latest.</a></li></ul></section>'
+        out_path = dist_root / str(item['content_type']) / Path(source_slug) / 'index.html'
+        if not out_path.exists():
+            continue
+        html_text = out_path.read_text(encoding='utf-8')
+        html_text = inject_discovery_markup(html_text, footer_html + references_html, related_html)
+        out_path.write_text(html_text, encoding='utf-8')
 def main() -> int:
     if DIST.exists():
         shutil.rmtree(DIST)
@@ -1226,7 +1277,15 @@ def main() -> int:
 
         entries = collect_pdf_only_contract_entries(entries)
 
-        (DIST / "index.html").write_text(render_index(entries), encoding="utf-8")
+        latest_entries, family_buckets = latest_entries_and_families(entries)
+        (DIST / 'index.html').write_text(render_home_page(latest_entries), encoding='utf-8')
+        latest_dir = DIST / 'latest'
+        latest_dir.mkdir(parents=True, exist_ok=True)
+        (latest_dir / 'index.html').write_text(render_listing_page(latest_entries, family_buckets, 'latest'), encoding='utf-8')
+        archive_dir = DIST / 'archive'
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        (archive_dir / 'index.html').write_text(render_listing_page(entries, family_buckets, 'archive'), encoding='utf-8')
+        write_family_redirects(DIST, family_buckets)
         inject_discovery_sections(DIST, metadata_index, match_contexts)
         write_site_metadata_index(DIST, entries, metadata_index)
         write_sitemap(DIST, entries)
