@@ -21,6 +21,7 @@ TEMPLATES = ROOT / "scripts" / "templates"
 SITE_NAME = "Probabilistic Systems Engineering"
 SITE_URL = "https://archive.gtzilla.com"
 CONTENT_TYPES = ["papers", "contracts", "replication"]
+TYPE_LABELS = {"papers": "Papers", "contracts": "Contracts", "replication": "Replication"}
 
 
 def fail(msg: str) -> None:
@@ -80,6 +81,37 @@ def detect_version(text: str) -> str:
     return match.group(0) if match else ""
 
 
+def parse_version_tuple(version: str) -> tuple[int, ...]:
+    if not version:
+        return tuple()
+    normalized = version.lower()
+    if normalized.startswith("v"):
+        normalized = normalized[1:]
+    parts = [part for part in normalized.split(".") if part]
+    values: list[int] = []
+    for part in parts:
+        if not part.isdigit():
+            return tuple()
+        values.append(int(part))
+    return tuple(values)
+
+
+def slug_family_info(slug: str) -> tuple[str, str, tuple[int, ...]]:
+    parts = [part for part in slug.split("/") if part]
+    if not parts:
+        return ("", "", tuple())
+
+    leaf = parts[-1]
+    match = re.match(r"^(?P<family>.+)-(?P<version>v\d+(?:\.\d+)*)$", leaf, flags=re.IGNORECASE)
+    if not match:
+        return ("", "", tuple())
+
+    family_leaf = match.group("family")
+    version = match.group("version")
+    family_parts = parts[:-1] + [family_leaf]
+    return ("/".join(family_parts), version, parse_version_tuple(version))
+
+
 def estimate_reading_time_minutes(text: str) -> int:
     words = len(re.findall(r"\S+", text))
     if words <= 0:
@@ -97,8 +129,7 @@ def metadata_kind_for_type(type_name: str) -> tuple[str, str]:
     return (type_name, "CreativeWork")
 
 
-def derive_document_metadata(type_name: str, slug: str, doc_title: str, pdf_name: str, body_html: str) -> dict[str, object]:
-    paragraphs = extract_candidate_paragraph_texts(body_html)
+def derive_description(paragraphs: list[str], doc_title: str) -> str:
     abstract = ""
     for paragraph in paragraphs:
         if len(paragraph) >= 80:
@@ -108,12 +139,93 @@ def derive_document_metadata(type_name: str, slug: str, doc_title: str, pdf_name
         abstract = paragraphs[0]
     if len(abstract) > 320:
         abstract = abstract[:317].rstrip() + "..."
+    return abstract or f"{doc_title} — published in {SITE_NAME}."
+
+
+STOPWORDS = {
+    "the", "and", "for", "with", "from", "this", "that", "into", "your", "about", "through",
+    "under", "what", "when", "where", "which", "while", "have", "been", "will", "their", "more",
+    "than", "only", "also", "does", "did", "not", "are", "was", "were", "how", "why", "who",
+    "onto", "over", "then", "them", "they", "using", "used", "between", "because",
+    "paper", "papers", "contract", "contracts", "report", "system", "program", "materials",
+    "material", "version", "artifact", "artifacts", "document", "documents", "study", "work",
+}
+
+
+def normalize_for_match(text: str) -> str:
+    lowered = html.unescape(text).lower()
+    lowered = re.sub(r"[^a-z0-9]+", " ", lowered)
+    return re.sub(r"\s+", " ", lowered).strip()
+
+
+def significant_tokens(text: str) -> list[str]:
+    tokens = []
+    for token in normalize_for_match(text).split():
+        if len(token) < 4:
+            continue
+        if token in STOPWORDS:
+            continue
+        if re.fullmatch(r"v\d+(?:\.\d+)*", token):
+            continue
+        tokens.append(token)
+    return tokens
+
+
+def unique_preserve_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for value in values:
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        out.append(value)
+    return out
+
+
+def slug_reference_phrases(slug: str) -> list[str]:
+    parts = [p for p in slug.split("/") if p]
+    phrases: list[str] = []
+    if not parts:
+        return []
+    phrases.append(normalize_for_match(parts[-1].replace("-", " ")))
+    phrases.append(normalize_for_match(slug.replace("/", " ").replace("-", " ")))
+    return unique_preserve_order([p for p in phrases if len(p) >= 12])
+
+
+def document_match_context(metadata: dict[str, object], full_text: str) -> dict[str, object]:
+    title = str(metadata["title"])
+    description = str(metadata.get("description", ""))
+    slug = str(metadata["slug"])
+    version = str(metadata.get("version", ""))
+    title_tokens = unique_preserve_order(significant_tokens(title))
+    description_tokens = unique_preserve_order(significant_tokens(description))
+    return {
+        "norm_text": normalize_for_match(full_text),
+        "title_phrase": normalize_for_match(title),
+        "slug_phrases": slug_reference_phrases(slug),
+        "title_tokens": title_tokens,
+        "description_tokens": description_tokens,
+        "version": version.lower(),
+    }
+
+
+def derive_document_metadata(
+    type_name: str,
+    slug: str,
+    doc_title: str,
+    pdf_name: str,
+    body_html: str,
+) -> tuple[dict[str, object], dict[str, object]]:
+    paragraphs = extract_candidate_paragraph_texts(body_html)
+    description = derive_description(paragraphs, doc_title)
 
     full_text = " ".join(paragraphs)
     kind, schema_type = metadata_kind_for_type(type_name)
     version = detect_version(doc_title)
     slug_parts = [part for part in slug.split("/") if part]
     group_key = slug_parts[0] if len(slug_parts) > 1 else ""
+    family_key, slug_version, version_tuple = slug_family_info(slug)
+    effective_version = slug_version or version
     html_path = f"/{type_name}/{slug}/"
     pdf_path = f"/{type_name}/{slug}/{pdf_name}"
 
@@ -129,12 +241,14 @@ def derive_document_metadata(type_name: str, slug: str, doc_title: str, pdf_name
         "pdf_path": pdf_path,
         "pdf_url": f"{SITE_URL}{pdf_path}",
         "group_key": group_key,
-        "version": version,
-        "description": abstract or f"{doc_title} — published in {SITE_NAME}.",
+        "family_key": family_key,
+        "version": effective_version,
+        "version_tuple": list(version_tuple),
+        "description": description,
         "word_count": len(re.findall(r"\S+", full_text)),
         "reading_time_minutes": estimate_reading_time_minutes(full_text),
     }
-    return metadata
+    return metadata, document_match_context(metadata, full_text)
 
 
 def build_structured_data(metadata: dict[str, object]) -> str:
@@ -170,7 +284,11 @@ def build_structured_data(metadata: dict[str, object]) -> str:
     return safe_json(payload)
 
 
-def write_site_metadata_index(dist_root: Path, entries: list[dict[str, str]], metadata_index: list[dict[str, object]]) -> None:
+def write_site_metadata_index(
+    dist_root: Path,
+    entries: list[dict[str, str]],
+    metadata_index: list[dict[str, object]],
+) -> None:
     payload = {
         "site": SITE_NAME,
         "site_url": SITE_URL,
@@ -179,11 +297,14 @@ def write_site_metadata_index(dist_root: Path, entries: list[dict[str, str]], me
     }
     metadata_dir = dist_root / "metadata"
     metadata_dir.mkdir(parents=True, exist_ok=True)
-    (metadata_dir / "documents.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    (metadata_dir / "documents.json").write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
 
 
 def write_sitemap(dist_root: Path, entries: list[dict[str, str]]) -> None:
-    urls = [f"{SITE_URL}/"]
+    urls = [f"{SITE_URL}/", f"{SITE_URL}/latest/", f"{SITE_URL}/archive/"]
     for entry in entries:
         if entry.get("url"):
             urls.append(f"{SITE_URL}/{entry['url'].lstrip('./')}")
@@ -192,11 +313,11 @@ def write_sitemap(dist_root: Path, entries: list[dict[str, str]]) -> None:
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ]
     for url in urls:
-        xml.append('  <url>')
-        xml.append(f'    <loc>{safe_text(url)}</loc>')
-        xml.append('  </url>')
-    xml.append('</urlset>')
-    (dist_root / 'sitemap.xml').write_text("\n".join(xml) + "\n", encoding='utf-8')
+        xml.append("  <url>")
+        xml.append(f"    <loc>{safe_text(url)}</loc>")
+        xml.append("  </url>")
+    xml.append("</urlset>")
+    (dist_root / "sitemap.xml").write_text("\n".join(xml) + "\n", encoding="utf-8")
 
 
 def normalize_exported_html(raw_html: str) -> str:
@@ -263,9 +384,9 @@ def inject_head_metadata(raw_html: str, doc_title: str) -> str:
     if head_close != -1:
         before_close = raw_html[:head_close]
         additions = []
-        if "<meta name=\"description\"" not in before_close.lower():
+        if '<meta name="description"' not in before_close.lower():
             additions.append(f'  <meta name="description" content="{safe_text(description)}">')
-        if "<meta name=\"author\"" not in before_close.lower():
+        if '<meta name="author"' not in before_close.lower():
             additions.append('  <meta name="author" content="Gregory Tomlinson">')
         if additions:
             raw_html = raw_html[:head_close] + "\n" + "\n".join(additions) + "\n" + raw_html[head_close:]
@@ -314,7 +435,7 @@ def refine_body_html(body_html: str) -> str:
                 flags=re.IGNORECASE,
             )
         else:
-            new_attrs = re.sub(r'\s*class\s*=\s*"([^"]*)"', '', attrs, count=1, flags=re.IGNORECASE)
+            new_attrs = re.sub(r'\s*class\s*=\s*"([^"]*)"', "", attrs, count=1, flags=re.IGNORECASE)
 
         return f"<li{new_attrs}>"
 
@@ -338,7 +459,6 @@ def refine_body_html(body_html: str) -> str:
         text = strip_tags(inner_html)
         return not text
 
-
     def normalize_p_attrs(attrs: str) -> str:
         class_match = re.search(r'class\s*=\s*"([^"]*)"', attrs, flags=re.IGNORECASE)
         if not class_match:
@@ -356,10 +476,10 @@ def refine_body_html(body_html: str) -> str:
                 count=1,
                 flags=re.IGNORECASE,
             )
-        return re.sub(r'\s*class\s*=\s*"([^"]*)"', '', attrs, count=1, flags=re.IGNORECASE)
+        return re.sub(r'\s*class\s*=\s*"([^"]*)"', "", attrs, count=1, flags=re.IGNORECASE)
 
     paragraph_pattern = re.compile(r"<p\b(?P<attrs>[^>]*)>(?P<body>.*?)</p>", flags=re.IGNORECASE | re.DOTALL)
-    pieces: list[dict[str, str | bool]] = []
+    pieces: list[dict[str, str | bool | list[str]]] = []
     last_end = 0
 
     for match in paragraph_pattern.finditer(body_html):
@@ -395,7 +515,6 @@ def refine_body_html(body_html: str) -> str:
         for idx, piece in enumerate(pieces)
         if piece.get("kind") == "p" and not piece.get("is_empty")
     ]
-
 
     title_piece_indexes = [
         idx
@@ -526,6 +645,10 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
     exported_styles = extract_head_styles(normalized)
     body_html = refine_body_html(extract_body_inner_html(normalized))
 
+    slug = str(metadata["slug"])
+    depth = len([part for part in slug.split("/") if part])
+    home_href = "../" * (depth + 1)
+
     template = load_template("document_shell.html")
     return render_template(
         template,
@@ -533,7 +656,7 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
             "PAGE_TITLE": safe_text(f"{doc_title} | {SITE_NAME}"),
             "PAGE_DESCRIPTION": safe_text(str(metadata["description"])),
             "SITE_NAME": safe_text(SITE_NAME),
-            "HOME_HREF": "../../",
+            "HOME_HREF": home_href,
             "PDF_HREF": safe_text(pdf_href),
             "CANONICAL_URL": safe_text(str(metadata["html_url"])),
             "STRUCTURED_DATA_JSON": build_structured_data(metadata),
@@ -541,8 +664,6 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
             "DOCUMENT_BODY": body_html,
         },
     )
-
-
 
 
 def compute_dist_hash(dist_root: Path) -> str:
@@ -568,7 +689,6 @@ def write_build_manifest(dist_root: Path) -> None:
     (dist_root / "build.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
 
-
 def discover_doc_dirs(type_root: Path) -> list[tuple[Path, str]]:
     docs: list[tuple[Path, str]] = []
 
@@ -590,7 +710,321 @@ def discover_doc_dirs(type_root: Path) -> list[tuple[Path, str]]:
     return sorted(docs, key=lambda item: item[1])
 
 
-def build_doc(type_name: str, doc_dir: Path, relative_slug: str, tmp_root: Path) -> tuple[dict[str, str], dict[str, object]]:
+def render_discovery_links(items: list[dict[str, object]], label: str) -> str:
+    if not items:
+        return ""
+
+    links: list[str] = []
+    for item in items:
+        links.append(
+            '<li class="pse-discovery-item">'
+            f'<a href="{safe_text(str(item["html_path"]))}">{safe_text(str(item["title"]))}</a>'
+            f'<span class="pse-discovery-kind">{safe_text(str(item["kind_label"]))}</span>'
+            '</li>'
+        )
+
+    return (
+        '<section class="pse-discovery">'
+        f"<h2>{safe_text(label)}</h2>"
+        '<ul class="pse-discovery-list">'
+        + "".join(links)
+        + "</ul>"
+        "</section>"
+    )
+
+
+def inject_discovery_markup(html_text: str, references_html: str, related_html: str) -> str:
+    discovery_html = references_html + related_html
+    if not discovery_html:
+        return html_text
+
+    marker = "</main>"
+    if marker in html_text:
+        return html_text.replace(marker, discovery_html + "\n  </main>", 1)
+
+    marker = '<footer class="pse-footer">'
+    if marker in html_text:
+        return html_text.replace(marker, discovery_html + "\n  " + marker, 1)
+
+    return html_text + discovery_html
+
+
+def build_version_relations(metadata_index: list[dict[str, object]]) -> dict[str, dict[str, object]]:
+    families: dict[str, list[dict[str, object]]] = {}
+    for item in metadata_index:
+        family_key = str(item.get("family_key", "") or "")
+        version_tuple = tuple(item.get("version_tuple", []))
+        if not family_key or not version_tuple:
+            continue
+        families.setdefault(family_key, []).append(item)
+
+    relations: dict[str, dict[str, object]] = {}
+    for family_key, docs in families.items():
+        docs_sorted = sorted(
+            docs,
+            key=lambda d: (
+                tuple(d.get("version_tuple", [])),
+                str(d.get("title", "")).lower(),
+                str(d.get("slug", "")),
+            ),
+            reverse=True,
+        )
+        if not docs_sorted:
+            continue
+        latest = docs_sorted[0]
+        latest_slug = str(latest["slug"])
+
+        for idx, doc in enumerate(docs_sorted):
+            slug = str(doc["slug"])
+            newer = docs_sorted[:idx]
+            older = docs_sorted[idx + 1:]
+            relations[slug] = {
+                "family_key": family_key,
+                "latest_slug": latest_slug,
+                "is_latest": slug == latest_slug,
+                "newer": newer,
+                "older": older,
+            }
+    return relations
+
+
+def render_version_sections(relation: dict[str, object] | None) -> str:
+    if not relation:
+        return ""
+
+    pieces: list[str] = []
+
+    newer = relation.get("newer", [])
+    if newer:
+        newest = newer[0]
+        pieces.append(
+            '<section class="pse-discovery">'
+            '<h2>Version status</h2>'
+            '<ul class="pse-discovery-list">'
+            '<li class="pse-discovery-item">'
+            f'Newer version available: <a href="{safe_text(str(newest["html_path"]))}">{safe_text(str(newest["title"]))}</a>'
+            '</li>'
+            '</ul>'
+            '</section>'
+        )
+
+    older = relation.get("older", [])
+    if older:
+        links = []
+        for item in older[:3]:
+            links.append(
+                '<li class="pse-discovery-item">'
+                f'<a href="{safe_text(str(item["html_path"]))}">{safe_text(str(item["title"]))}</a>'
+                '</li>'
+            )
+        pieces.append(
+            '<section class="pse-discovery">'
+            '<h2>Older versions</h2>'
+            '<ul class="pse-discovery-list">'
+            + "".join(links) +
+            '</ul>'
+            '</section>'
+        )
+
+    return "".join(pieces)
+
+
+def explicit_reference_match(source_ctx: dict[str, object], target_ctx: dict[str, object]) -> bool:
+    norm_text = str(source_ctx["norm_text"])
+    title_phrase = str(target_ctx["title_phrase"])
+
+    if len(title_phrase) >= 16 and title_phrase in norm_text:
+        return True
+
+    for phrase in target_ctx["slug_phrases"]:
+        if phrase and phrase in norm_text:
+            return True
+
+    version = str(target_ctx.get("version", ""))
+    title_tokens = list(target_ctx.get("title_tokens", []))
+    if version and version in norm_text:
+        matched = sum(1 for token in title_tokens if token in norm_text)
+        if matched >= 2:
+            return True
+
+    return False
+
+
+def related_score(
+    source_meta: dict[str, object],
+    source_ctx: dict[str, object],
+    target_meta: dict[str, object],
+    target_ctx: dict[str, object],
+    explicit_ref: bool,
+) -> int:
+    score = 0
+
+    if explicit_ref:
+        score += 100
+
+    if source_meta.get("group_key") and source_meta.get("group_key") == target_meta.get("group_key"):
+        score += 35
+
+    if source_meta.get("content_type") == target_meta.get("content_type"):
+        score += 10
+
+    title_overlap = len(set(source_ctx["title_tokens"]) & set(target_ctx["title_tokens"]))
+    desc_overlap = len(set(source_ctx["description_tokens"]) & set(target_ctx["description_tokens"]))
+
+    score += min(25, title_overlap * 5)
+    score += min(20, desc_overlap * 4)
+
+    if source_meta.get("content_type") != target_meta.get("content_type"):
+        pair = {str(source_meta.get("content_type")), str(target_meta.get("content_type"))}
+        if pair in ({"papers", "contracts"}, {"papers", "replication"}):
+            score += 5
+
+    return score
+
+
+def build_discovery_sections(
+    metadata_index: list[dict[str, object]],
+    contexts: dict[str, dict[str, object]],
+) -> dict[str, tuple[str, str]]:
+    results: dict[str, tuple[str, str]] = {}
+
+    for item in metadata_index:
+        source_slug = str(item["slug"])
+        source_ctx = contexts[source_slug]
+
+        references: list[dict[str, object]] = []
+        related_candidates: list[tuple[int, dict[str, object], bool]] = []
+
+        for target in metadata_index:
+            target_slug = str(target["slug"])
+            if target_slug == source_slug:
+                continue
+
+            target_ctx = contexts[target_slug]
+            is_reference = explicit_reference_match(source_ctx, target_ctx)
+
+            if is_reference:
+                references.append(target)
+
+            score = related_score(item, source_ctx, target, target_ctx, is_reference)
+            related_candidates.append((score, target, is_reference))
+
+        ref_seen: set[str] = set()
+        ref_items: list[dict[str, object]] = []
+
+        for target in sorted(references, key=lambda x: (str(x["title"]).lower(), str(x["slug"]))):
+            target_slug = str(target["slug"])
+            if target_slug in ref_seen:
+                continue
+            ref_seen.add(target_slug)
+            ref_items.append(
+                {
+                    "title": target["title"],
+                    "html_path": target["html_path"],
+                    "kind_label": str(target["kind"]).replace("-", " ").title(),
+                }
+            )
+
+        related_candidates.sort(key=lambda row: (-row[0], str(row[1]["title"]).lower(), str(row[1]["slug"])))
+        related_items: list[dict[str, object]] = []
+        related_seen: set[str] = set(ref_seen)
+
+        for score, target, _is_reference in related_candidates:
+            if score < 35:
+                continue
+            target_slug = str(target["slug"])
+            if target_slug in related_seen:
+                continue
+            related_seen.add(target_slug)
+            related_items.append(
+                {
+                    "title": target["title"],
+                    "html_path": target["html_path"],
+                    "kind_label": str(target["kind"]).replace("-", " ").title(),
+                }
+            )
+            if len(related_items) >= 2:
+                break
+
+        results[source_slug] = (
+            render_discovery_links(ref_items, "Referenced artifacts"),
+            render_discovery_links(related_items, "Read next"),
+        )
+
+    return results
+
+
+def inject_discovery_sections(
+    dist_root: Path,
+    metadata_index: list[dict[str, object]],
+    contexts: dict[str, dict[str, object]],
+) -> None:
+    discovery_sections = build_discovery_sections(metadata_index, contexts)
+    version_relations = build_version_relations(metadata_index)
+
+    for item in metadata_index:
+        source_slug = str(item["slug"])
+        references_html, related_html = discovery_sections.get(source_slug, ("", ""))
+        version_html = render_version_sections(version_relations.get(source_slug))
+
+        out_path = dist_root / str(item["content_type"]) / Path(source_slug) / "index.html"
+        if not out_path.exists():
+            continue
+
+        html_text = out_path.read_text(encoding="utf-8")
+        html_text = inject_discovery_markup(html_text, version_html + references_html, related_html)
+        out_path.write_text(html_text, encoding="utf-8")
+
+
+
+def relative_href(from_dir: str, target_path: str) -> str:
+    base = Path(from_dir.strip('/')) if from_dir.strip('/') else Path('.')
+    rel = os.path.relpath('/' + target_path.strip('/'), '/' + str(base).strip('/'))
+    return rel.replace(os.sep, '/')
+
+
+def document_generated_description(body_html: str, doc_title: str) -> str:
+    paragraphs = extract_candidate_paragraph_texts(body_html)
+    description = derive_description(paragraphs, doc_title).strip()
+    fallback = f"{doc_title} — published in {SITE_NAME}."
+    if not description or description == fallback:
+        return ''
+    return description
+
+
+def family_slug_and_version(entry: dict[str, str]) -> tuple[str, tuple[int, ...]]:
+    family_key, _version, version_tuple = slug_family_info(entry["slug"])
+    return family_key, version_tuple
+
+
+def latest_entries_and_families(entries: list[dict[str, str]]) -> tuple[list[dict[str, str]], dict[tuple[str,str], list[dict[str, str]]]]:
+    family_buckets: dict[tuple[str, str], list[dict[str, str]]] = {}
+    passthrough: list[dict[str, str]] = []
+    for entry in entries:
+        family_key, version_tuple = family_slug_and_version(entry)
+        if not family_key or not version_tuple:
+            passthrough.append(entry)
+            continue
+        family_buckets.setdefault((entry["type"], family_key), []).append(entry)
+    latest_only: list[dict[str, str]] = list(passthrough)
+    for key, bucket in family_buckets.items():
+        bucket_sorted = sorted(bucket, key=lambda e: (family_slug_and_version(e)[1], e['title'].lower(), e['slug']), reverse=True)
+        family_buckets[key] = bucket_sorted
+        latest_only.append(bucket_sorted[0])
+    return latest_only, family_buckets
+
+
+def render_redirect_page(target_href: str) -> str:
+    template = load_template("redirect.html")
+    return render_template(template, {"TARGET_HREF": safe_text(target_href), "SITE_NAME": safe_text(SITE_NAME)})
+
+
+def build_doc(
+    type_name: str,
+    doc_dir: Path,
+    relative_slug: str,
+    tmp_root: Path,
+) -> tuple[dict[str, str], dict[str, object], dict[str, object]]:
     slug = relative_slug
     pdf = find_exactly_one(doc_dir, "*.pdf", "PDF")
     zf = find_exactly_one(doc_dir, "*.zip", "ZIP")
@@ -609,7 +1043,6 @@ def build_doc(type_name: str, doc_dir: Path, relative_slug: str, tmp_root: Path)
     out_dir = DIST / type_name / Path(relative_slug)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Copy extracted assets/files except the source HTML itself.
     for child in extract_dir.iterdir():
         if child.resolve() == source_html.resolve():
             continue
@@ -624,19 +1057,24 @@ def build_doc(type_name: str, doc_dir: Path, relative_slug: str, tmp_root: Path)
     raw_html = source_html.read_text(encoding="utf-8")
     normalized = normalize_exported_html(raw_html)
     body_html = refine_body_html(extract_body_inner_html(normalized))
-    metadata = derive_document_metadata(type_name, relative_slug, doc_title, pdf.name, body_html)
+    metadata, match_context = derive_document_metadata(type_name, relative_slug, doc_title, pdf.name, body_html)
     wrapped_html = render_document_page(raw_html, pdf_href, doc_title, metadata)
     (out_dir / "index.html").write_text(wrapped_html, encoding="utf-8")
     shutil.copy2(pdf, out_dir / pdf.name)
 
-    return ({
-        "type": type_name,
-        "slug": slug,
-        "pdf_name": pdf.name,
-        "title": pdf.stem,
-        "url": f"./{type_name}/{slug}/",
-        "pdf_url": f"./{type_name}/{slug}/{pdf.name}",
-    }, metadata)
+    return (
+        {
+            "type": type_name,
+            "slug": slug,
+            "pdf_name": pdf.name,
+            "title": pdf.stem,
+            "url": f"/{type_name}/{slug}/",
+            "pdf_url": f"/{type_name}/{slug}/{pdf.name}",
+            "description": document_generated_description(body_html, pdf.stem),
+        },
+        metadata,
+        match_context,
+    )
 
 
 def collect_pdf_only_contract_entries(entries: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -674,8 +1112,9 @@ def collect_pdf_only_contract_entries(entries: list[dict[str, str]]) -> list[dic
                 "pdf_name": pdf.name,
                 "title": pdf.stem,
                 "url": "",
-                "pdf_url": f"./contracts/{slug}/{pdf.name}",
+                "pdf_url": f"/contracts/{slug}/{pdf.name}",
                 "pdf_only": "true",
+                "description": "",
             }
         )
 
@@ -703,77 +1142,119 @@ def split_group_and_leaf(slug: str) -> tuple[str, str]:
 def render_item_card(item: dict[str, str]) -> str:
     is_pdf_only = item.get("pdf_only") == "true"
     primary_href = item.get("url") if (not is_pdf_only and item.get("url")) else item.get("pdf_url", "")
-
     actions: list[str] = []
     if not is_pdf_only and item.get("url"):
         actions.append(f'<a class="item-action" href="{safe_text(item["url"])}">Read</a>')
     actions.append(f'<a class="item-action" href="{safe_text(item["pdf_url"])}">PDF</a>')
     meta = " · ".join(actions)
-
     if primary_href:
-        title_html = (
-            f'<a class="item-title-link" href="{safe_text(primary_href)}">'
-            f'{safe_text(item["title"])}'
-            '</a>'
-        )
+        title_html = f'<a class="item-title-link" href="{safe_text(primary_href)}">{safe_text(item["title"])}' + '</a>'
     else:
         title_html = safe_text(item["title"])
-
-    return (
-        '<li class="archive-item">'
-        f'<div class="item-title">{title_html}</div>'
-        f'<div class="item-actions">{meta}</div>'
-        '</li>'
-    )
+    description = (item.get("description") or "").strip()
+    desc_html = f'<div class="item-description">{safe_text(description)}</div>' if description else ''
+    latest_badge = '<span class="item-badge">Latest</span>' if item.get("is_latest") == "true" else ''
+    version_note = '<span class="item-version-note">Older version</span>' if item.get("is_latest") == "false" else ''
+    return ('<li class="archive-item">' f'<div class="item-title">{title_html}{latest_badge}{version_note}</div>' f'{desc_html}' f'<div class="item-actions">{meta}</div>' '</li>')
 
 
-def render_sections(items: list[dict[str, str]], empty_label: str) -> str:
-    if not items:
+def render_family_block(family_label: str, latest_item: dict[str, str], all_items: list[dict[str, str]], mode: str) -> str:
+    items = []
+    if mode == 'latest':
+        row = dict(latest_item)
+        row['is_latest'] = 'true'
+        items = [row]
+    else:
+        for idx, item in enumerate(all_items):
+            row = dict(item)
+            row['is_latest'] = 'true' if idx == 0 else 'false'
+            items.append(row)
+    rendered_items = ''.join(render_item_card(item) for item in items)
+    heading = f'<h3>{safe_text(family_label)}</h3>' if family_label else ''
+    return '<section class="group-block">' + heading + '<ul class="archive-list">' + rendered_items + '</ul></section>'
+
+
+def render_sections(items: list[dict[str, str]], family_buckets: dict[tuple[str, str], list[dict[str, str]]], type_name: str, mode: str, empty_label: str) -> str:
+    source_items = items if mode == 'latest' else [e for e in items if e['type'] == type_name]
+    if not source_items:
         return f'<div class="empty-state">{safe_text(empty_label)}</div>'
-
-    grouped: dict[str, list[dict[str, str]]] = {}
-    for item in sorted(items, key=lambda x: x["title"].lower()):
-        group_name, _leaf = split_group_and_leaf(item["slug"])
-        grouped.setdefault(group_name, []).append(item)
-
+    flat_items = []
+    family_latest: dict[str, dict[str, str]] = {}
+    for item in source_items:
+        family_key, version_tuple = family_slug_and_version(item)
+        if family_key and version_tuple:
+            family_latest[family_key] = item
+        else:
+            flat_items.append(item)
     blocks: list[str] = []
-    for group_name, group_items in grouped.items():
-        rendered_items = "\n".join(render_item_card(item) for item in group_items)
-        heading_html = f'<h3>{safe_text(group_name)}</h3>' if group_name else ''
-        blocks.append(
-            '<section class="group-block">'
-            f'{heading_html}'
-            '<ul class="archive-list">'
-            f'{rendered_items}'
-            '</ul>'
-            '</section>'
-        )
+    if flat_items:
+        rendered_items = ''.join(render_item_card(dict(item, is_latest='true')) for item in sorted(flat_items, key=lambda x: x['title'].lower()))
+        blocks.append('<section class="group-block"><ul class="archive-list">' + rendered_items + '</ul></section>')
+    for family_key in sorted(family_latest):
+        latest_item = family_latest[family_key]
+        all_items = family_buckets.get((type_name, family_key), [latest_item])
+        family_label = humanize_slug(family_key.split('/')[-1])
+        blocks.append(render_family_block(family_label, latest_item, all_items, mode))
     return "\n".join(blocks)
 
 
-def render_index(entries: list[dict[str, str]]) -> str:
+def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tuple[str, str], list[dict[str, str]]], mode: str) -> str:
     grouped: dict[str, list[dict[str, str]]] = {k: [] for k in CONTENT_TYPES}
-    for entry in entries:
-        grouped[entry["type"]].append(entry)
+    source_entries = entries if mode == 'latest' else [e for e in entries]
+    for entry in source_entries:
+        grouped[entry['type']].append(entry)
+    template = load_template('listing.html')
+    title = 'Latest' if mode == 'latest' else 'Archive'
+    intro = 'Current latest artifacts across papers, contracts, and replication materials.' if mode == 'latest' else 'Full archive with latest versions and prior version lineage grouped sanely.'
+    home_href = '../' if mode in ('latest','archive') else './'
+    latest_href = './' if mode == 'latest' else '../latest/'
+    archive_href = './' if mode == 'archive' else '../archive/'
+    return render_template(template, {'SITE_NAME': safe_text(SITE_NAME), 'PAGE_TITLE': safe_text(f'{title} | {SITE_NAME}'), 'PAGE_HEADING': safe_text(title), 'PAGE_INTRO': safe_text(intro), 'HOME_HREF': home_href, 'LATEST_HREF': latest_href, 'ARCHIVE_HREF': archive_href, 'PAPERS_SECTIONS': render_sections(grouped['papers'], family_buckets, 'papers', mode, 'No papers yet.'), 'CONTRACTS_SECTIONS': render_sections(grouped['contracts'], family_buckets, 'contracts', mode, 'No contracts yet.'), 'REPLICATION_SECTIONS': render_sections(grouped['replication'], family_buckets, 'replication', mode, 'No replication materials yet.')})
 
-    template = load_template("index.html")
-    return render_template(
-        template,
-        {
-            "SITE_NAME": safe_text(SITE_NAME),
-            "AUTHOR_NAME": safe_text("Gregory Tomlinson"),
-            "HERO_TEXT": safe_text(
-                "Research archive on probabilistic systems, contract-centered engineering, iterative stability, and authority in AI-assisted development."
-            ),
-            "START_HERE_TEXT": safe_text(
-                "New here? Start with Is This Engineering for context, then Contract-Centered Engineering v2.16 for the core argument."
-            ),
-            "PAPERS_SECTIONS": render_sections(grouped["papers"], "No papers yet."),
-            "CONTRACTS_SECTIONS": render_sections(grouped["contracts"], "No contracts yet."),
-            "REPLICATION_SECTIONS": render_sections(grouped["replication"], "No replication materials yet."),
-        },
-    )
 
+def render_home_page(latest_entries: list[dict[str, str]]) -> str:
+    grouped: dict[str, list[dict[str, str]]] = {k: [] for k in CONTENT_TYPES}
+    for entry in latest_entries:
+        grouped[entry['type']].append(entry)
+    template = load_template('home.html')
+    return render_template(template, {
+        'SITE_NAME': safe_text(SITE_NAME),
+        'LATEST_HREF': './latest/',
+        'ARCHIVE_HREF': './archive/',
+        'ENTRY_PAPER_HREF': './papers/is-this-engineering/',
+        'PAPERS_COUNT': str(len(grouped['papers'])),
+        'CONTRACTS_COUNT': str(len(grouped['contracts'])),
+        'REPLICATION_COUNT': str(len(grouped['replication'])),
+    })
+
+
+def write_family_redirects(dist_root: Path, family_buckets: dict[tuple[str, str], list[dict[str, str]]]) -> None:
+    for (type_name, family_key), bucket in family_buckets.items():
+        target = bucket[0]
+        out_dir = dist_root / type_name / Path(family_key)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        target_href = relative_href(f'/{type_name}/{family_key}/', f'/{type_name}/{target["slug"]}/')
+        (out_dir / 'index.html').write_text(render_redirect_page(target_href), encoding='utf-8')
+
+
+def inject_discovery_sections(dist_root: Path, metadata_index: list[dict[str, object]], contexts: dict[str, dict[str, object]]) -> None:
+    discovery_sections = build_discovery_sections(metadata_index, contexts)
+    version_relations = build_version_relations(metadata_index)
+    for item in metadata_index:
+        source_slug = str(item['slug'])
+        references_html, related_html = discovery_sections.get(source_slug, ('', ''))
+        relation = version_relations.get(source_slug)
+        footer_html = ''
+        if relation and not relation.get('is_latest'):
+            family_key = str(relation.get('family_key', ''))
+            family_href = relative_href(f'/{item["content_type"]}/{source_slug}/', f'/{item["content_type"]}/{family_key}/')
+            footer_html = '<section class="pse-discovery"><h2>Version status</h2><ul class="pse-discovery-list"><li class="pse-discovery-item">This is not the latest version. <a href="' + safe_text(family_href) + '">See the latest.</a></li></ul></section>'
+        out_path = dist_root / str(item['content_type']) / Path(source_slug) / 'index.html'
+        if not out_path.exists():
+            continue
+        html_text = out_path.read_text(encoding='utf-8')
+        html_text = inject_discovery_markup(html_text, footer_html + references_html, related_html)
+        out_path.write_text(html_text, encoding='utf-8')
 def main() -> int:
     if DIST.exists():
         shutil.rmtree(DIST)
@@ -786,6 +1267,8 @@ def main() -> int:
 
     entries: list[dict[str, str]] = []
     metadata_index: list[dict[str, object]] = []
+    match_contexts: dict[str, dict[str, object]] = {}
+
     try:
         for type_name in CONTENT_TYPES:
             type_root = INCOMING / type_name
@@ -795,13 +1278,23 @@ def main() -> int:
                 fail(f"{type_root} exists but is not a directory")
 
             for doc_dir, relative_slug in discover_doc_dirs(type_root):
-                entry, metadata = build_doc(type_name, doc_dir, relative_slug, tmp_root)
+                entry, metadata, match_context = build_doc(type_name, doc_dir, relative_slug, tmp_root)
                 entries.append(entry)
                 metadata_index.append(metadata)
+                match_contexts[str(metadata["slug"])] = match_context
 
         entries = collect_pdf_only_contract_entries(entries)
 
-        (DIST / "index.html").write_text(render_index(entries), encoding="utf-8")
+        latest_entries, family_buckets = latest_entries_and_families(entries)
+        (DIST / 'index.html').write_text(render_home_page(latest_entries), encoding='utf-8')
+        latest_dir = DIST / 'latest'
+        latest_dir.mkdir(parents=True, exist_ok=True)
+        (latest_dir / 'index.html').write_text(render_listing_page(latest_entries, family_buckets, 'latest'), encoding='utf-8')
+        archive_dir = DIST / 'archive'
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        (archive_dir / 'index.html').write_text(render_listing_page(entries, family_buckets, 'archive'), encoding='utf-8')
+        write_family_redirects(DIST, family_buckets)
+        inject_discovery_sections(DIST, metadata_index, match_contexts)
         write_site_metadata_index(DIST, entries, metadata_index)
         write_sitemap(DIST, entries)
         write_build_manifest(DIST)
