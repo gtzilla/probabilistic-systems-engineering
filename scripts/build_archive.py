@@ -15,6 +15,15 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from archive_build.html_processing import (
+    extract_body_inner_html,
+    extract_candidate_paragraph_texts,
+    extract_head_styles,
+    normalize_exported_html,
+    refine_body_html,
+    strip_tags_to_text,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 INCOMING = ROOT / "incoming"
 DIST = ROOT / "dist"
@@ -59,22 +68,8 @@ def safe_json(value: object) -> str:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
 
-def strip_tags_to_text(raw: str) -> str:
-    text = re.sub(r"<[^>]+>", " ", raw)
-    return html.unescape(re.sub(r"\s+", " ", text)).strip()
 
 
-def extract_candidate_paragraph_texts(body_html: str) -> list[str]:
-    paragraphs: list[str] = []
-    for match in re.finditer(r"<p\b[^>]*>(.*?)</p>", body_html, flags=re.IGNORECASE | re.DOTALL):
-        inner = match.group(1)
-        if re.search(r"<(img|svg|table|hr)\b", inner, flags=re.IGNORECASE):
-            continue
-        text = strip_tags_to_text(inner)
-        if not text:
-            continue
-        paragraphs.append(text)
-    return paragraphs
 
 
 def detect_version(text: str) -> str:
@@ -385,51 +380,6 @@ def write_sitemap(dist_root: Path, entries: list[dict[str, str]]) -> None:
     (dist_root / "sitemap.xml").write_text("\n".join(xml) + "\n", encoding="utf-8")
 
 
-def normalize_exported_html(raw_html: str) -> str:
-    """
-    Clean obvious Google Docs export junk in the top preamble only.
-
-    Rules:
-    - remove empty <p class="... title ...">...</p> blocks
-    - remove duplicate non-empty title paragraphs in the preamble
-    - stop touching content once the first structural section marker appears
-      (<hr>, <h1>, <h2>, <h3>)
-    """
-
-    split_match = re.search(
-        r"(<hr\b[^>]*>|<h1\b[^>]*>|<h2\b[^>]*>|<h3\b[^>]*>)",
-        raw_html,
-        flags=re.IGNORECASE,
-    )
-    if not split_match:
-        return raw_html
-
-    preamble = raw_html[: split_match.start()]
-    rest = raw_html[split_match.start() :]
-
-    title_pat = re.compile(
-        r'(<p\b[^>]*class="[^"]*\btitle\b[^"]*"[^>]*>.*?</p>)',
-        flags=re.IGNORECASE | re.DOTALL,
-    )
-    tag_pat = re.compile(r"<[^>]+>")
-    seen_titles: set[str] = set()
-
-    def repl(match: re.Match[str]) -> str:
-        block = match.group(1)
-        text = tag_pat.sub("", block)
-        text = html.unescape(text).strip()
-
-        if not text:
-            return ""
-
-        if text in seen_titles:
-            return ""
-
-        seen_titles.add(text)
-        return block
-
-    cleaned_preamble = title_pat.sub(repl, preamble)
-    return cleaned_preamble + rest
 
 
 def inject_head_metadata(raw_html: str, doc_title: str) -> str:
@@ -467,242 +417,10 @@ def inject_head_metadata(raw_html: str, doc_title: str) -> str:
     )
 
 
-def extract_head_styles(raw_html: str) -> str:
-    """
-    Return all <style>...</style> blocks from the exported HTML head/body.
-    Google Docs puts critical document styling here.
-    """
-    matches = re.findall(r"(<style\b[^>]*>.*?</style>)", raw_html, flags=re.IGNORECASE | re.DOTALL)
-    return "\n".join(matches)
 
 
-def extract_body_inner_html(raw_html: str) -> str:
-    match = re.search(r"<body\b[^>]*>(.*)</body>", raw_html, flags=re.IGNORECASE | re.DOTALL)
-    if match:
-        return match.group(1).strip()
-    return raw_html.strip()
 
 
-def refine_body_html(body_html: str) -> str:
-    def normalize_li_classes(match: re.Match[str]) -> str:
-        attrs = match.group("attrs") or ""
-        class_match = re.search(r'class\s*=\s*"([^"]*)"', attrs, flags=re.IGNORECASE)
-        if not class_match:
-            return match.group(0)
-
-        classes = [c for c in class_match.group(1).split() if not re.fullmatch(r"c\d+", c)]
-        if classes:
-            new_attrs = re.sub(
-                r'class\s*=\s*"([^"]*)"',
-                'class="' + " ".join(classes) + '"',
-                attrs,
-                count=1,
-                flags=re.IGNORECASE,
-            )
-        else:
-            new_attrs = re.sub(r'\s*class\s*=\s*"([^"]*)"', "", attrs, count=1, flags=re.IGNORECASE)
-
-        return f"<li{new_attrs}>"
-
-    body_html = re.sub(
-        r"<li\b(?P<attrs>[^>]*)>",
-        normalize_li_classes,
-        body_html,
-        flags=re.IGNORECASE,
-    )
-
-    def strip_tags(raw: str) -> str:
-        text = re.sub(r"<[^>]+>", " ", raw)
-        return html.unescape(re.sub(r"\s+", " ", text)).strip()
-
-    def has_structural_content(raw: str) -> bool:
-        return bool(re.search(r"<(img|svg|table|hr)\b", raw, flags=re.IGNORECASE))
-
-    def is_empty_paragraph(inner_html: str) -> bool:
-        if has_structural_content(inner_html):
-            return False
-        text = strip_tags(inner_html)
-        return not text
-
-    def normalize_p_attrs(attrs: str) -> str:
-        class_match = re.search(r'class\s*=\s*"([^"]*)"', attrs, flags=re.IGNORECASE)
-        if not class_match:
-            return attrs
-
-        classes = [
-            c for c in class_match.group(1).split()
-            if not re.fullmatch(r"c\d+", c)
-        ]
-        if classes:
-            return re.sub(
-                r'class\s*=\s*"([^"]*)"',
-                'class="' + " ".join(classes) + '"',
-                attrs,
-                count=1,
-                flags=re.IGNORECASE,
-            )
-        return re.sub(r'\s*class\s*=\s*"([^"]*)"', "", attrs, count=1, flags=re.IGNORECASE)
-
-    paragraph_pattern = re.compile(r"<p\b(?P<attrs>[^>]*)>(?P<body>.*?)</p>", flags=re.IGNORECASE | re.DOTALL)
-    pieces: list[dict[str, str | bool | list[str]]] = []
-    last_end = 0
-
-    for match in paragraph_pattern.finditer(body_html):
-        if match.start() > last_end:
-            pieces.append({"kind": "raw", "html": body_html[last_end:match.start()]})
-
-        attrs = normalize_p_attrs(match.group("attrs") or "")
-        inner = match.group("body") or ""
-        full = match.group(0)
-        text = strip_tags(inner)
-        classes_match = re.search(r'class\s*=\s*"([^"]*)"', attrs, flags=re.IGNORECASE)
-        class_list = (classes_match.group(1).split() if classes_match else [])
-
-        pieces.append(
-            {
-                "kind": "p",
-                "html": full,
-                "attrs": attrs,
-                "inner": inner,
-                "text": text,
-                "is_empty": is_empty_paragraph(inner),
-                "has_structural": has_structural_content(inner),
-                "class_list": class_list,
-            }
-        )
-        last_end = match.end()
-
-    if last_end < len(body_html):
-        pieces.append({"kind": "raw", "html": body_html[last_end:]})
-
-    visible_paragraph_indexes = [
-        idx
-        for idx, piece in enumerate(pieces)
-        if piece.get("kind") == "p" and not piece.get("is_empty")
-    ]
-
-    title_piece_indexes = [
-        idx
-        for idx, piece in enumerate(pieces)
-        if piece.get("kind") == "p" and "title" in set(piece.get("class_list", []))
-    ]
-
-    canonical_title_text = ""
-    non_empty_title_texts = [
-        str(pieces[idx].get("text", "")).strip()
-        for idx in title_piece_indexes
-        if str(pieces[idx].get("text", "")).strip()
-    ]
-    if non_empty_title_texts:
-        counts = Counter(non_empty_title_texts)
-        canonical_title_text = sorted(
-            counts.items(),
-            key=lambda item: (-item[1], -len(item[0]), item[0].lower()),
-        )[0][0]
-
-    title_indexes_to_keep: set[int] = set()
-    if canonical_title_text:
-        for idx in title_piece_indexes:
-            if str(pieces[idx].get("text", "")).strip() == canonical_title_text:
-                title_indexes_to_keep.add(idx)
-                break
-
-    def add_class(attrs: str, class_name: str) -> str:
-        class_match = re.search(r'class\s*=\s*"([^"]*)"', attrs, flags=re.IGNORECASE)
-        if class_match:
-            classes = class_match.group(1).split()
-            if class_name not in classes:
-                classes.append(class_name)
-            return re.sub(
-                r'class\s*=\s*"([^"]*)"',
-                'class="' + " ".join(classes) + '"',
-                attrs,
-                count=1,
-                flags=re.IGNORECASE,
-            )
-        return f'{attrs} class="{class_name}"'
-
-    callout_indexes: set[int] = set()
-    lead_in_indexes: set[int] = set()
-    compact_indexes: set[int] = set()
-
-    def raw_html_has_callout_boundary(raw_html: str) -> bool:
-        return bool(re.search(r"<(hr|h[1-6]|ul|ol)\b", raw_html, flags=re.IGNORECASE))
-
-    def has_boundary_between(prev_idx: int, current_idx: int) -> bool:
-        for piece_between in pieces[prev_idx + 1:current_idx]:
-            if piece_between.get("kind") == "raw":
-                if raw_html_has_callout_boundary(str(piece_between.get("html", ""))):
-                    return True
-            elif piece_between.get("kind") == "p" and piece_between.get("has_structural"):
-                return True
-        return False
-
-    for pos, idx in enumerate(visible_paragraph_indexes):
-        piece = pieces[idx]
-        text = str(piece.get("text", ""))
-        class_list = set(piece.get("class_list", []))
-        if piece.get("has_structural"):
-            continue
-        if {"title", "subtitle", "pse-callout"} & class_list:
-            continue
-
-        if text.endswith(":") and len(text) <= 140 and pos + 1 < len(visible_paragraph_indexes):
-            lead_in_indexes.add(idx)
-            continue
-
-        if 110 <= len(text) <= 420 and pos > 0:
-            prev_idx = visible_paragraph_indexes[pos - 1]
-            prev_piece = pieces[prev_idx]
-            prev_text = str(prev_piece.get("text", ""))
-            if prev_text.endswith(":") and not has_boundary_between(prev_idx, idx):
-                if pos + 1 < len(visible_paragraph_indexes):
-                    next_piece = pieces[visible_paragraph_indexes[pos + 1]]
-                    next_text = str(next_piece.get("text", ""))
-                    if not next_text.endswith(":"):
-                        callout_indexes.add(idx)
-                        continue
-                else:
-                    callout_indexes.add(idx)
-                    continue
-
-        if len(text) <= 95:
-            compact_indexes.add(idx)
-
-    out: list[str] = []
-    for idx, piece in enumerate(pieces):
-        if piece.get("kind") != "p":
-            out.append(str(piece.get("html", "")))
-            continue
-
-        if piece.get("is_empty"):
-            continue
-
-        class_list = set(piece.get("class_list", []))
-        if "title" in class_list and idx not in title_indexes_to_keep:
-            continue
-
-        attrs = str(piece.get("attrs", ""))
-        inner = str(piece.get("inner", ""))
-
-        if idx in callout_indexes:
-            attrs = add_class(attrs, "pse-callout")
-            out.append(f"<p{attrs}>{inner}</p>")
-            continue
-
-        if idx in lead_in_indexes:
-            attrs = add_class(attrs, "pse-lead-in")
-            out.append(f"<p{attrs}>{inner}</p>")
-            continue
-
-        if idx in compact_indexes:
-            attrs = add_class(attrs, "pse-compact")
-            out.append(f"<p{attrs}>{inner}</p>")
-            continue
-
-        out.append(f"<p{attrs}>{inner}</p>")
-
-    return "".join(out)
 
 
 def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata: dict[str, object]) -> str:
