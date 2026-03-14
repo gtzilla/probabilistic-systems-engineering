@@ -1224,6 +1224,22 @@ def render_collection_sections(items: list[dict[str, str]], current_slug: str = 
     return '<section class="pse-discovery"><h2>Collection essays</h2><ul class="pse-discovery-list">' + ''.join(rows) + '</ul></section>'
 
 
+def render_authority_collection_landing(doc_title: str, description: str, items: list[dict[str, str]]) -> str:
+    intro = safe_text(description).strip()
+    intro_html = f'<p>{intro}</p>' if intro else ''
+    count_label = f'{len(items)} essays' if items else 'No essays detected yet.'
+    toc = render_collection_sections(items)
+    return (
+        '<section class="pse-authority-collection">'
+        + '<h1>' + safe_text(doc_title) + '</h1>'
+        + '<p><strong>Authority collection.</strong> This landing page replaces the bundled full-text view and links the component essays in reading order.</p>'
+        + intro_html
+        + '<p><strong>Contents:</strong> ' + safe_text(count_label) + '</p>'
+        + toc
+        + '</section>'
+    )
+
+
 def render_collection_navigation(collection_title: str, collection_href: str, items: list[dict[str, str]], current_slug: str) -> str:
     if not items:
         return ''
@@ -1321,7 +1337,10 @@ def build_doc(
             (section_out_dir / 'index.html').write_text(essay_html, encoding='utf-8')
             metadata_items.append(section_metadata)
             match_contexts[str(section_metadata['slug'])] = section_context
-        wrapped_html = inject_discovery_markup(wrapped_html, [render_collection_sections(collection_items)])
+        entries[0]['description'] = f"Collection landing page linking {len(collection_items)} essays." if collection_items else "Authority collection landing page."
+        entries[0]['essay_count'] = str(len(collection_items))
+        landing_body_html = render_authority_collection_landing(doc_title, str(metadata.get('description', '')), collection_items)
+        wrapped_html = wrapped_html.replace(body_html, landing_body_html, 1) if body_html in wrapped_html else wrapped_html
 
     (out_dir / "index.html").write_text(wrapped_html, encoding="utf-8")
     return entries, metadata_items, match_contexts
@@ -1466,13 +1485,14 @@ def render_home_page(latest_entries: list[dict[str, str]]) -> str:
     grouped: dict[str, list[dict[str, str]]] = {k: [] for k in CONTENT_TYPES}
     for entry in latest_entries:
         grouped[entry['type']].append(entry)
+    authority_count = sum(int(entry.get('essay_count', '1')) for entry in grouped['authority'])
     template = load_template('home.html')
     return render_template(template, {
         'SITE_NAME': safe_text(SITE_NAME),
         'LATEST_HREF': './latest/',
         'ARCHIVE_HREF': './archive/',
         'ENTRY_PAPER_HREF': './papers/is-this-engineering/',
-        'AUTHORITY_COUNT': str(len(grouped['authority'])),
+        'AUTHORITY_COUNT': str(authority_count),
         'PAPERS_COUNT': str(len(grouped['papers'])),
         'CONTRACTS_COUNT': str(len(grouped['contracts'])),
         'REPLICATION_COUNT': str(len(grouped['replication'])),
