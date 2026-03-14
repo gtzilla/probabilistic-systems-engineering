@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, defaultdict
 
 import hashlib
 import html
 import json
+import math
 import os
 import re
 import shutil
@@ -21,7 +22,7 @@ TEMPLATES = ROOT / "scripts" / "templates"
 SITE_NAME = "Probabilistic Systems Engineering"
 SITE_URL = "https://archive.gtzilla.com"
 CONTENT_TYPES = ["papers", "contracts", "replication"]
-TYPE_LABELS = {"papers": "Papers", "contracts": "Contracts", "replication": "Replication"}
+TYPE_LABELS = {"papers": "Papers", "contracts": "Contracts", "replication": "Replication & Verification"}
 
 
 def fail(msg: str) -> None:
@@ -192,6 +193,17 @@ def slug_reference_phrases(slug: str) -> list[str]:
     return unique_preserve_order([p for p in phrases if len(p) >= 12])
 
 
+def recommendation_source_text(metadata: dict[str, object], full_text: str) -> str:
+    title = str(metadata.get("title", "")).strip()
+    description = str(metadata.get("description", "")).strip()
+    kind = str(metadata.get("kind", "")).replace("-", " ")
+    content_type = str(metadata.get("content_type", "")).replace("-", " ")
+    group_key = str(metadata.get("group_key", "")).replace("-", " ")
+    family_key = str(metadata.get("family_key", "")).split("/")[-1].replace("-", " ")
+    parts = [title, title, description, kind, content_type, group_key, family_key, full_text]
+    return " ".join(part for part in parts if part)
+
+
 def document_match_context(metadata: dict[str, object], full_text: str) -> dict[str, object]:
     title = str(metadata["title"])
     description = str(metadata.get("description", ""))
@@ -199,6 +211,8 @@ def document_match_context(metadata: dict[str, object], full_text: str) -> dict[
     version = str(metadata.get("version", ""))
     title_tokens = unique_preserve_order(significant_tokens(title))
     description_tokens = unique_preserve_order(significant_tokens(description))
+    recommendation_text = recommendation_source_text(metadata, full_text)
+    recommendation_tokens = significant_tokens(recommendation_text)
     return {
         "norm_text": normalize_for_match(full_text),
         "title_phrase": normalize_for_match(title),
@@ -206,6 +220,8 @@ def document_match_context(metadata: dict[str, object], full_text: str) -> dict[
         "title_tokens": title_tokens,
         "description_tokens": description_tokens,
         "version": version.lower(),
+        "recommendation_text": recommendation_text,
+        "recommendation_tokens": recommendation_tokens,
     }
 
 
@@ -249,6 +265,53 @@ def derive_document_metadata(
         "reading_time_minutes": estimate_reading_time_minutes(full_text),
     }
     return metadata, document_match_context(metadata, full_text)
+
+
+def compute_tfidf_vectors(contexts: dict[str, dict[str, object]]) -> dict[str, dict[str, float]]:
+    doc_tokens: dict[str, list[str]] = {}
+    document_frequency: dict[str, int] = defaultdict(int)
+
+    for slug, ctx in contexts.items():
+        tokens = list(ctx.get("recommendation_tokens", []))
+        doc_tokens[slug] = tokens
+        for token in set(tokens):
+            document_frequency[token] += 1
+
+    total_docs = max(1, len(doc_tokens))
+    idf: dict[str, float] = {}
+    for token, df in document_frequency.items():
+        idf[token] = math.log((1 + total_docs) / (1 + df)) + 1.0
+
+    vectors: dict[str, dict[str, float]] = {}
+    for slug, tokens in doc_tokens.items():
+        if not tokens:
+            vectors[slug] = {}
+            continue
+
+        counts = Counter(tokens)
+        total_terms = sum(counts.values()) or 1
+        vector: dict[str, float] = {}
+        for token, count in counts.items():
+            tf = count / total_terms
+            vector[token] = tf * idf.get(token, 1.0)
+        vectors[slug] = vector
+
+    return vectors
+
+
+def cosine_similarity_sparse(left: dict[str, float], right: dict[str, float]) -> float:
+    if not left or not right:
+        return 0.0
+    if len(left) > len(right):
+        left, right = right, left
+    dot = sum(value * right.get(token, 0.0) for token, value in left.items())
+    if dot <= 0.0:
+        return 0.0
+    left_norm = math.sqrt(sum(value * value for value in left.values()))
+    right_norm = math.sqrt(sum(value * value for value in right.values()))
+    if left_norm <= 0.0 or right_norm <= 0.0:
+        return 0.0
+    return dot / (left_norm * right_norm)
 
 
 def build_structured_data(metadata: dict[str, object]) -> str:
@@ -733,8 +796,8 @@ def render_discovery_links(items: list[dict[str, object]], label: str) -> str:
     )
 
 
-def inject_discovery_markup(html_text: str, references_html: str, related_html: str) -> str:
-    discovery_html = references_html + related_html
+def inject_discovery_markup(html_text: str, sections_html: list[str]) -> str:
+    discovery_html = "".join(section for section in sections_html if section)
     if not discovery_html:
         return html_text
 
@@ -852,106 +915,186 @@ def explicit_reference_match(source_ctx: dict[str, object], target_ctx: dict[str
 
 def related_score(
     source_meta: dict[str, object],
-    source_ctx: dict[str, object],
     target_meta: dict[str, object],
-    target_ctx: dict[str, object],
+    similarity: float,
     explicit_ref: bool,
-) -> int:
-    score = 0
+) -> float:
+    score = similarity
 
     if explicit_ref:
-        score += 100
-
-    if source_meta.get("group_key") and source_meta.get("group_key") == target_meta.get("group_key"):
-        score += 35
+        score += 0.22
 
     if source_meta.get("content_type") == target_meta.get("content_type"):
-        score += 10
+        score += 0.03
 
-    title_overlap = len(set(source_ctx["title_tokens"]) & set(target_ctx["title_tokens"]))
-    desc_overlap = len(set(source_ctx["description_tokens"]) & set(target_ctx["description_tokens"]))
+    if source_meta.get("group_key") and source_meta.get("group_key") == target_meta.get("group_key"):
+        score += 0.05
 
-    score += min(25, title_overlap * 5)
-    score += min(20, desc_overlap * 4)
+    source_pair = {str(source_meta.get("content_type")), str(target_meta.get("content_type"))}
+    if source_pair in ({"papers", "contracts"}, {"papers", "replication"}):
+        score += 0.02
 
-    if source_meta.get("content_type") != target_meta.get("content_type"):
-        pair = {str(source_meta.get("content_type")), str(target_meta.get("content_type"))}
-        if pair in ({"papers", "contracts"}, {"papers", "replication"}):
-            score += 5
+    if target_meta.get("content_type") == "replication" and source_meta.get("content_type") != "replication":
+        score -= 0.08
 
     return score
+
+
+def candidate_ineligible(
+    source_meta: dict[str, object],
+    target_meta: dict[str, object],
+    target_relation: dict[str, object] | None,
+) -> tuple[bool, str]:
+    source_slug = str(source_meta["slug"])
+    target_slug = str(target_meta["slug"])
+    if source_slug == target_slug:
+        return True, "same_document"
+
+    source_family = str(source_meta.get("family_key", "") or "")
+    target_family = str(target_meta.get("family_key", "") or "")
+    if source_family and source_family == target_family:
+        return True, "same_family"
+
+    if target_relation and not bool(target_relation.get("is_latest")):
+        return True, "not_latest_version"
+
+    return False, ""
+
+
+def pick_related_candidates(
+    source_meta: dict[str, object],
+    metadata_by_slug: dict[str, dict[str, object]],
+    contexts: dict[str, dict[str, object]],
+    tfidf_vectors: dict[str, dict[str, float]],
+    version_relations: dict[str, dict[str, object]],
+) -> tuple[list[dict[str, object]], list[dict[str, object]], list[dict[str, object]], list[dict[str, str]]]:
+    source_slug = str(source_meta["slug"])
+    source_ctx = contexts[source_slug]
+    source_vector = tfidf_vectors.get(source_slug, {})
+
+    references: list[dict[str, object]] = []
+    related_candidates: list[tuple[float, dict[str, object]]] = []
+    replication_candidates: list[tuple[float, dict[str, object]]] = []
+    debug_excluded: list[dict[str, str]] = []
+
+    for target_slug, target_meta in metadata_by_slug.items():
+        target_ctx = contexts[target_slug]
+        explicit_ref = explicit_reference_match(source_ctx, target_ctx)
+        if explicit_ref:
+            references.append(target_meta)
+
+        target_relation = version_relations.get(target_slug)
+        ineligible, reason = candidate_ineligible(source_meta, target_meta, target_relation)
+        if ineligible:
+            debug_excluded.append({"docId": target_slug, "reason": reason})
+            continue
+
+        similarity = cosine_similarity_sparse(source_vector, tfidf_vectors.get(target_slug, {}))
+        score = related_score(source_meta, target_meta, similarity, explicit_ref)
+
+        if target_meta.get("content_type") == "replication":
+            if score >= 0.12:
+                replication_candidates.append((score, target_meta))
+            continue
+
+        if score >= 0.14:
+            related_candidates.append((score, target_meta))
+
+    ref_items: list[dict[str, object]] = []
+    ref_seen: set[str] = set()
+    for target in sorted(references, key=lambda x: (str(x["title"]).lower(), str(x["slug"]))):
+        target_slug = str(target["slug"])
+        if target_slug in ref_seen:
+            continue
+        ref_seen.add(target_slug)
+        ref_items.append({
+            "title": target["title"],
+            "html_path": target["html_path"],
+            "kind_label": TYPE_LABELS.get(str(target["content_type"]), str(target["kind"]).replace("-", " ").title()),
+        })
+
+    related_items: list[dict[str, object]] = []
+    related_seen: set[str] = set(ref_seen)
+    related_candidates.sort(key=lambda row: (-row[0], str(row[1]["title"]).lower(), str(row[1]["slug"])))
+    for score, target in related_candidates:
+        target_slug = str(target["slug"])
+        if target_slug in related_seen:
+            continue
+        related_seen.add(target_slug)
+        related_items.append({
+            "title": target["title"],
+            "html_path": target["html_path"],
+            "kind_label": TYPE_LABELS.get(str(target["content_type"]), str(target["kind"]).replace("-", " ").title()),
+            "score": round(score, 6),
+            "slug": target_slug,
+        })
+        if len(related_items) >= 4:
+            break
+
+    read_next_items = related_items[:1]
+    related_surface_items = related_items[1:4]
+
+    verification_items: list[dict[str, object]] = []
+    replication_candidates.sort(key=lambda row: (-row[0], str(row[1]["title"]).lower(), str(row[1]["slug"])))
+    for score, target in replication_candidates[:2]:
+        verification_items.append({
+            "title": target["title"],
+            "html_path": target["html_path"],
+            "kind_label": TYPE_LABELS.get(str(target["content_type"]), str(target["kind"]).replace("-", " ").title()),
+            "score": round(score, 6),
+            "slug": str(target["slug"]),
+        })
+
+    return ref_items, read_next_items, related_surface_items, verification_items, debug_excluded
 
 
 def build_discovery_sections(
     metadata_index: list[dict[str, object]],
     contexts: dict[str, dict[str, object]],
-) -> dict[str, tuple[str, str]]:
-    results: dict[str, tuple[str, str]] = {}
+) -> tuple[dict[str, dict[str, str]], dict[str, dict[str, object]]]:
+    version_relations = build_version_relations(metadata_index)
+    tfidf_vectors = compute_tfidf_vectors(contexts)
+    metadata_by_slug = {str(item["slug"]): item for item in metadata_index}
+
+    rendered: dict[str, dict[str, str]] = {}
+    recommendation_artifacts: dict[str, dict[str, object]] = {}
 
     for item in metadata_index:
         source_slug = str(item["slug"])
-        source_ctx = contexts[source_slug]
-
-        references: list[dict[str, object]] = []
-        related_candidates: list[tuple[int, dict[str, object], bool]] = []
-
-        for target in metadata_index:
-            target_slug = str(target["slug"])
-            if target_slug == source_slug:
-                continue
-
-            target_ctx = contexts[target_slug]
-            is_reference = explicit_reference_match(source_ctx, target_ctx)
-
-            if is_reference:
-                references.append(target)
-
-            score = related_score(item, source_ctx, target, target_ctx, is_reference)
-            related_candidates.append((score, target, is_reference))
-
-        ref_seen: set[str] = set()
-        ref_items: list[dict[str, object]] = []
-
-        for target in sorted(references, key=lambda x: (str(x["title"]).lower(), str(x["slug"]))):
-            target_slug = str(target["slug"])
-            if target_slug in ref_seen:
-                continue
-            ref_seen.add(target_slug)
-            ref_items.append(
-                {
-                    "title": target["title"],
-                    "html_path": target["html_path"],
-                    "kind_label": str(target["kind"]).replace("-", " ").title(),
-                }
-            )
-
-        related_candidates.sort(key=lambda row: (-row[0], str(row[1]["title"]).lower(), str(row[1]["slug"])))
-        related_items: list[dict[str, object]] = []
-        related_seen: set[str] = set(ref_seen)
-
-        for score, target, _is_reference in related_candidates:
-            if score < 35:
-                continue
-            target_slug = str(target["slug"])
-            if target_slug in related_seen:
-                continue
-            related_seen.add(target_slug)
-            related_items.append(
-                {
-                    "title": target["title"],
-                    "html_path": target["html_path"],
-                    "kind_label": str(target["kind"]).replace("-", " ").title(),
-                }
-            )
-            if len(related_items) >= 2:
-                break
-
-        results[source_slug] = (
-            render_discovery_links(ref_items, "Referenced artifacts"),
-            render_discovery_links(related_items, "Read next"),
+        references, read_next_items, related_items, verification_items, debug_excluded = pick_related_candidates(
+            item, metadata_by_slug, contexts, tfidf_vectors, version_relations
         )
 
-    return results
+        rendered[source_slug] = {
+            "references_html": render_discovery_links(references, "Referenced artifacts"),
+            "read_next_html": render_discovery_links(read_next_items, "Read next"),
+            "related_html": render_discovery_links(related_items, "Related"),
+            "verification_html": render_discovery_links(verification_items, "Verification & replication"),
+            "version_html": render_version_sections(version_relations.get(source_slug)),
+        }
+
+        recommendation_artifacts[source_slug] = {
+            "docId": source_slug,
+            "readNext": [item["slug"] for item in read_next_items],
+            "related": [item["slug"] for item in related_items],
+            "versionHistory": [str(v["slug"]) for v in version_relations.get(source_slug, {}).get("older", [])[:3]],
+            "verification": [item["slug"] for item in verification_items],
+            "debug": {"excluded": debug_excluded},
+        }
+
+    return rendered, recommendation_artifacts
+
+
+def write_recommendation_index(dist_root: Path, recommendation_artifacts: dict[str, dict[str, object]]) -> None:
+    metadata_dir = dist_root / "metadata"
+    metadata_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "site": SITE_NAME,
+        "site_url": SITE_URL,
+        "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "recommendations": recommendation_artifacts,
+    }
+    (metadata_dir / "recommendations.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def inject_discovery_sections(
@@ -1237,12 +1380,12 @@ def write_family_redirects(dist_root: Path, family_buckets: dict[tuple[str, str]
         (out_dir / 'index.html').write_text(render_redirect_page(target_href), encoding='utf-8')
 
 
-def inject_discovery_sections(dist_root: Path, metadata_index: list[dict[str, object]], contexts: dict[str, dict[str, object]]) -> None:
-    discovery_sections = build_discovery_sections(metadata_index, contexts)
+def inject_discovery_sections(dist_root: Path, metadata_index: list[dict[str, object]], contexts: dict[str, dict[str, object]]) -> dict[str, dict[str, object]]:
+    discovery_sections, recommendation_artifacts = build_discovery_sections(metadata_index, contexts)
     version_relations = build_version_relations(metadata_index)
     for item in metadata_index:
         source_slug = str(item['slug'])
-        references_html, related_html = discovery_sections.get(source_slug, ('', ''))
+        section_html = discovery_sections.get(source_slug, {})
         relation = version_relations.get(source_slug)
         footer_html = ''
         if relation and not relation.get('is_latest'):
@@ -1253,8 +1396,9 @@ def inject_discovery_sections(dist_root: Path, metadata_index: list[dict[str, ob
         if not out_path.exists():
             continue
         html_text = out_path.read_text(encoding='utf-8')
-        html_text = inject_discovery_markup(html_text, footer_html + references_html, related_html)
+        html_text = inject_discovery_markup(html_text, [footer_html, section_html.get('version_html', ''), section_html.get('references_html', ''), section_html.get('read_next_html', ''), section_html.get('related_html', ''), section_html.get('verification_html', '')])
         out_path.write_text(html_text, encoding='utf-8')
+    return recommendation_artifacts
 def main() -> int:
     if DIST.exists():
         shutil.rmtree(DIST)
@@ -1294,8 +1438,9 @@ def main() -> int:
         archive_dir.mkdir(parents=True, exist_ok=True)
         (archive_dir / 'index.html').write_text(render_listing_page(entries, family_buckets, 'archive'), encoding='utf-8')
         write_family_redirects(DIST, family_buckets)
-        inject_discovery_sections(DIST, metadata_index, match_contexts)
+        recommendation_artifacts = inject_discovery_sections(DIST, metadata_index, match_contexts)
         write_site_metadata_index(DIST, entries, metadata_index)
+        write_recommendation_index(DIST, recommendation_artifacts)
         write_sitemap(DIST, entries)
         write_build_manifest(DIST)
         print(f"Built archive into {DIST}")
