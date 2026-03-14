@@ -14,7 +14,7 @@ body{margin:0;padding:0;min-height:100vh;overflow-x:hidden}*,*::before,*::after{
 h1{margin:0 0 .9rem;font-size:clamp(2.4rem,8vw,4.6rem);line-height:.98;letter-spacing:-.04em;font-weight:700}
 .credit{margin:0 0 1rem;color:var(--muted);font-size:.9rem;line-height:1.4}
 .lead{margin:0 0 .85rem;font-size:1.08rem;line-height:1.64;color:#30343a;max-width:42rem}
-.program-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin-top:1.5rem}
+.program-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-top:1.5rem}
 .card,.utility-card{display:flex;flex-direction:column;gap:.45rem;min-height:9.75rem;border:1px solid var(--border);border-radius:22px;padding:1rem 1rem 1.05rem;background:var(--panel);text-decoration:none;color:inherit;box-shadow:0 1px 0 rgba(17,17,17,.02)}
 .card:hover,.utility-card:hover{transform:translateY(-1px);transition:transform .15s ease, box-shadow .15s ease;box-shadow:0 10px 24px rgba(0,0,0,.06)}
 .card .eyebrow,.utility-card .eyebrow{color:var(--muted);font-size:.8rem;letter-spacing:.07em;text-transform:uppercase}
@@ -42,23 +42,29 @@ h1{margin:0 0 .9rem;font-size:clamp(2.4rem,8vw,4.6rem);line-height:.98;letter-sp
       <a href="{{ENTRY_PAPER_HREF}}">Read an entry paper</a>
     </div>
     <section class="program-grid" aria-label="Primary sections">
-      <a class="card" href="{{LATEST_HREF}}#papers">
+      <a class="card" href="{{LATEST_HREF}}#authority">
         <div class="eyebrow">Primary path</div>
-        <h2>Authority & papers</h2>
-        <p>Conceptual diagnosis, thesis papers, and framework writing.</p>
-        <div class="count">{{PAPERS_COUNT}} current items</div>
+        <h2>Authority</h2>
+        <p>Essay collections, conceptual diagnosis, and the control-failure front door.</p>
+        <div class="count">{{AUTHORITY_COUNT}} current items</div>
       </a>
       <a class="card" href="{{LATEST_HREF}}#contracts">
         <div class="eyebrow">Primary path</div>
-        <h2>Engineering & contracts</h2>
+        <h2>Engineering</h2>
         <p>Operational semantics, governing contracts, and explicit authority artifacts.</p>
         <div class="count">{{CONTRACTS_COUNT}} current items</div>
       </a>
       <a class="card" href="{{LATEST_HREF}}#papers">
         <div class="eyebrow">Primary path</div>
-        <h2>Results & findings</h2>
+        <h2>Results</h2>
         <p>Comparisons, synthesis, mechanism papers, and observed outcomes.</p>
-        <div class="count">Published through papers and summaries</div>
+        <div class="count">{{PAPERS_COUNT}} current items</div>
+      </a>
+      <a class="card" href="{{ARCHIVE_HREF}}">
+        <div class="eyebrow">Primary path</div>
+        <h2>Archive</h2>
+        <p>Latest plus historical lineage, grouped sanely for browsing.</p>
+        <div class="count">Version-preserving listings</div>
       </a>
     </section>
     <section class="utilities">

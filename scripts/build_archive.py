@@ -21,8 +21,8 @@ DIST = ROOT / "dist"
 TEMPLATES = ROOT / "scripts" / "templates"
 SITE_NAME = "Probabilistic Systems Engineering"
 SITE_URL = "https://archive.gtzilla.com"
-CONTENT_TYPES = ["papers", "contracts", "replication"]
-TYPE_LABELS = {"papers": "Papers", "contracts": "Contracts", "replication": "Replication & Verification"}
+CONTENT_TYPES = ["authority", "papers", "contracts", "replication"]
+TYPE_LABELS = {"authority": "Authority", "papers": "Results", "contracts": "Engineering", "replication": "Replication & Verification"}
 
 
 def fail(msg: str) -> None:
@@ -121,6 +121,8 @@ def estimate_reading_time_minutes(text: str) -> int:
 
 
 def metadata_kind_for_type(type_name: str) -> tuple[str, str]:
+    if type_name == "authority":
+        return ("authority-essay-collection", "Book")
     if type_name == "papers":
         return ("paper", "ScholarlyArticle")
     if type_name == "contracts":
@@ -706,7 +708,8 @@ def refine_body_html(body_html: str) -> str:
 def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata: dict[str, object]) -> str:
     normalized = normalize_exported_html(raw_html)
     exported_styles = extract_head_styles(normalized)
-    body_html = refine_body_html(extract_body_inner_html(normalized))
+    raw_body_html = extract_body_inner_html(normalized)
+    body_html = refine_body_html(raw_body_html)
 
     slug = str(metadata["slug"])
     depth = len([part for part in slug.split("/") if part])
@@ -1101,23 +1104,26 @@ def inject_discovery_sections(
     dist_root: Path,
     metadata_index: list[dict[str, object]],
     contexts: dict[str, dict[str, object]],
-) -> None:
-    discovery_sections = build_discovery_sections(metadata_index, contexts)
+) -> dict[str, dict[str, object]]:
+    discovery_sections, recommendation_artifacts = build_discovery_sections(metadata_index, contexts)
     version_relations = build_version_relations(metadata_index)
 
     for item in metadata_index:
         source_slug = str(item["slug"])
-        references_html, related_html = discovery_sections.get(source_slug, ("", ""))
-        version_html = render_version_sections(version_relations.get(source_slug))
-
-        out_path = dist_root / str(item["content_type"]) / Path(source_slug) / "index.html"
+        section_html = discovery_sections.get(source_slug, {})
+        relation = version_relations.get(source_slug)
+        footer_html = ""
+        if relation and not relation.get("is_latest"):
+            family_key = str(relation.get("family_key", ""))
+            family_href = relative_href(f'/{item["content_type"]}/{source_slug}/', f'/{item["content_type"]}/{family_key}/')
+            footer_html = '<section class="pse-discovery"><h2>Version status</h2><ul class="pse-discovery-list"><li class="pse-discovery-item">This is not the latest version. <a href="' + safe_text(family_href) + '">See the latest.</a></li></ul></section>'
+        out_path = dist_root / str(item["content_type"]) / Path(source_slug) / 'index.html'
         if not out_path.exists():
             continue
-
-        html_text = out_path.read_text(encoding="utf-8")
-        html_text = inject_discovery_markup(html_text, version_html + references_html, related_html)
-        out_path.write_text(html_text, encoding="utf-8")
-
+        html_text = out_path.read_text(encoding='utf-8')
+        html_text = inject_discovery_markup(html_text, [footer_html, section_html.get('version_html', ''), section_html.get('references_html', ''), section_html.get('read_next_html', ''), section_html.get('related_html', ''), section_html.get('verification_html', '')])
+        out_path.write_text(html_text, encoding='utf-8')
+    return recommendation_artifacts
 
 
 def relative_href(from_dir: str, target_path: str) -> str:
@@ -1162,12 +1168,82 @@ def render_redirect_page(target_href: str) -> str:
     return render_template(template, {"TARGET_HREF": safe_text(target_href), "SITE_NAME": safe_text(SITE_NAME)})
 
 
+def slugify_fragment(text: str) -> str:
+    value = normalize_for_match(text).replace(' ', '-')
+    value = re.sub(r'-+', '-', value).strip('-')
+    return value or 'section'
+
+
+def authority_title_blocks(body_html: str) -> list[tuple[int, int, str]]:
+    excluded = {
+        'cover',
+        'authority execution and refusal',
+        'authority is the power to refuse execution at the first irreversible side effect',
+        'framing',
+        'table of contents',
+    }
+    pattern = re.compile(r'<p\b(?P<attrs>[^>]*)class="(?P<classval>[^"]*\btitle\b[^"]*)"[^>]*>(?P<body>.*?)</p>', flags=re.IGNORECASE | re.DOTALL)
+    blocks: list[tuple[int, int, str]] = []
+    last_key = ''
+    for match in pattern.finditer(body_html):
+        title = strip_tags_to_text(match.group('body'))
+        key = normalize_for_match(title)
+        if not key or key in excluded:
+            continue
+        if key == last_key:
+            continue
+        last_key = key
+        blocks.append((match.start(), match.end(), title))
+    return blocks
+
+
+def split_authority_collection(body_html: str) -> list[dict[str, str]]:
+    blocks = authority_title_blocks(body_html)
+    if not blocks:
+        return []
+    sections: list[dict[str, str]] = []
+    for idx, (start, end, title) in enumerate(blocks):
+        section_start = start
+        section_end = blocks[idx + 1][0] if idx + 1 < len(blocks) else len(body_html)
+        section_html = body_html[section_start:section_end].strip()
+        if not section_html:
+            continue
+        sections.append({'title': title, 'slug': slugify_fragment(title), 'body_html': section_html})
+    return sections
+
+
+def render_collection_sections(items: list[dict[str, str]], current_slug: str = '') -> str:
+    if not items:
+        return ''
+    rows: list[str] = []
+    for idx, item in enumerate(items, start=1):
+        href = safe_text(item['href'])
+        title = safe_text(item['title'])
+        current = ' <span class="pse-discovery-kind">Current</span>' if item.get('slug') == current_slug else ''
+        rows.append('<li class="pse-discovery-item"><a href="' + href + '">' + str(idx) + '. ' + title + '</a>' + current + '</li>')
+    return '<section class="pse-discovery"><h2>Collection essays</h2><ul class="pse-discovery-list">' + ''.join(rows) + '</ul></section>'
+
+
+def render_collection_navigation(collection_title: str, collection_href: str, items: list[dict[str, str]], current_slug: str) -> str:
+    if not items:
+        return ''
+    current_index = next((idx for idx, item in enumerate(items) if item.get('slug') == current_slug), -1)
+    links = ['<li class="pse-discovery-item"><a href="' + safe_text(collection_href) + '">Back to ' + safe_text(collection_title) + '</a></li>']
+    if current_index > 0:
+        prev_item = items[current_index - 1]
+        links.append('<li class="pse-discovery-item">Previous: <a href="' + safe_text(prev_item['href']) + '">' + safe_text(prev_item['title']) + '</a></li>')
+    if 0 <= current_index < len(items) - 1:
+        next_item = items[current_index + 1]
+        links.append('<li class="pse-discovery-item">Next: <a href="' + safe_text(next_item['href']) + '">' + safe_text(next_item['title']) + '</a></li>')
+    return '<section class="pse-discovery"><h2>Collection navigation</h2><ul class="pse-discovery-list">' + ''.join(links) + '</ul></section>'
+
+
 def build_doc(
     type_name: str,
     doc_dir: Path,
     relative_slug: str,
     tmp_root: Path,
-) -> tuple[dict[str, str], dict[str, object], dict[str, object]]:
+) -> tuple[list[dict[str, str]], list[dict[str, object]], dict[str, dict[str, object]]]:
     slug = relative_slug
     pdf = find_exactly_one(doc_dir, "*.pdf", "PDF")
     zf = find_exactly_one(doc_dir, "*.zip", "ZIP")
@@ -1199,25 +1275,56 @@ def build_doc(
     doc_title = pdf.stem
     raw_html = source_html.read_text(encoding="utf-8")
     normalized = normalize_exported_html(raw_html)
-    body_html = refine_body_html(extract_body_inner_html(normalized))
+    raw_body_html = extract_body_inner_html(normalized)
+    body_html = refine_body_html(raw_body_html)
     metadata, match_context = derive_document_metadata(type_name, relative_slug, doc_title, pdf.name, body_html)
     wrapped_html = render_document_page(raw_html, pdf_href, doc_title, metadata)
-    (out_dir / "index.html").write_text(wrapped_html, encoding="utf-8")
     shutil.copy2(pdf, out_dir / pdf.name)
 
-    return (
-        {
-            "type": type_name,
-            "slug": slug,
-            "pdf_name": pdf.name,
-            "title": pdf.stem,
-            "url": f"/{type_name}/{slug}/",
-            "pdf_url": f"/{type_name}/{slug}/{pdf.name}",
-            "description": document_generated_description(body_html, pdf.stem),
-        },
-        metadata,
-        match_context,
-    )
+    entries = [{
+        "type": type_name,
+        "slug": slug,
+        "pdf_name": pdf.name,
+        "title": pdf.stem,
+        "url": f"/{type_name}/{slug}/",
+        "pdf_url": f"/{type_name}/{slug}/{pdf.name}",
+        "description": document_generated_description(body_html, pdf.stem),
+    }]
+    metadata_items = [metadata]
+    match_contexts = {str(metadata["slug"]): match_context}
+
+    if type_name == "authority":
+        sections = split_authority_collection(raw_body_html)
+        collection_items = []
+        collection_href = f"/{type_name}/{slug}/"
+        for section in sections:
+            section_slug = section['slug']
+            section_title = section['title']
+            section_rel_slug = f"{relative_slug}/{section_slug}"
+            section_out_dir = DIST / type_name / Path(section_rel_slug)
+            section_out_dir.mkdir(parents=True, exist_ok=True)
+            section_body_html = refine_body_html(section['body_html'])
+            section_metadata, section_context = derive_document_metadata(type_name, section_rel_slug, section_title, pdf.name, section_body_html)
+            section_metadata['kind'] = 'authority-essay'
+            section_metadata['schema_type'] = 'Article'
+            section_metadata['group_key'] = relative_slug.split('/')[0] if '/' in relative_slug else relative_slug
+            section_metadata['family_key'] = relative_slug
+            section_metadata['version'] = metadata.get('version', '')
+            section_metadata['version_tuple'] = list(metadata.get('version_tuple', []))
+            section_metadata['pdf_path'] = metadata['pdf_path']
+            section_metadata['pdf_url'] = metadata['pdf_url']
+            section_href = f"/{type_name}/{section_rel_slug}/"
+            collection_items.append({'slug': section_slug, 'title': section_title, 'href': section_href})
+            essay_wrapped = render_document_page(raw_html, relative_href(section_href, metadata['pdf_path']), section_title, section_metadata)
+            essay_html = essay_wrapped.replace(body_html, section_body_html, 1) if body_html in essay_wrapped else essay_wrapped
+            essay_html = inject_discovery_markup(essay_html, [render_collection_navigation(doc_title, relative_href(section_href, collection_href), collection_items, section_slug)])
+            (section_out_dir / 'index.html').write_text(essay_html, encoding='utf-8')
+            metadata_items.append(section_metadata)
+            match_contexts[str(section_metadata['slug'])] = section_context
+        wrapped_html = inject_discovery_markup(wrapped_html, [render_collection_sections(collection_items)])
+
+    (out_dir / "index.html").write_text(wrapped_html, encoding="utf-8")
+    return entries, metadata_items, match_contexts
 
 
 def collect_pdf_only_contract_entries(entries: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -1348,11 +1455,11 @@ def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tupl
         grouped[entry['type']].append(entry)
     template = load_template('listing.html')
     title = 'Latest' if mode == 'latest' else 'Archive'
-    intro = 'Current latest artifacts across papers, contracts, and replication materials.' if mode == 'latest' else 'Full archive with latest versions and prior version lineage grouped sanely.'
+    intro = 'Current latest artifacts across authority, engineering, results, and replication surfaces.' if mode == 'latest' else 'Full archive with latest versions and prior version lineage grouped sanely.'
     home_href = '../' if mode in ('latest','archive') else './'
     latest_href = './' if mode == 'latest' else '../latest/'
     archive_href = './' if mode == 'archive' else '../archive/'
-    return render_template(template, {'SITE_NAME': safe_text(SITE_NAME), 'PAGE_TITLE': safe_text(f'{title} | {SITE_NAME}'), 'PAGE_HEADING': safe_text(title), 'PAGE_INTRO': safe_text(intro), 'HOME_HREF': home_href, 'LATEST_HREF': latest_href, 'ARCHIVE_HREF': archive_href, 'PAPERS_SECTIONS': render_sections(grouped['papers'], family_buckets, 'papers', mode, 'No papers yet.'), 'CONTRACTS_SECTIONS': render_sections(grouped['contracts'], family_buckets, 'contracts', mode, 'No contracts yet.'), 'REPLICATION_SECTIONS': render_sections(grouped['replication'], family_buckets, 'replication', mode, 'No replication materials yet.')})
+    return render_template(template, {'SITE_NAME': safe_text(SITE_NAME), 'PAGE_TITLE': safe_text(f'{title} | {SITE_NAME}'), 'PAGE_HEADING': safe_text(title), 'PAGE_INTRO': safe_text(intro), 'HOME_HREF': home_href, 'LATEST_HREF': latest_href, 'ARCHIVE_HREF': archive_href, 'AUTHORITY_SECTIONS': render_sections(grouped['authority'], family_buckets, 'authority', mode, 'No authority collections yet.'), 'PAPERS_SECTIONS': render_sections(grouped['papers'], family_buckets, 'papers', mode, 'No results yet.'), 'CONTRACTS_SECTIONS': render_sections(grouped['contracts'], family_buckets, 'contracts', mode, 'No engineering artifacts yet.'), 'REPLICATION_SECTIONS': render_sections(grouped['replication'], family_buckets, 'replication', mode, 'No replication materials yet.')})
 
 
 def render_home_page(latest_entries: list[dict[str, str]]) -> str:
@@ -1365,6 +1472,7 @@ def render_home_page(latest_entries: list[dict[str, str]]) -> str:
         'LATEST_HREF': './latest/',
         'ARCHIVE_HREF': './archive/',
         'ENTRY_PAPER_HREF': './papers/is-this-engineering/',
+        'AUTHORITY_COUNT': str(len(grouped['authority'])),
         'PAPERS_COUNT': str(len(grouped['papers'])),
         'CONTRACTS_COUNT': str(len(grouped['contracts'])),
         'REPLICATION_COUNT': str(len(grouped['replication'])),
@@ -1422,10 +1530,10 @@ def main() -> int:
                 fail(f"{type_root} exists but is not a directory")
 
             for doc_dir, relative_slug in discover_doc_dirs(type_root):
-                entry, metadata, match_context = build_doc(type_name, doc_dir, relative_slug, tmp_root)
-                entries.append(entry)
-                metadata_index.append(metadata)
-                match_contexts[str(metadata["slug"])] = match_context
+                doc_entries, doc_metadata_items, doc_match_contexts = build_doc(type_name, doc_dir, relative_slug, tmp_root)
+                entries.extend(doc_entries)
+                metadata_index.extend(doc_metadata_items)
+                match_contexts.update(doc_match_contexts)
 
         entries = collect_pdf_only_contract_entries(entries)
 
