@@ -5,61 +5,82 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{SITE_NAME}}</title>
 <style>
-:root{--bg:#fcfcf9;--panel:#ffffff;--text:#171717;--muted:#6b7280;--border:#e6e3dc;--border-strong:#d8d2c6;--accent:#111111}
+:root{--bg:#fcfcf9;--panel:#ffffff;--text:#171717;--muted:#6b7280;--border:#e6e3dc;--border-strong:#d8d2c6;--accent:#111111;--soft:#f5f2ea}
 html{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;box-sizing:border-box;overflow-x:hidden}
-body{margin:0;padding:0;min-height:100vh;overflow-x:hidden}
-*,*::before,*::after{box-sizing:inherit}
-main,section,div,a{min-width:0}
-.page{max-width:72rem;margin:0 auto;padding:3.5rem 1.5rem 5rem}
+body{margin:0;padding:0;min-height:100vh;overflow-x:hidden}*,*::before,*::after{box-sizing:inherit}main,section,div,a,nav{min-width:0}
+.page{max-width:64rem;margin:0 auto;padding:2rem 1rem 4rem}
 .hero{max-width:46rem}
-h1{margin:0 0 .9rem;font-size:clamp(2.8rem,7vw,5.2rem);line-height:.97;letter-spacing:-.04em;font-weight:700}
-.credit{margin:0 0 1.1rem;color:var(--muted);font-size:.88rem;line-height:1.4}
-.lead{margin:0 0 .9rem;font-size:1.18rem;line-height:1.68;color:#30343a;max-width:42rem}
-.actions{display:flex;gap:.85rem;flex-wrap:wrap;margin:2rem 0 2.5rem}
-.actions a{display:inline-flex;align-items:center;justify-content:center;min-height:2.9rem;max-width:100%;padding:0 1rem;border-radius:999px;border:1px solid var(--border-strong);text-decoration:none;color:var(--text);background:var(--panel);font-size:.98rem;text-align:center}
-.actions .primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.08)}
-.actions a:hover{transform:translateY(-1px);transition:transform .15s ease, box-shadow .15s ease;box-shadow:0 10px 24px rgba(0,0,0,.06)}
-.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
-.card{display:flex;flex-direction:column;gap:.4rem;min-height:10.5rem;border:1px solid var(--border);border-radius:24px;padding:1.2rem 1.2rem 1.3rem;background:linear-gradient(180deg,#fff,#fdfcf8);text-decoration:none;color:inherit;box-shadow:0 1px 0 rgba(17,17,17,.02)}
-.card:hover{border-color:var(--border-strong);transform:translateY(-2px);transition:transform .16s ease,border-color .16s ease, box-shadow .16s ease;box-shadow:0 16px 40px rgba(17,17,17,.06)}
-.kicker{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.card h2{margin:0;font-size:1.22rem;line-height:1.2;letter-spacing:-.02em}
-.card p{margin:0;color:#4b5563;font-size:.98rem;line-height:1.55}
-.count{margin-top:auto;color:var(--muted);font-size:.92rem}
-@media (max-width:900px){.grid{grid-template-columns:1fr}.page{padding:2.6rem 1.25rem 4rem}.lead{font-size:1.08rem;line-height:1.62}}
+.kicker{margin:0 0 .6rem;color:var(--muted);font-size:.84rem;line-height:1.3;letter-spacing:.08em;text-transform:uppercase}
+h1{margin:0 0 .9rem;font-size:clamp(2.4rem,8vw,4.6rem);line-height:.98;letter-spacing:-.04em;font-weight:700}
+.credit{margin:0 0 1rem;color:var(--muted);font-size:.9rem;line-height:1.4}
+.lead{margin:0 0 .85rem;font-size:1.06rem;line-height:1.64;color:#30343a;max-width:42rem}
+.actions{display:flex;gap:.75rem;flex-wrap:wrap;margin:1.5rem 0 1.75rem}.actions a{display:inline-flex;align-items:center;justify-content:center;min-height:2.7rem;padding:0 1rem;border-radius:999px;border:1px solid var(--border-strong);text-decoration:none;color:var(--text);background:var(--panel);font-size:.96rem;text-align:center}.actions .primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.primary-stack{display:grid;gap:1rem;margin-top:1.5rem}
+.primary-feature,.primary-row,.secondary-row{border:1px solid var(--border);border-radius:24px;background:var(--panel);padding:1rem 1rem 1.05rem;text-decoration:none;color:inherit;display:block}
+.primary-feature:hover,.primary-row a:hover,.secondary-row a:hover{box-shadow:0 10px 24px rgba(0,0,0,.06)}
+.primary-feature .eyebrow,.primary-row .eyebrow,.secondary-row .eyebrow{display:block;color:var(--muted);font-size:.8rem;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.35rem}
+.primary-feature h2,.primary-row h2,.secondary-row h2{margin:0 0 .25rem;font-size:1.36rem;line-height:1.14;letter-spacing:-.02em}
+.primary-feature p,.primary-row p,.secondary-row p{margin:0;color:#4b5563;line-height:1.5;font-size:.96rem}
+.primary-feature .count,.primary-row .count,.secondary-row .count{margin-top:.55rem;color:var(--muted);font-size:.9rem}
+.primary-pair,.secondary-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+.section-divider{margin-top:1.3rem;padding-top:1.1rem;border-top:1px solid var(--border)}
+.secondary-label{margin:0 0 .8rem;font-size:.9rem;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+@media (max-width:900px){.page{padding:1.4rem 1rem 3rem}.lead{font-size:1rem}.primary-pair,.secondary-pair{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <main class="page">
   <section class="hero">
-    <h1>Probabilistic Systems Engineering</h1>
+    <p class="kicker">Publishing archive</p>
+    <h1>{{SITE_NAME}}</h1>
     <p class="credit">Gregory Tomlinson</p>
-    <p class="lead">Research on contract-centered engineering, iterative stability, authority, and failure mechanisms in AI-assisted software development.</p>
-    <p class="lead">Start with the introductory essay, then browse the latest work or use the archive as a reference surface.</p>
+    <p class="lead">Engineering discipline for systems where identical inputs do not guarantee identical outputs.</p>
+    <p class="lead">Start with the authority essays, then move into the papers and supporting contracts. Replication stays available as portability and rerun support, not the main place to begin.</p>
     <div class="actions">
-      <a class="primary" href="{{ENTRY_PAPER_HREF}}">Start with Is This Engineering?</a>
-      <a href="{{LATEST_HREF}}">Browse latest</a>
-      <a href="{{ARCHIVE_HREF}}">Open archive</a>
+      <a class="primary" href="{{LATEST_HREF}}">Start with latest</a>
+      <a href="{{ARCHIVE_HREF}}">Browse archive</a>
+      <a href="{{ENTRY_PAPER_HREF}}">Read an entry paper</a>
     </div>
-    <section class="grid">
-      <a class="card" href="{{LATEST_HREF}}#papers">
-        <div class="kicker">Latest</div>
-        <h2>Papers</h2>
-        <p>Core essays, findings, and framework documents.</p>
-        <div class="count">{{PAPERS_COUNT}} current items</div>
+
+    <section class="primary-stack" aria-label="Primary sections">
+      <a class="primary-feature" href="{{LATEST_HREF}}#authority">
+        <span class="eyebrow">Primary path</span>
+        <h2>Authority</h2>
+        <p>Collections and linked essays that diagnose where control actually lives and why understanding alone does not restore it.</p>
+        <div class="count">{{AUTHORITY_COLLECTION_COUNT}} collection · {{AUTHORITY_COUNT}} essays</div>
       </a>
-      <a class="card" href="{{LATEST_HREF}}#contracts">
-        <div class="kicker">Latest</div>
-        <h2>Contracts</h2>
-        <p>Operational semantics and authority-bearing system contracts.</p>
-        <div class="count">{{CONTRACTS_COUNT}} current items</div>
-      </a>
-      <a class="card" href="{{LATEST_HREF}}#replication">
-        <div class="kicker">Latest</div>
-        <h2>Replication</h2>
-        <p>Experimental bundles, runbooks, and replication materials.</p>
-        <div class="count">{{REPLICATION_COUNT}} current items</div>
-      </a>
+      <div class="primary-pair">
+        <a class="primary-row" href="{{LATEST_HREF}}#papers">
+          <span class="eyebrow">Primary path</span>
+          <h2>Papers</h2>
+          <p>Research and mechanism papers, comparisons, and synthesis that make the engineering claims legible.</p>
+          <div class="count">{{PAPERS_COUNT}} current items</div>
+        </a>
+        <a class="primary-row" href="{{ARCHIVE_HREF}}">
+          <span class="eyebrow">Browse</span>
+          <h2>Archive</h2>
+          <p>Latest plus historical lineage, grouped sanely without flattening version history.</p>
+          <div class="count">Version-preserving listings</div>
+        </a>
+      </div>
+    </section>
+
+    <section class="section-divider">
+      <p class="secondary-label">Supporting surfaces</p>
+      <div class="secondary-pair">
+        <a class="secondary-row" href="{{LATEST_HREF}}#contracts">
+          <span class="eyebrow">Support</span>
+          <h2>Contracts</h2>
+          <p>Operational semantics and governing artifacts that support the papers without becoming the front door.</p>
+          <div class="count">{{CONTRACTS_COUNT}} current items</div>
+        </a>
+        <a class="secondary-row" href="{{LATEST_HREF}}#replication">
+          <span class="eyebrow">Support</span>
+          <h2>Replication & verification</h2>
+          <p>Portable rerun material, extracted packets, and independent-checking support.</p>
+          <div class="count">{{REPLICATION_COUNT}} current items</div>
+        </a>
+      </div>
     </section>
   </section>
 </main>
