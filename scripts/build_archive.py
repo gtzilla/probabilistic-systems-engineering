@@ -31,7 +31,7 @@ TEMPLATES = ROOT / "scripts" / "templates"
 SITE_NAME = "Probabilistic Systems Engineering"
 SITE_URL = "https://archive.gtzilla.com"
 CONTENT_TYPES = ["authority", "papers", "contracts", "replication"]
-TYPE_LABELS = {"authority": "Authority", "papers": "Results", "contracts": "Engineering", "replication": "Replication & Verification"}
+TYPE_LABELS = {"authority": "Authority", "papers": "Papers", "contracts": "Contracts", "replication": "Replication & Verification"}
 
 
 def fail(msg: str) -> None:
@@ -725,6 +725,9 @@ def pick_related_candidates(
     ref_seen: set[str] = set()
     for target in sorted(references, key=lambda x: (str(x["title"]).lower(), str(x["slug"]))):
         target_slug = str(target["slug"])
+        same_family = bool(source_meta.get("family_key")) and str(source_meta.get("family_key")) == str(target.get("family_key", ""))
+        if target_slug == source_slug or same_family:
+            continue
         if target_slug in ref_seen:
             continue
         ref_seen.add(target_slug)
@@ -754,6 +757,21 @@ def pick_related_candidates(
 
     read_next_items = related_items[:1]
     related_surface_items = related_items[1:4]
+
+    if str(source_meta.get("kind")) == "authority-essay":
+        next_slug = str(source_meta.get("collection_next_slug", "") or "")
+        if next_slug and next_slug in metadata_by_slug:
+            next_meta = metadata_by_slug[next_slug]
+            read_next_items = [{
+                "title": next_meta["title"],
+                "html_path": next_meta["html_path"],
+                "kind_label": "Next in collection",
+                "slug": next_slug,
+            }]
+        else:
+            read_next_items = []
+        related_surface_items = []
+        ref_items = []
 
     verification_items: list[dict[str, object]] = []
     replication_candidates.sort(key=lambda row: (-row[0], str(row[1]["title"]).lower(), str(row[1]["slug"])))
@@ -942,6 +960,24 @@ def render_collection_sections(items: list[dict[str, str]], current_slug: str = 
     return '<section class="pse-discovery"><h2>Collection essays</h2><ul class="pse-discovery-list">' + ''.join(rows) + '</ul></section>'
 
 
+def render_authority_entry_children(item: dict[str, object]) -> str:
+    essay_items = item.get("essay_items")
+    if not essay_items or not isinstance(essay_items, list):
+        return ""
+    links: list[str] = []
+    for essay in essay_items:
+        if not isinstance(essay, dict):
+            continue
+        href = safe_text(str(essay.get("href", "")))
+        title = safe_text(str(essay.get("title", "")))
+        if not href or not title:
+            continue
+        links.append(f'<li><a href="{href}">{title}</a></li>')
+    if not links:
+        return ""
+    return '<div class="item-children"><div class="item-children-label">Essays</div><ol class="item-children-list">' + ''.join(links) + '</ol></div>'
+
+
 def render_authority_collection_landing(doc_title: str, description: str, items: list[dict[str, str]]) -> str:
     intro = safe_text(description).strip()
     intro_html = f'<p>{intro}</p>' if intro else ''
@@ -1048,15 +1084,33 @@ def build_doc(
             section_metadata['pdf_path'] = metadata['pdf_path']
             section_metadata['pdf_url'] = metadata['pdf_url']
             section_href = f"/{type_name}/{section_rel_slug}/"
-            collection_items.append({'slug': section_slug, 'title': section_title, 'href': section_href})
-            essay_wrapped = render_document_page(raw_html, relative_href(section_href, metadata['pdf_path']), section_title, section_metadata)
+            collection_items.append({'slug': section_slug, 'title': section_title, 'href': section_href, 'meta_slug': section_rel_slug})
+            metadata_items.append(section_metadata)
+            match_contexts[str(section_metadata['slug'])] = section_context
+
+        for idx, section in enumerate(collection_items):
+            section_slug = str(section['slug'])
+            section_rel_slug = str(section['meta_slug'])
+            section_out_dir = DIST / type_name / Path(section_rel_slug)
+            section_out_dir.mkdir(parents=True, exist_ok=True)
+            section_meta = next(item for item in metadata_items if str(item['slug']) == section_rel_slug)
+            prev_slug = collection_items[idx - 1]['meta_slug'] if idx > 0 else ''
+            next_slug = collection_items[idx + 1]['meta_slug'] if idx + 1 < len(collection_items) else ''
+            section_meta['collection_prev_slug'] = prev_slug
+            section_meta['collection_next_slug'] = next_slug
+            section_meta['collection_index'] = idx + 1
+            section_meta['collection_size'] = len(collection_items)
+            section_meta['collection_title'] = doc_title
+            section_body_html = refine_body_html(sections[idx]['body_html'])
+            section_href = f"/{type_name}/{section_rel_slug}/"
+            essay_wrapped = render_document_page(raw_html, relative_href(section_href, metadata['pdf_path']), str(section['title']), section_meta)
             essay_html = essay_wrapped.replace(body_html, section_body_html, 1) if body_html in essay_wrapped else essay_wrapped
             essay_html = inject_discovery_markup(essay_html, [render_collection_navigation(doc_title, relative_href(section_href, collection_href), collection_items, section_slug)])
             (section_out_dir / 'index.html').write_text(essay_html, encoding='utf-8')
-            metadata_items.append(section_metadata)
-            match_contexts[str(section_metadata['slug'])] = section_context
-        entries[0]['description'] = f"Collection landing page linking {len(collection_items)} essays." if collection_items else "Authority collection landing page."
+
+        entries[0]['description'] = f"Authority essay collection with {len(collection_items)} linked essays." if collection_items else "Authority collection landing page."
         entries[0]['essay_count'] = str(len(collection_items))
+        entries[0]['essay_items'] = [{'title': item['title'], 'href': item['href']} for item in collection_items]
         landing_body_html = render_authority_collection_landing(doc_title, str(metadata.get('description', '')), collection_items)
         wrapped_html = wrapped_html.replace(body_html, landing_body_html, 1) if body_html in wrapped_html else wrapped_html
 
@@ -1139,10 +1193,16 @@ def render_item_card(item: dict[str, str]) -> str:
     else:
         title_html = safe_text(item["title"])
     description = (item.get("description") or "").strip()
+    essay_count = int(item.get("essay_count", '0') or '0')
+    if item.get("type") == "authority" and essay_count > 0:
+        suffix = f" Includes {essay_count} essays."
+        if suffix not in description:
+            description = (description + ' ' + suffix).strip() if description else suffix.strip()
     desc_html = f'<div class="item-description">{safe_text(description)}</div>' if description else ''
+    children_html = render_authority_entry_children(item) if item.get("type") == "authority" else ''
     latest_badge = '<span class="item-badge">Latest</span>' if item.get("is_latest") == "true" else ''
     version_note = '<span class="item-version-note">Older version</span>' if item.get("is_latest") == "false" else ''
-    return ('<li class="archive-item">' f'<div class="item-title">{title_html}{latest_badge}{version_note}</div>' f'{desc_html}' f'<div class="item-actions">{meta}</div>' '</li>')
+    return ('<li class="archive-item">' f'<div class="item-title">{title_html}{latest_badge}{version_note}</div>' f'{desc_html}' f'{children_html}' f'<div class="item-actions">{meta}</div>' '</li>')
 
 
 def render_family_block(family_label: str, latest_item: dict[str, str], all_items: list[dict[str, str]], mode: str) -> str:
@@ -1192,7 +1252,7 @@ def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tupl
         grouped[entry['type']].append(entry)
     template = load_template('listing.html')
     title = 'Latest' if mode == 'latest' else 'Archive'
-    intro = 'Current latest artifacts across authority, engineering, results, and replication surfaces.' if mode == 'latest' else 'Full archive with latest versions and prior version lineage grouped sanely.'
+    intro = 'Current latest authority writing, papers, contracts, and replication support artifacts.' if mode == 'latest' else 'Full archive with latest versions, older lineage, and authority collection browsing.'
     home_href = '../' if mode in ('latest','archive') else './'
     latest_href = './' if mode == 'latest' else '../latest/'
     archive_href = './' if mode == 'archive' else '../archive/'
@@ -1204,6 +1264,7 @@ def render_home_page(latest_entries: list[dict[str, str]]) -> str:
     for entry in latest_entries:
         grouped[entry['type']].append(entry)
     authority_count = sum(int(entry.get('essay_count', '1')) for entry in grouped['authority'])
+    authority_collection_count = len(grouped['authority'])
     template = load_template('home.html')
     return render_template(template, {
         'SITE_NAME': safe_text(SITE_NAME),
@@ -1211,6 +1272,7 @@ def render_home_page(latest_entries: list[dict[str, str]]) -> str:
         'ARCHIVE_HREF': './archive/',
         'ENTRY_PAPER_HREF': './papers/is-this-engineering/',
         'AUTHORITY_COUNT': str(authority_count),
+        'AUTHORITY_COLLECTION_COUNT': str(authority_collection_count),
         'PAPERS_COUNT': str(len(grouped['papers'])),
         'CONTRACTS_COUNT': str(len(grouped['contracts'])),
         'REPLICATION_COUNT': str(len(grouped['replication'])),

@@ -8,24 +8,24 @@
 :root{--bg:#fcfcf9;--panel:#ffffff;--text:#171717;--muted:#6b7280;--border:#e6e3dc;--border-strong:#d8d2c6;--accent:#111111;--soft:#f5f2ea}
 html{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;box-sizing:border-box;overflow-x:hidden}
 body{margin:0;padding:0;min-height:100vh;overflow-x:hidden}*,*::before,*::after{box-sizing:inherit}main,section,div,a,nav{min-width:0}
-.page{max-width:72rem;margin:0 auto;padding:2rem 1rem 4rem}
+.page{max-width:64rem;margin:0 auto;padding:2rem 1rem 4rem}
 .hero{max-width:46rem}
 .kicker{margin:0 0 .6rem;color:var(--muted);font-size:.84rem;line-height:1.3;letter-spacing:.08em;text-transform:uppercase}
 h1{margin:0 0 .9rem;font-size:clamp(2.4rem,8vw,4.6rem);line-height:.98;letter-spacing:-.04em;font-weight:700}
 .credit{margin:0 0 1rem;color:var(--muted);font-size:.9rem;line-height:1.4}
-.lead{margin:0 0 .85rem;font-size:1.08rem;line-height:1.64;color:#30343a;max-width:42rem}
-.program-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-top:1.5rem}
-.card,.utility-card{display:flex;flex-direction:column;gap:.45rem;min-height:9.75rem;border:1px solid var(--border);border-radius:22px;padding:1rem 1rem 1.05rem;background:var(--panel);text-decoration:none;color:inherit;box-shadow:0 1px 0 rgba(17,17,17,.02)}
-.card:hover,.utility-card:hover{transform:translateY(-1px);transition:transform .15s ease, box-shadow .15s ease;box-shadow:0 10px 24px rgba(0,0,0,.06)}
-.card .eyebrow,.utility-card .eyebrow{color:var(--muted);font-size:.8rem;letter-spacing:.07em;text-transform:uppercase}
-.card h2,.utility-card h2{margin:0;font-size:1.22rem;line-height:1.16;letter-spacing:-.02em}
-.card p,.utility-card p{margin:0;color:#4b5563;line-height:1.5;font-size:.96rem}
-.card .count,.utility-card .count{margin-top:auto;color:var(--muted);font-size:.9rem}
+.lead{margin:0 0 .85rem;font-size:1.06rem;line-height:1.64;color:#30343a;max-width:42rem}
 .actions{display:flex;gap:.75rem;flex-wrap:wrap;margin:1.5rem 0 1.75rem}.actions a{display:inline-flex;align-items:center;justify-content:center;min-height:2.7rem;padding:0 1rem;border-radius:999px;border:1px solid var(--border-strong);text-decoration:none;color:var(--text);background:var(--panel);font-size:.96rem;text-align:center}.actions .primary{background:var(--accent);border-color:var(--accent);color:#fff}
-.utilities{margin-top:1.25rem;padding-top:1.1rem;border-top:1px solid var(--border)}
-.utilities h2{margin:0 0 .8rem;font-size:1rem;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
-.utility-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
-@media (max-width:900px){.program-grid,.utility-grid{grid-template-columns:1fr}.page{padding:1.4rem 1rem 3rem}.card,.utility-card{min-height:unset}.lead{font-size:1rem}}
+.primary-stack{display:grid;gap:1rem;margin-top:1.5rem}
+.primary-feature,.primary-row,.secondary-row{border:1px solid var(--border);border-radius:24px;background:var(--panel);padding:1rem 1rem 1.05rem;text-decoration:none;color:inherit;display:block}
+.primary-feature:hover,.primary-row a:hover,.secondary-row a:hover{box-shadow:0 10px 24px rgba(0,0,0,.06)}
+.primary-feature .eyebrow,.primary-row .eyebrow,.secondary-row .eyebrow{display:block;color:var(--muted);font-size:.8rem;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.35rem}
+.primary-feature h2,.primary-row h2,.secondary-row h2{margin:0 0 .25rem;font-size:1.36rem;line-height:1.14;letter-spacing:-.02em}
+.primary-feature p,.primary-row p,.secondary-row p{margin:0;color:#4b5563;line-height:1.5;font-size:.96rem}
+.primary-feature .count,.primary-row .count,.secondary-row .count{margin-top:.55rem;color:var(--muted);font-size:.9rem}
+.primary-pair,.secondary-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+.section-divider{margin-top:1.3rem;padding-top:1.1rem;border-top:1px solid var(--border)}
+.secondary-label{margin:0 0 .8rem;font-size:.9rem;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+@media (max-width:900px){.page{padding:1.4rem 1rem 3rem}.lead{font-size:1rem}.primary-pair,.secondary-pair{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -35,52 +35,50 @@ h1{margin:0 0 .9rem;font-size:clamp(2.4rem,8vw,4.6rem);line-height:.98;letter-sp
     <h1>{{SITE_NAME}}</h1>
     <p class="credit">Gregory Tomlinson</p>
     <p class="lead">Engineering discipline for systems where identical inputs do not guarantee identical outputs.</p>
-    <p class="lead">This archive is organized around three reader-facing paths: authority and control failure, engineering response structure, and observed results. Replication remains available, but as verification and relocation support rather than the primary place to start reading.</p>
+    <p class="lead">Start with the authority essays, then move into the papers and supporting contracts. Replication stays available as portability and rerun support, not the main place to begin.</p>
     <div class="actions">
       <a class="primary" href="{{LATEST_HREF}}">Start with latest</a>
       <a href="{{ARCHIVE_HREF}}">Browse archive</a>
       <a href="{{ENTRY_PAPER_HREF}}">Read an entry paper</a>
     </div>
-    <section class="program-grid" aria-label="Primary sections">
-      <a class="card" href="{{LATEST_HREF}}#authority">
-        <div class="eyebrow">Primary path</div>
+
+    <section class="primary-stack" aria-label="Primary sections">
+      <a class="primary-feature" href="{{LATEST_HREF}}#authority">
+        <span class="eyebrow">Primary path</span>
         <h2>Authority</h2>
-        <p>Essay collections, conceptual diagnosis, and the control-failure front door.</p>
-        <div class="count">{{AUTHORITY_COUNT}} current items</div>
+        <p>Collections and linked essays that diagnose where control actually lives and why understanding alone does not restore it.</p>
+        <div class="count">{{AUTHORITY_COLLECTION_COUNT}} collection · {{AUTHORITY_COUNT}} essays</div>
       </a>
-      <a class="card" href="{{LATEST_HREF}}#contracts">
-        <div class="eyebrow">Primary path</div>
-        <h2>Engineering</h2>
-        <p>Operational semantics, governing contracts, and explicit authority artifacts.</p>
-        <div class="count">{{CONTRACTS_COUNT}} current items</div>
-      </a>
-      <a class="card" href="{{LATEST_HREF}}#papers">
-        <div class="eyebrow">Primary path</div>
-        <h2>Results</h2>
-        <p>Comparisons, synthesis, mechanism papers, and observed outcomes.</p>
-        <div class="count">{{PAPERS_COUNT}} current items</div>
-      </a>
-      <a class="card" href="{{ARCHIVE_HREF}}">
-        <div class="eyebrow">Primary path</div>
-        <h2>Archive</h2>
-        <p>Latest plus historical lineage, grouped sanely for browsing.</p>
-        <div class="count">Version-preserving listings</div>
-      </a>
-    </section>
-    <section class="utilities">
-      <h2>Secondary surfaces</h2>
-      <div class="utility-grid">
-        <a class="utility-card" href="{{LATEST_HREF}}#replication">
-          <div class="eyebrow">Support surface</div>
-          <h2>Replication & verification</h2>
-          <p>Portable rerun materials, extracted packets, and independent-checking support.</p>
-          <div class="count">{{REPLICATION_COUNT}} current items</div>
+      <div class="primary-pair">
+        <a class="primary-row" href="{{LATEST_HREF}}#papers">
+          <span class="eyebrow">Primary path</span>
+          <h2>Papers</h2>
+          <p>Research and mechanism papers, comparisons, and synthesis that make the engineering claims legible.</p>
+          <div class="count">{{PAPERS_COUNT}} current items</div>
         </a>
-        <a class="utility-card" href="{{ARCHIVE_HREF}}">
-          <div class="eyebrow">Support surface</div>
-          <h2>Full archive</h2>
-          <p>Complete version history, older artifacts, and lineage-preserving listings.</p>
-          <div class="count">Latest plus historical reachability</div>
+        <a class="primary-row" href="{{ARCHIVE_HREF}}">
+          <span class="eyebrow">Browse</span>
+          <h2>Archive</h2>
+          <p>Latest plus historical lineage, grouped sanely without flattening version history.</p>
+          <div class="count">Version-preserving listings</div>
+        </a>
+      </div>
+    </section>
+
+    <section class="section-divider">
+      <p class="secondary-label">Supporting surfaces</p>
+      <div class="secondary-pair">
+        <a class="secondary-row" href="{{LATEST_HREF}}#contracts">
+          <span class="eyebrow">Support</span>
+          <h2>Contracts</h2>
+          <p>Operational semantics and governing artifacts that support the papers without becoming the front door.</p>
+          <div class="count">{{CONTRACTS_COUNT}} current items</div>
+        </a>
+        <a class="secondary-row" href="{{LATEST_HREF}}#replication">
+          <span class="eyebrow">Support</span>
+          <h2>Replication & verification</h2>
+          <p>Portable rerun material, extracted packets, and independent-checking support.</p>
+          <div class="count">{{REPLICATION_COUNT}} current items</div>
         </a>
       </div>
     </section>
