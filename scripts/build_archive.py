@@ -433,6 +433,10 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
     depth = len([part for part in slug.split("/") if part])
     home_href = "../" * (depth + 1)
 
+    slug = str(metadata["slug"])
+    depth = len([part for part in slug.split("/") if part])
+    home_href = "../" * (depth + 1)
+
     template = load_template("document_shell.html")
     return render_template(
         template,
