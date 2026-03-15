@@ -29,7 +29,7 @@ INCOMING = ROOT / "incoming"
 DIST = ROOT / "dist"
 TEMPLATES = ROOT / "scripts" / "templates"
 SITE_NAME = "Probabilistic Systems Engineering"
-SITE_URL = "https://archive.gtzilla.com"
+SITE_URL = "https://ai.gtzilla.com"
 CONTENT_TYPES = ["authority", "papers", "contracts", "replication"]
 TYPE_LABELS = {"authority": "Authority", "papers": "Papers", "contracts": "Contracts", "replication": "Replication & Verification"}
 
@@ -937,6 +937,37 @@ def authority_title_blocks(body_html: str) -> list[tuple[int, int, str]]:
     return blocks
 
 
+def first_h1_title(section_html: str) -> str:
+    match = re.search(r'<h1\b[^>]*>(.*?)</h1>', section_html, flags=re.IGNORECASE | re.DOTALL)
+    if not match:
+        return ''
+    return strip_tags_to_text(match.group(1)).strip()
+
+
+def strip_leading_authority_title_wrappers(section_html: str, canonical_title: str) -> str:
+    remaining = section_html.lstrip()
+    canonical_key = normalize_for_match(canonical_title)
+    if not canonical_key:
+        return remaining
+
+    title_pat = re.compile(r'^\s*<p\b(?P<attrs>[^>]*)class="(?P<classval>[^"]*\btitle\b[^"]*)"[^>]*>(?P<body>.*?)</p>', flags=re.IGNORECASE | re.DOTALL)
+    h1_pat = re.compile(r'^\s*<h1\b[^>]*>(?P<body>.*?)</h1>', flags=re.IGNORECASE | re.DOTALL)
+
+    while True:
+        changed = False
+        m = title_pat.match(remaining)
+        if m and normalize_for_match(strip_tags_to_text(m.group('body'))) == canonical_key:
+            remaining = remaining[m.end():].lstrip()
+            changed = True
+        m = h1_pat.match(remaining)
+        if m and normalize_for_match(strip_tags_to_text(m.group('body'))) == canonical_key:
+            remaining = remaining[m.end():].lstrip()
+            changed = True
+        if not changed:
+            break
+    return remaining
+
+
 def split_authority_collection(body_html: str) -> list[dict[str, str]]:
     blocks = authority_title_blocks(body_html)
     if not blocks:
@@ -948,7 +979,9 @@ def split_authority_collection(body_html: str) -> list[dict[str, str]]:
         section_html = body_html[section_start:section_end].strip()
         if not section_html:
             continue
-        sections.append({'title': title, 'slug': slugify_fragment(title), 'body_html': section_html})
+        canonical_title = first_h1_title(section_html) or title
+        cleaned_body = strip_leading_authority_title_wrappers(section_html, canonical_title)
+        sections.append({'title': canonical_title, 'slug': slugify_fragment(canonical_title), 'body_html': cleaned_body})
     return sections
 
 
@@ -961,7 +994,7 @@ def render_collection_sections(items: list[dict[str, str]], current_slug: str = 
         title = safe_text(item['title'])
         current = ' <span class="pse-discovery-kind">Current</span>' if item.get('slug') == current_slug else ''
         rows.append('<li class="pse-discovery-item"><a href="' + href + '">' + str(idx) + '. ' + title + '</a>' + current + '</li>')
-    return '<section class="pse-discovery"><h2>Collection essays</h2><ul class="pse-discovery-list">' + ''.join(rows) + '</ul></section>'
+    return '<section class="pse-discovery pse-discovery-collection"><h2>Collection essays</h2><ol class="pse-discovery-list pse-discovery-list-ordered">' + ''.join(rows) + '</ol></section>'
 
 
 def render_authority_entry_children(item: dict[str, object]) -> str:
@@ -979,7 +1012,7 @@ def render_authority_entry_children(item: dict[str, object]) -> str:
         links.append(f'<li><a href="{href}">{title}</a></li>')
     if not links:
         return ""
-    return '<div class="item-children"><div class="item-children-label">Essays</div><ol class="item-children-list">' + ''.join(links) + '</ol></div>'
+    return '<div class="item-children"><div class="item-children-label">Essays in order</div><ol class="item-children-list">' + ''.join(links) + '</ol></div>'
 
 
 def render_authority_collection_landing(doc_title: str, description: str, items: list[dict[str, str]]) -> str:
@@ -990,9 +1023,9 @@ def render_authority_collection_landing(doc_title: str, description: str, items:
     return (
         '<section class="pse-authority-collection">'
         + '<h1>' + safe_text(doc_title) + '</h1>'
-        + '<p><strong>Authority collection.</strong> This landing page replaces the bundled full-text view and links the component essays in reading order.</p>'
+        + '<p class="pse-lead-in"><strong>Authority collection.</strong> Read these essays in order. This landing page replaces the bundled full-text view and keeps the collection as a table of contents rather than one giant article.</p>'
         + intro_html
-        + '<p><strong>Contents:</strong> ' + safe_text(count_label) + '</p>'
+        + '<p class="pse-compact"><strong>Contents:</strong> ' + safe_text(count_label) + '</p>'
         + toc
         + '</section>'
     )
@@ -1002,6 +1035,7 @@ def render_collection_navigation(collection_title: str, collection_href: str, it
     if not items:
         return ''
     current_index = next((idx for idx, item in enumerate(items) if item.get('slug') == current_slug), -1)
+    position = f'Essay {current_index + 1} of {len(items)}' if current_index >= 0 else ''
     links = ['<li class="pse-discovery-item"><a href="' + safe_text(collection_href) + '">Back to ' + safe_text(collection_title) + '</a></li>']
     if current_index > 0:
         prev_item = items[current_index - 1]
@@ -1009,7 +1043,8 @@ def render_collection_navigation(collection_title: str, collection_href: str, it
     if 0 <= current_index < len(items) - 1:
         next_item = items[current_index + 1]
         links.append('<li class="pse-discovery-item">Next: <a href="' + safe_text(next_item['href']) + '">' + safe_text(next_item['title']) + '</a></li>')
-    return '<section class="pse-discovery"><h2>Collection navigation</h2><ul class="pse-discovery-list">' + ''.join(links) + '</ul></section>'
+    label = '<p class="pse-compact">' + safe_text(position) + '</p>' if position else ''
+    return '<section class="pse-discovery"><h2>Collection navigation</h2>' + label + '<ul class="pse-discovery-list">' + ''.join(links) + '</ul></section>'
 
 
 def build_doc(
