@@ -1326,6 +1326,22 @@ def write_family_redirects(dist_root: Path, family_buckets: dict[tuple[str, str]
         target_href = relative_href(f'/{type_name}/{family_key}/', f'/{type_name}/{target["slug"]}/')
         (out_dir / 'index.html').write_text(render_redirect_page(target_href), encoding='utf-8')
 
+def copy_static_assets() -> None:
+    assets_root = INCOMING / "assets"
+    if not assets_root.exists():
+        return
+    if not assets_root.is_dir():
+        fail(f"{assets_root} exists but is not a directory")
+    dest_root = DIST / "assets"
+    dest_root.mkdir(parents=True, exist_ok=True)
+    for child in assets_root.iterdir():
+        dest = dest_root / child.name
+        if child.is_dir():
+            shutil.copytree(child, dest, dirs_exist_ok=True)
+        else:
+            shutil.copy2(child, dest)
+
+
 
 def inject_discovery_sections(dist_root: Path, metadata_index: list[dict[str, object]], contexts: dict[str, dict[str, object]]) -> dict[str, dict[str, object]]:
     discovery_sections, recommendation_artifacts = build_discovery_sections(metadata_index, contexts)
@@ -1375,7 +1391,7 @@ def main() -> int:
                 match_contexts.update(doc_match_contexts)
 
         entries = collect_pdf_only_contract_entries(entries)
-
+        copy_static_assets()
         latest_entries, family_buckets = latest_entries_and_families(entries)
         (DIST / 'index.html').write_text(render_home_page(latest_entries), encoding='utf-8')
         latest_dir = DIST / 'latest'
