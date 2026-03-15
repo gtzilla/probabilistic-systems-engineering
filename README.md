@@ -1,6 +1,6 @@
 # Probabilistic Systems Engineering
 
-Primary public entry point: **https://archive.gtzilla.com/**
+Primary public entry point: **https://ai.gtzilla.com/**
 
 This repository is the source for the Probabilistic Systems Engineering archive site. It contains the incoming publishing artifacts, build logic, and templates used to generate the public archive.
 
@@ -8,7 +8,7 @@ This repository is the source for the Probabilistic Systems Engineering archive 
 
 Use the live archive for reading and sharing:
 
-- https://archive.gtzilla.com/
+- https://ai.gtzilla.com/
 
 The site includes published papers, contracts, and replication materials related to:
 
