@@ -1309,7 +1309,7 @@ def render_home_page(latest_entries: list[dict[str, str]]) -> str:
         'SITE_NAME': safe_text(SITE_NAME),
         'LATEST_HREF': './latest/',
         'ARCHIVE_HREF': './archive/',
-        'ENTRY_PAPER_HREF': './papers/is-this-engineering/',
+        'ENTRY_PAPER_HREF': './papers/contract-centered-iterative-stability-v4.7.3/',
         'AUTHORITY_COUNT': str(authority_count),
         'AUTHORITY_COLLECTION_COUNT': str(authority_collection_count),
         'PAPERS_COUNT': str(len(grouped['papers'])),
