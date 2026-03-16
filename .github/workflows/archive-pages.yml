@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  LIVE_BUILD_URL: https://archive.gtzilla.com/build.json
+  LIVE_BUILD_URL: https://ai.gtzilla.com/build.json
 
 jobs:
   build:
@@ -76,6 +76,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Install build dependencies
+        if: steps.should_deploy.outputs.should_deploy == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-build.txt
 
       - name: Build archive
         if: steps.should_deploy.outputs.should_deploy == 'true'
