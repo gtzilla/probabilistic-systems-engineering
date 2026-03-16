@@ -3,6 +3,8 @@ from __future__ import annotations
 import html
 import re
 
+from bs4 import BeautifulSoup
+
 
 def strip_tags_to_text(raw: str) -> str:
     text = re.sub(r"<[^>]+>", " ", raw)
@@ -85,6 +87,59 @@ def extract_body_inner_html(raw_html: str) -> str:
     return raw_html.strip()
 
 
+def _extract_list_signature(tag) -> tuple[str, int] | None:
+    classes = tag.get("class", []) if hasattr(tag, "get") else []
+    for cls in classes:
+        match = re.fullmatch(r"(lst-kix_[A-Za-z0-9]+)-(\d+)", cls)
+        if match:
+            return match.group(1), int(match.group(2))
+    return None
+
+
+def repair_flattened_nested_lists(body_html: str) -> str:
+    """
+    Google Docs exports some nested lists as sibling <ul>/<ol> blocks instead of
+    nesting the child list inside the preceding parent <li>. Repair that shape
+    when the list family and level classes make the relationship deterministic.
+    """
+    soup = BeautifulSoup(body_html, "html.parser")
+
+    changed = True
+    while changed:
+        changed = False
+        for list_tag in soup.find_all(["ul", "ol"]):
+            signature = _extract_list_signature(list_tag)
+            if not signature:
+                continue
+
+            sibling = list_tag.next_sibling
+            while sibling is not None and (
+                (isinstance(sibling, str) and not sibling.strip())
+                or getattr(sibling, "name", None) is None
+            ):
+                sibling = sibling.next_sibling
+
+            if getattr(sibling, "name", None) not in {"ul", "ol"}:
+                continue
+
+            sibling_signature = _extract_list_signature(sibling)
+            if not sibling_signature:
+                continue
+
+            if sibling_signature[0] != signature[0] or sibling_signature[1] != signature[1] + 1:
+                continue
+
+            last_li = next(reversed(list_tag.find_all("li", recursive=False)), None)
+            if last_li is None:
+                continue
+
+            last_li.append("\n")
+            last_li.append(sibling.extract())
+            changed = True
+
+    return "".join(str(node) for node in soup.contents)
+
+
 def refine_body_html(body_html: str) -> str:
     def normalize_li_classes(match: re.Match[str]) -> str:
         attrs = match.group("attrs") or ""
@@ -112,6 +167,8 @@ def refine_body_html(body_html: str) -> str:
         body_html,
         flags=re.IGNORECASE,
     )
+
+    body_html = repair_flattened_nested_lists(body_html)
 
     def has_structural_content(raw: str) -> bool:
         return bool(re.search(r"<(img|svg|table|hr)\b", raw, flags=re.IGNORECASE))
