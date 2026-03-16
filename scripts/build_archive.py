@@ -944,29 +944,35 @@ def first_h1_title(section_html: str) -> str:
     return strip_tags_to_text(match.group(1)).strip()
 
 
+def authority_title_matches_canonical(candidate_title: str, canonical_title: str) -> bool:
+    candidate_key = normalize_for_match(candidate_title)
+    canonical_key = normalize_for_match(canonical_title)
+    if not candidate_key or not canonical_key:
+        return False
+    if candidate_key == canonical_key:
+        return True
+    candidate_key = re.sub(r"\.\.\.$", "", candidate_key).strip()
+    candidate_key = re.sub(r"\s+", " ", candidate_key).strip()
+    canonical_key = re.sub(r"\s+", " ", canonical_key).strip()
+    return bool(candidate_key) and canonical_key.startswith(candidate_key)
+
+
 def strip_leading_authority_title_wrappers(section_html: str, canonical_title: str) -> str:
     remaining = section_html.lstrip()
-    canonical_key = normalize_for_match(canonical_title)
-    if not canonical_key:
+    if not canonical_title.strip():
         return remaining
 
     title_pat = re.compile(r'^\s*<p\b(?P<attrs>[^>]*)class="(?P<classval>[^"]*\btitle\b[^"]*)"[^>]*>(?P<body>.*?)</p>', flags=re.IGNORECASE | re.DOTALL)
-    h1_pat = re.compile(r'^\s*<h1\b[^>]*>(?P<body>.*?)</h1>', flags=re.IGNORECASE | re.DOTALL)
 
     while True:
-        changed = False
         m = title_pat.match(remaining)
-        if m and normalize_for_match(strip_tags_to_text(m.group('body'))) == canonical_key:
-            remaining = remaining[m.end():].lstrip()
-            changed = True
-        m = h1_pat.match(remaining)
-        if m and normalize_for_match(strip_tags_to_text(m.group('body'))) == canonical_key:
-            remaining = remaining[m.end():].lstrip()
-            changed = True
-        if not changed:
+        if not m:
             break
+        candidate = strip_tags_to_text(m.group('body'))
+        if not authority_title_matches_canonical(candidate, canonical_title):
+            break
+        remaining = remaining[m.end():].lstrip()
     return remaining
-
 
 def split_authority_collection(body_html: str) -> list[dict[str, str]]:
     blocks = authority_title_blocks(body_html)
@@ -994,7 +1000,7 @@ def render_collection_sections(items: list[dict[str, str]], current_slug: str = 
         title = safe_text(item['title'])
         current = ' <span class="pse-discovery-kind">Current</span>' if item.get('slug') == current_slug else ''
         rows.append('<li class="pse-discovery-item"><a href="' + href + '">' + str(idx) + '. ' + title + '</a>' + current + '</li>')
-    return '<section class="pse-discovery pse-discovery-collection"><h2>Collection essays</h2><ol class="pse-discovery-list pse-discovery-list-ordered">' + ''.join(rows) + '</ol></section>'
+    return '<section class="pse-discovery pse-discovery-collection"><h2>Collection essays</h2><p class="pse-compact">Read in order. Each essay builds on the last.</p><ol class="pse-discovery-list pse-discovery-list-ordered">' + ''.join(rows) + '</ol></section>'
 
 
 def render_authority_entry_children(item: dict[str, object]) -> str:
@@ -1326,6 +1332,22 @@ def write_family_redirects(dist_root: Path, family_buckets: dict[tuple[str, str]
         target_href = relative_href(f'/{type_name}/{family_key}/', f'/{type_name}/{target["slug"]}/')
         (out_dir / 'index.html').write_text(render_redirect_page(target_href), encoding='utf-8')
 
+def copy_static_assets() -> None:
+    assets_root = INCOMING / "assets"
+    if not assets_root.exists():
+        return
+    if not assets_root.is_dir():
+        fail(f"{assets_root} exists but is not a directory")
+    dest_root = DIST / "assets"
+    dest_root.mkdir(parents=True, exist_ok=True)
+    for child in assets_root.iterdir():
+        dest = dest_root / child.name
+        if child.is_dir():
+            shutil.copytree(child, dest, dirs_exist_ok=True)
+        else:
+            shutil.copy2(child, dest)
+
+
 
 def inject_discovery_sections(dist_root: Path, metadata_index: list[dict[str, object]], contexts: dict[str, dict[str, object]]) -> dict[str, dict[str, object]]:
     discovery_sections, recommendation_artifacts = build_discovery_sections(metadata_index, contexts)
@@ -1375,7 +1397,7 @@ def main() -> int:
                 match_contexts.update(doc_match_contexts)
 
         entries = collect_pdf_only_contract_entries(entries)
-
+        copy_static_assets()
         latest_entries, family_buckets = latest_entries_and_families(entries)
         (DIST / 'index.html').write_text(render_home_page(latest_entries), encoding='utf-8')
         latest_dir = DIST / 'latest'
