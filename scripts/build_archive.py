@@ -30,8 +30,8 @@ DIST = ROOT / "dist"
 TEMPLATES = ROOT / "scripts" / "templates"
 SITE_NAME = "Probabilistic Systems Engineering"
 SITE_URL = "https://ai.gtzilla.com"
-CONTENT_TYPES = ["authority", "papers", "contracts", "replication"]
-TYPE_LABELS = {"authority": "Authority", "papers": "Papers", "contracts": "Contracts", "replication": "Replication & Verification"}
+CONTENT_TYPES = ["authority", "papers", "contracts", "replication", "non-engineering"]
+TYPE_LABELS = {"authority": "Authority", "papers": "Papers", "contracts": "Contracts", "replication": "Replication & Verification", "non-engineering": "Non-Engineering"}
 
 
 def fail(msg: str) -> None:
@@ -124,6 +124,8 @@ def metadata_kind_for_type(type_name: str) -> tuple[str, str]:
         return ("contract", "TechArticle")
     if type_name == "replication":
         return ("replication-material", "TechArticle")
+    if type_name == "non-engineering":
+        return ("non-engineering-essay", "Article")
     return (type_name, "CreativeWork")
 
 
@@ -423,6 +425,37 @@ def inject_head_metadata(raw_html: str, doc_title: str) -> str:
 
 
 
+def enhance_non_engineering_body_html(body_html: str) -> str:
+    def add_class(match: re.Match[str], class_name: str) -> str:
+        attrs = match.group(1) or ""
+        inner = match.group(2)
+        if 'class=' in attrs:
+            attrs = re.sub(r'class="([^"]*)"', lambda m: f'class="{m.group(1)} {class_name}"', attrs, count=1)
+            attrs = re.sub(r"class='([^']*)'", lambda m: f"class='{m.group(1)} {class_name}'", attrs, count=1)
+        else:
+            attrs = f'{attrs} class="{class_name}"'
+        return f'<p{attrs}>{inner}</p>'
+
+    def classify_paragraph(match: re.Match[str]) -> str:
+        attrs = match.group(1) or ""
+        inner = match.group(2)
+        text = strip_tags_to_text(inner).strip()
+        normalized = re.sub(r'\s+', ' ', text)
+        if normalized == 'AI binds to the scope you name.':
+            return add_class(match, 'pse-hero-quote')
+        if normalized.startswith('Result:'):
+            return add_class(match, 'pse-result')
+        if len(normalized) <= 72 and normalized and normalized[0].isupper() and not normalized.endswith(('.', '?', '!', ':')) and 1 <= normalized.count(' ') <= 7:
+            return add_class(match, 'pse-scenario-label')
+        if normalized == 'The shortest version is this:':
+            return add_class(match, 'pse-kicker')
+        return match.group(0)
+
+    body_html = re.sub(r'<p([^>]*)>(.*?)</p>', classify_paragraph, body_html, flags=re.DOTALL)
+    body_html = body_html.replace('<table', '<div class="pse-table-wrap"><table', 1).replace('</table>', '</table></div>', 1)
+    return body_html
+
+
 def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata: dict[str, object]) -> str:
     normalized = normalize_exported_html(raw_html)
     exported_styles = extract_head_styles(normalized)
@@ -433,11 +466,12 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
     depth = len([part for part in slug.split("/") if part])
     home_href = "../" * (depth + 1)
 
-    slug = str(metadata["slug"])
-    depth = len([part for part in slug.split("/") if part])
-    home_href = "../" * (depth + 1)
+    template_name = "document_shell.html"
+    if str(metadata.get("content_type")) == "non-engineering":
+        template_name = "document_shell_non_engineering.html"
+        body_html = enhance_non_engineering_body_html(body_html)
 
-    template = load_template("document_shell.html")
+    template = load_template(template_name)
     return render_template(
         template,
         {
