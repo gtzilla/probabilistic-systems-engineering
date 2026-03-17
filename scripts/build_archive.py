@@ -23,6 +23,19 @@ from archive_build.html_processing import (
     refine_body_html,
     strip_tags_to_text,
 )
+from archive_build.collections import (
+    inject_non_engineering_top_navigation,
+    render_authority_collection_landing,
+    render_collection_navigation,
+    render_non_engineering_collection_landing,
+    split_authority_collection,
+    split_non_engineering_collection,
+)
+from archive_build.listing_render import (
+    render_home_page,
+    render_listing_page,
+    render_redirect_page,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 INCOMING = ROOT / "incoming"
@@ -1011,230 +1024,6 @@ def latest_entries_and_families(entries: list[dict[str, str]]) -> tuple[list[dic
     return latest_only, family_buckets
 
 
-def render_redirect_page(target_href: str) -> str:
-    template = load_template("redirect.html")
-    return render_template(template, {"TARGET_HREF": safe_text(target_href), "SITE_NAME": safe_text(SITE_NAME)})
-
-
-def slugify_fragment(text: str) -> str:
-    value = normalize_for_match(text).replace(' ', '-')
-    value = re.sub(r'-+', '-', value).strip('-')
-    return value or 'section'
-
-
-def authority_title_blocks(body_html: str) -> list[tuple[int, int, str]]:
-    excluded = {
-        'cover',
-        'authority execution and refusal',
-        'authority is the power to refuse execution at the first irreversible side effect',
-        'framing',
-        'table of contents',
-    }
-    pattern = re.compile(r'<p\b(?P<attrs>[^>]*)class="(?P<classval>[^"]*\btitle\b[^"]*)"[^>]*>(?P<body>.*?)</p>', flags=re.IGNORECASE | re.DOTALL)
-    blocks: list[tuple[int, int, str]] = []
-    last_key = ''
-    for match in pattern.finditer(body_html):
-        title = strip_tags_to_text(match.group('body'))
-        key = normalize_for_match(title)
-        if not key or key in excluded:
-            continue
-        if key == last_key:
-            continue
-        last_key = key
-        blocks.append((match.start(), match.end(), title))
-    return blocks
-
-
-def first_h1_title(section_html: str) -> str:
-    match = re.search(r'<h1\b[^>]*>(.*?)</h1>', section_html, flags=re.IGNORECASE | re.DOTALL)
-    if not match:
-        return ''
-    return strip_tags_to_text(match.group(1)).strip()
-
-
-def authority_title_matches_canonical(candidate_title: str, canonical_title: str) -> bool:
-    candidate_key = normalize_for_match(candidate_title)
-    canonical_key = normalize_for_match(canonical_title)
-    if not candidate_key or not canonical_key:
-        return False
-    if candidate_key == canonical_key:
-        return True
-    candidate_key = re.sub(r"\.\.\.$", "", candidate_key).strip()
-    candidate_key = re.sub(r"\s+", " ", candidate_key).strip()
-    canonical_key = re.sub(r"\s+", " ", canonical_key).strip()
-    return bool(candidate_key) and canonical_key.startswith(candidate_key)
-
-
-def strip_leading_authority_title_wrappers(section_html: str, canonical_title: str) -> str:
-    remaining = section_html.lstrip()
-    if not canonical_title.strip():
-        return remaining
-
-    title_pat = re.compile(r'^\s*<p\b(?P<attrs>[^>]*)class="(?P<classval>[^"]*\btitle\b[^"]*)"[^>]*>(?P<body>.*?)</p>', flags=re.IGNORECASE | re.DOTALL)
-
-    while True:
-        m = title_pat.match(remaining)
-        if not m:
-            break
-        candidate = strip_tags_to_text(m.group('body'))
-        if not authority_title_matches_canonical(candidate, canonical_title):
-            break
-        remaining = remaining[m.end():].lstrip()
-    return remaining
-
-def split_authority_collection(body_html: str) -> list[dict[str, str]]:
-    blocks = authority_title_blocks(body_html)
-    if not blocks:
-        return []
-    sections: list[dict[str, str]] = []
-    for idx, (start, end, title) in enumerate(blocks):
-        section_start = start
-        section_end = blocks[idx + 1][0] if idx + 1 < len(blocks) else len(body_html)
-        section_html = body_html[section_start:section_end].strip()
-        if not section_html:
-            continue
-        canonical_title = first_h1_title(section_html) or title
-        cleaned_body = strip_leading_authority_title_wrappers(section_html, canonical_title)
-        sections.append({'title': canonical_title, 'slug': slugify_fragment(canonical_title), 'body_html': cleaned_body})
-    return sections
-
-
-def split_non_engineering_collection(body_html: str) -> list[dict[str, str]]:
-    pattern = re.compile(r'<h2\b[^>]*>.*?</h2>', flags=re.IGNORECASE | re.DOTALL)
-    matches = list(pattern.finditer(body_html))
-    sections: list[dict[str, str]] = []
-    skip_next = False
-    for idx, match in enumerate(matches):
-        if skip_next:
-            skip_next = False
-            continue
-        title = strip_tags_to_text(match.group(0)).strip()
-        if not title:
-            continue
-        section_start = match.start()
-        section_end = matches[idx + 1].start() if idx + 1 < len(matches) else len(body_html)
-        section_html = body_html[section_start:section_end].strip()
-        if normalize_for_match(title) == 'the mechanism' and idx + 1 < len(matches):
-            next_title = strip_tags_to_text(matches[idx + 1].group(0)).strip()
-            if normalize_for_match(next_title) == 'why this is not obvious':
-                section_end = matches[idx + 2].start() if idx + 2 < len(matches) else len(body_html)
-                section_html = body_html[section_start:section_end].strip()
-                skip_next = True
-        if not section_html:
-            continue
-        sections.append({'title': title, 'slug': slugify_fragment(title), 'body_html': section_html})
-    return sections
-
-
-def render_non_engineering_entry_children(item: dict[str, object]) -> str:
-    section_items = item.get("section_items")
-    if not section_items or not isinstance(section_items, list):
-        return ""
-    links: list[str] = []
-    for section in section_items:
-        if not isinstance(section, dict):
-            continue
-        href = safe_text(str(section.get("href", "")))
-        title = safe_text(str(section.get("title", "")))
-        if not href or not title:
-            continue
-        links.append(f'<li><a href="{href}">{title}</a></li>')
-    if not links:
-        return ""
-    return '<div class="item-children"><div class="item-children-label">Guide pages</div><ul class="item-children-list">' + ''.join(links) + '</ul></div>'
-
-
-def render_non_engineering_collection_sections(items: list[dict[str, str]], current_slug: str = '') -> str:
-    if not items:
-        return ''
-    rows: list[str] = []
-    for item in items:
-        href = safe_text(item['href'])
-        title = safe_text(item['title'])
-        current = ' <span class="pse-discovery-kind">Current</span>' if item.get('slug') == current_slug else ''
-        rows.append('<li class="pse-discovery-item"><a href="' + href + '">' + title + '</a>' + current + '</li>')
-    return '<section class="pse-discovery pse-discovery-collection"><h2>Guide pages</h2><p class="pse-compact">Browse the guide by section. The designer-facing path lives inside this split collection.</p><ul class="pse-discovery-list">' + ''.join(rows) + '</ul></section>'
-
-
-def render_non_engineering_collection_landing(doc_title: str, description: str, items: list[dict[str, str]]) -> str:
-    intro = safe_text(description).strip()
-    intro_html = f'<p>{intro}</p>' if intro else ''
-    count_label = f'{len(items)} pages' if items else 'No pages detected yet.'
-    toc = render_non_engineering_collection_sections(items)
-    return (
-        '<section class="pse-authority-collection">'
-        + '<h1>' + safe_text(doc_title) + '</h1>'
-        + '<p class="pse-lead-in"><strong>Non-engineering guide.</strong> This landing page replaces the bundled full-text view and turns the source document into separate web-native pages.</p>'
-        + intro_html
-        + '<p class="pse-compact"><strong>Contents:</strong> ' + safe_text(count_label) + '</p>'
-        + toc
-        + '</section>'
-    )
-
-
-def render_collection_sections(items: list[dict[str, str]], current_slug: str = '') -> str:
-    if not items:
-        return ''
-    rows: list[str] = []
-    for idx, item in enumerate(items, start=1):
-        href = safe_text(item['href'])
-        title = safe_text(item['title'])
-        current = ' <span class="pse-discovery-kind">Current</span>' if item.get('slug') == current_slug else ''
-        rows.append('<li class="pse-discovery-item"><a href="' + href + '">' + str(idx) + '. ' + title + '</a>' + current + '</li>')
-    return '<section class="pse-discovery pse-discovery-collection"><h2>Collection essays</h2><p class="pse-compact">Read in order. Each essay builds on the last.</p><ol class="pse-discovery-list pse-discovery-list-ordered">' + ''.join(rows) + '</ol></section>'
-
-
-def render_authority_entry_children(item: dict[str, object]) -> str:
-    essay_items = item.get("essay_items")
-    if not essay_items or not isinstance(essay_items, list):
-        return ""
-    links: list[str] = []
-    for essay in essay_items:
-        if not isinstance(essay, dict):
-            continue
-        href = safe_text(str(essay.get("href", "")))
-        title = safe_text(str(essay.get("title", "")))
-        if not href or not title:
-            continue
-        links.append(f'<li><a href="{href}">{title}</a></li>')
-    if not links:
-        return ""
-    return '<div class="item-children"><div class="item-children-label">Essays in order</div><ol class="item-children-list">' + ''.join(links) + '</ol></div>'
-
-
-def render_authority_collection_landing(doc_title: str, description: str, items: list[dict[str, str]]) -> str:
-    intro = safe_text(description).strip()
-    intro_html = f'<p>{intro}</p>' if intro else ''
-    count_label = f'{len(items)} essays' if items else 'No essays detected yet.'
-    toc = render_collection_sections(items)
-    return (
-        '<section class="pse-authority-collection">'
-        + '<h1>' + safe_text(doc_title) + '</h1>'
-        + '<p class="pse-lead-in"><strong>Authority collection.</strong> Read these essays in order. This landing page replaces the bundled full-text view and keeps the collection as a table of contents rather than one giant article.</p>'
-        + intro_html
-        + '<p class="pse-compact"><strong>Contents:</strong> ' + safe_text(count_label) + '</p>'
-        + toc
-        + '</section>'
-    )
-
-
-def render_collection_navigation(collection_title: str, collection_href: str, items: list[dict[str, str]], current_slug: str, item_label: str = 'Essay') -> str:
-    if not items:
-        return ''
-    current_index = next((idx for idx, item in enumerate(items) if item.get('slug') == current_slug), -1)
-    position = f'{item_label} {current_index + 1} of {len(items)}' if current_index >= 0 else ''
-    links: list[str] = []
-    if 0 <= current_index < len(items) - 1:
-        next_item = items[current_index + 1]
-        links.append('<li class="pse-discovery-item pse-discovery-item-next">Next: <a href="' + safe_text(next_item['href']) + '">' + safe_text(next_item['title']) + '</a></li>')
-    links.append('<li class="pse-discovery-item"><a href="' + safe_text(collection_href) + '">Back to ' + safe_text(collection_title) + '</a></li>')
-    if current_index > 0:
-        prev_item = items[current_index - 1]
-        links.append('<li class="pse-discovery-item">Previous: <a href="' + safe_text(prev_item['href']) + '">' + safe_text(prev_item['title']) + '</a></li>')
-    label = '<p class="pse-compact">' + safe_text(position) + '</p>' if position else ''
-    return '<section class="pse-discovery pse-discovery-nav"><h2>Guide navigation</h2>' + label + '<ul class="pse-discovery-list">' + ''.join(links) + '</ul></section>'
-
-
 def build_doc(
     type_name: str,
     doc_dir: Path,
@@ -1441,136 +1230,13 @@ def collect_pdf_only_contract_entries(entries: list[dict[str, str]]) -> list[dic
     return entries
 
 
-def humanize_slug(slug: str) -> str:
-    parts = [part for part in slug.split("-") if part]
-    out: list[str] = []
-    for part in parts:
-        if re.fullmatch(r"v\d+(?:\.\d+)*", part, flags=re.IGNORECASE):
-            out.append(part)
-        else:
-            out.append(part.capitalize())
-    return " ".join(out) if out else slug
-
-
-def split_group_and_leaf(slug: str) -> tuple[str, str]:
-    parts = [p for p in slug.split("/") if p]
-    if len(parts) <= 1:
-        return ("", slug)
-    return (humanize_slug(parts[0]), parts[-1])
-
-
-def render_item_card(item: dict[str, str]) -> str:
-    is_pdf_only = item.get("pdf_only") == "true"
-    primary_href = item.get("url") if (not is_pdf_only and item.get("url")) else item.get("pdf_url", "")
-    actions: list[str] = []
-    if not is_pdf_only and item.get("url"):
-        actions.append(f'<a class="item-action" href="{safe_text(item["url"])}">Read</a>')
-    actions.append(f'<a class="item-action" href="{safe_text(item["pdf_url"])}">PDF</a>')
-    meta = " · ".join(actions)
-    if primary_href:
-        title_html = f'<a class="item-title-link" href="{safe_text(primary_href)}">{safe_text(item["title"])}' + '</a>'
-    else:
-        title_html = safe_text(item["title"])
-    description = (item.get("description") or "").strip()
-    essay_count = int(item.get("essay_count", '0') or '0')
-    if item.get("type") == "authority" and essay_count > 0:
-        suffix = f" Includes {essay_count} essays."
-        if suffix not in description:
-            description = (description + ' ' + suffix).strip() if description else suffix.strip()
-    desc_html = f'<div class="item-description">{safe_text(description)}</div>' if description else ''
-    children_html = ''
-    if item.get("type") == "authority":
-        children_html = render_authority_entry_children(item)
-    elif item.get("type") == "non-engineering":
-        children_html = render_non_engineering_entry_children(item)
-    latest_badge = '<span class="item-badge">Latest</span>' if item.get("is_latest") == "true" else ''
-    version_note = '<span class="item-version-note">Older version</span>' if item.get("is_latest") == "false" else ''
-    return ('<li class="archive-item">' f'<div class="item-title">{title_html}{latest_badge}{version_note}</div>' f'{desc_html}' f'{children_html}' f'<div class="item-actions">{meta}</div>' '</li>')
-
-
-def render_family_block(family_label: str, latest_item: dict[str, str], all_items: list[dict[str, str]], mode: str) -> str:
-    items = []
-    if mode == 'latest':
-        row = dict(latest_item)
-        row['is_latest'] = 'true'
-        items = [row]
-    else:
-        for idx, item in enumerate(all_items):
-            row = dict(item)
-            row['is_latest'] = 'true' if idx == 0 else 'false'
-            items.append(row)
-    rendered_items = ''.join(render_item_card(item) for item in items)
-    heading = f'<h3>{safe_text(family_label)}</h3>' if family_label else ''
-    return '<section class="group-block">' + heading + '<ul class="archive-list">' + rendered_items + '</ul></section>'
-
-
-def render_sections(items: list[dict[str, str]], family_buckets: dict[tuple[str, str], list[dict[str, str]]], type_name: str, mode: str, empty_label: str) -> str:
-    source_items = items if mode == 'latest' else [e for e in items if e['type'] == type_name]
-    if not source_items:
-        return f'<div class="empty-state">{safe_text(empty_label)}</div>'
-    flat_items = []
-    family_latest: dict[str, dict[str, str]] = {}
-    for item in source_items:
-        family_key, version_tuple = family_slug_and_version(item)
-        if family_key and version_tuple:
-            family_latest[family_key] = item
-        else:
-            flat_items.append(item)
-    blocks: list[str] = []
-    if flat_items:
-        rendered_items = ''.join(render_item_card(dict(item, is_latest='true')) for item in sorted(flat_items, key=lambda x: x['title'].lower()))
-        blocks.append('<section class="group-block"><ul class="archive-list">' + rendered_items + '</ul></section>')
-    for family_key in sorted(family_latest):
-        latest_item = family_latest[family_key]
-        all_items = family_buckets.get((type_name, family_key), [latest_item])
-        family_label = humanize_slug(family_key.split('/')[-1])
-        blocks.append(render_family_block(family_label, latest_item, all_items, mode))
-    return "\n".join(blocks)
-
-
-def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tuple[str, str], list[dict[str, str]]], mode: str) -> str:
-    grouped: dict[str, list[dict[str, str]]] = {k: [] for k in CONTENT_TYPES}
-    source_entries = entries if mode == 'latest' else [e for e in entries]
-    for entry in source_entries:
-        if entry['type'] == 'non-engineering':
-            continue
-        grouped[entry['type']].append(entry)
-    template = load_template('listing.html')
-    title = 'Latest' if mode == 'latest' else 'Archive'
-    intro = 'Current latest authority writing, papers, contracts, and replication support artifacts.' if mode == 'latest' else 'Full archive with latest versions, older lineage, authority collection browsing, papers, contracts, and replication support artifacts.'
-    home_href = '../' if mode in ('latest','archive') else './'
-    latest_href = './' if mode == 'latest' else '../latest/'
-    archive_href = './' if mode == 'archive' else '../archive/'
-    return render_template(template, {'SITE_NAME': safe_text(SITE_NAME), 'PAGE_TITLE': safe_text(f'{title} | {SITE_NAME}'), 'PAGE_HEADING': safe_text(title), 'PAGE_INTRO': safe_text(intro), 'HOME_HREF': home_href, 'LATEST_HREF': latest_href, 'ARCHIVE_HREF': archive_href, 'AUTHORITY_SECTIONS': render_sections(grouped['authority'], family_buckets, 'authority', mode, 'No authority collections yet.'), 'PAPERS_SECTIONS': render_sections(grouped['papers'], family_buckets, 'papers', mode, 'No results yet.'), 'CONTRACTS_SECTIONS': render_sections(grouped['contracts'], family_buckets, 'contracts', mode, 'No engineering artifacts yet.'), 'REPLICATION_SECTIONS': render_sections(grouped['replication'], family_buckets, 'replication', mode, 'No replication materials yet.')})
-
-
-def render_home_page(latest_entries: list[dict[str, str]]) -> str:
-    grouped: dict[str, list[dict[str, str]]] = {k: [] for k in CONTENT_TYPES}
-    for entry in latest_entries:
-        grouped[entry['type']].append(entry)
-    authority_count = sum(int(entry.get('essay_count', '1')) for entry in grouped['authority'])
-    authority_collection_count = len(grouped['authority'])
-    template = load_template('home.html')
-    return render_template(template, {
-        'SITE_NAME': safe_text(SITE_NAME),
-        'LATEST_HREF': './latest/',
-        'ARCHIVE_HREF': './archive/',
-        'ENTRY_PAPER_HREF': './papers/contract-centered-iterative-stability-v4.7.3/',
-        'AUTHORITY_COUNT': str(authority_count),
-        'AUTHORITY_COLLECTION_COUNT': str(authority_collection_count),
-        'PAPERS_COUNT': str(len(grouped['papers'])),
-        'CONTRACTS_COUNT': str(len(grouped['contracts'])),
-        'REPLICATION_COUNT': str(len(grouped['replication'])),
-    })
-
-
 def write_family_redirects(dist_root: Path, family_buckets: dict[tuple[str, str], list[dict[str, str]]]) -> None:
     for (type_name, family_key), bucket in family_buckets.items():
         target = bucket[0]
         out_dir = dist_root / type_name / Path(family_key)
         out_dir.mkdir(parents=True, exist_ok=True)
         target_href = relative_href(f'/{type_name}/{family_key}/', f'/{type_name}/{target["slug"]}/')
-        (out_dir / 'index.html').write_text(render_redirect_page(target_href), encoding='utf-8')
+        (out_dir / 'index.html').write_text(render_redirect_page(target_href, load_template, render_template, SITE_NAME), encoding='utf-8')
 
 def copy_static_assets() -> None:
     assets_root = INCOMING / "assets"
@@ -1639,13 +1305,13 @@ def main() -> int:
         entries = collect_pdf_only_contract_entries(entries)
         copy_static_assets()
         latest_entries, family_buckets = latest_entries_and_families(entries)
-        (DIST / 'index.html').write_text(render_home_page(latest_entries), encoding='utf-8')
+        (DIST / 'index.html').write_text(render_home_page(latest_entries, CONTENT_TYPES, SITE_NAME, load_template, render_template), encoding='utf-8')
         latest_dir = DIST / 'latest'
         latest_dir.mkdir(parents=True, exist_ok=True)
-        (latest_dir / 'index.html').write_text(render_listing_page(latest_entries, family_buckets, 'latest'), encoding='utf-8')
+        (latest_dir / 'index.html').write_text(render_listing_page(latest_entries, family_buckets, 'latest', CONTENT_TYPES, SITE_NAME, load_template, render_template), encoding='utf-8')
         archive_dir = DIST / 'archive'
         archive_dir.mkdir(parents=True, exist_ok=True)
-        (archive_dir / 'index.html').write_text(render_listing_page(entries, family_buckets, 'archive'), encoding='utf-8')
+        (archive_dir / 'index.html').write_text(render_listing_page(entries, family_buckets, 'archive', CONTENT_TYPES, SITE_NAME, load_template, render_template), encoding='utf-8')
         write_family_redirects(DIST, family_buckets)
         recommendation_artifacts = inject_discovery_sections(DIST, metadata_index, match_contexts)
         write_site_metadata_index(DIST, entries, metadata_index)
