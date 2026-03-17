@@ -425,7 +425,48 @@ def inject_head_metadata(raw_html: str, doc_title: str) -> str:
 
 
 
+def infer_non_engineering_theme(metadata: dict[str, object], doc_title: str = '') -> str:
+    slug = str(metadata.get('slug', '')).lower()
+    title = str(doc_title or metadata.get('title', '')).lower()
+    combined = f'{slug} {title}'
+    if 'design' in combined:
+        return 'design'
+    if 'startup' in combined or 'growth' in combined:
+        return 'startup'
+    if 'enterprise' in combined or 'public-company' in combined or 'board' in combined or 'risk committee' in combined:
+        return 'enterprise'
+    if 'research' in combined or 'proof' in combined or 'mechanism' in combined:
+        return 'research'
+    return 'default'
+
+
 def enhance_non_engineering_body_html(body_html: str) -> str:
+    def clean_class_attrs(raw: str) -> str:
+        def repl(match: re.Match[str]) -> str:
+            quote = match.group(1)
+            classes = [c for c in match.group(2).split() if not re.fullmatch(r'c\d+', c)]
+            return '' if not classes else f' class={quote}{" ".join(classes)}{quote}'
+
+        raw = re.sub(r'\sclass=(["\'])(.*?)\1', repl, raw, flags=re.IGNORECASE)
+        raw = re.sub(r'\s{2,}', ' ', raw)
+        return raw
+
+    def strip_attrs_for_tag(tag_name: str, html_text: str, *, drop_style: bool = True, drop_all_classes: bool = False) -> str:
+        pattern = re.compile(rf'<{tag_name}([^>]*)>', flags=re.IGNORECASE)
+
+        def repl(match: re.Match[str]) -> str:
+            attrs = match.group(1) or ''
+            if drop_style:
+                attrs = re.sub(r'\sstyle=("[^"]*"|\'[^\']*\')', '', attrs, flags=re.IGNORECASE)
+            if drop_all_classes:
+                attrs = re.sub(r'\sclass=("[^"]*"|\'[^\']*\')', '', attrs, flags=re.IGNORECASE)
+            else:
+                attrs = clean_class_attrs(attrs)
+            attrs = re.sub(r'\s{2,}', ' ', attrs).rstrip()
+            return f'<{tag_name}{attrs}>'
+
+        return pattern.sub(repl, html_text)
+
     def add_class(match: re.Match[str], class_name: str) -> str:
         attrs = match.group(1) or ""
         inner = match.group(2)
@@ -451,6 +492,9 @@ def enhance_non_engineering_body_html(body_html: str) -> str:
             return add_class(match, 'pse-kicker')
         return match.group(0)
 
+    for tag_name in ('h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tr', 'th', 'td'):
+        body_html = strip_attrs_for_tag(tag_name, body_html)
+    body_html = strip_attrs_for_tag('span', body_html, drop_all_classes=True)
     body_html = re.sub(r'<p([^>]*)>(.*?)</p>', classify_paragraph, body_html, flags=re.DOTALL)
     body_html = body_html.replace('<table', '<div class="pse-table-wrap"><table', 1).replace('</table>', '</table></div>', 1)
     return body_html
@@ -467,9 +511,11 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
     home_href = "../" * (depth + 1)
 
     template_name = "document_shell.html"
+    non_engineering_theme = 'default'
     if str(metadata.get("content_type")) == "non-engineering":
         template_name = "document_shell_non_engineering.html"
         body_html = enhance_non_engineering_body_html(body_html)
+        non_engineering_theme = infer_non_engineering_theme(metadata, doc_title)
 
     template = load_template(template_name)
     return render_template(
@@ -484,6 +530,7 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
             "STRUCTURED_DATA_JSON": build_structured_data(metadata),
             "EXPORTED_STYLES": exported_styles,
             "DOCUMENT_BODY": body_html,
+            "NON_ENGINEERING_THEME": safe_text(non_engineering_theme),
         },
     )
 
