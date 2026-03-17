@@ -649,6 +649,14 @@ def write_family_redirects(dist_root: Path, family_buckets: dict[tuple[str, str]
         target_href = relative_href(f'/{type_name}/{family_key}/', f'/{type_name}/{target["slug"]}/')
         (out_dir / 'index.html').write_text(render_redirect_page(target_href, load_template, render_template, SITE_NAME), encoding='utf-8')
 
+
+def write_non_engineering_root_redirect(dist_root: Path) -> None:
+    out_dir = dist_root / 'non-engineering'
+    out_dir.mkdir(parents=True, exist_ok=True)
+    target_href = relative_href('/non-engineering/', '/non-engineering/what-AI-gets-wrong-when-you-iterate/')
+    (out_dir / 'index.html').write_text(render_redirect_page(target_href, load_template, render_template, SITE_NAME), encoding='utf-8')
+
+
 def copy_static_assets() -> None:
     assets_root = INCOMING / "assets"
     if not assets_root.exists():
@@ -707,6 +715,7 @@ def main() -> int:
         archive_dir.mkdir(parents=True, exist_ok=True)
         (archive_dir / 'index.html').write_text(render_listing_page(entries, family_buckets, 'archive', CONTENT_TYPES, SITE_NAME, load_template, render_template), encoding='utf-8')
         write_family_redirects(DIST, family_buckets)
+        write_non_engineering_root_redirect(DIST)
         recommendation_artifacts = inject_discovery_sections(
             DIST, metadata_index, match_contexts, TYPE_LABELS, safe_text, relative_href
         )
