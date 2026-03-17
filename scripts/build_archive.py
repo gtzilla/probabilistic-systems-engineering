@@ -33,6 +33,14 @@ SITE_URL = "https://ai.gtzilla.com"
 CONTENT_TYPES = ["authority", "papers", "contracts", "replication", "non-engineering"]
 TYPE_LABELS = {"authority": "Authority", "papers": "Papers", "contracts": "Contracts", "replication": "Replication & Verification", "non-engineering": "Non-Engineering"}
 
+NON_ENGINEERING_READING_LINKS = [
+    ("Start here: Authority, Execution, and Refusal", "/authority/authority-execution-refusal/"),
+    ("The proof: Contract-Centered Iterative Stability", "/papers/contract-centered-iterative-stability-v4.7.3/"),
+    ("The method: Contract-Centered Engineering", "/papers/contract-centered-engineering-v2.17/"),
+    ("The mechanism: Breaking the Loop", "/papers/breaking-the-loop-v1.0/"),
+    ("Replication materials", "/replication/context-injection-research-program/"),
+]
+
 
 def fail(msg: str) -> None:
     print(f"ERROR: {msg}", file=sys.stderr)
@@ -435,8 +443,10 @@ def infer_non_engineering_theme(metadata: dict[str, object], doc_title: str = ''
         return 'startup'
     if 'enterprise' in combined or 'public-company' in combined or 'board' in combined or 'risk committee' in combined:
         return 'enterprise'
-    if 'research' in combined or 'proof' in combined or 'mechanism' in combined:
+    if 'research behind this' in combined or 'proof' in combined or 'replication' in combined:
         return 'research'
+    if 'mechanism' in combined:
+        return 'default'
     return 'default'
 
 
@@ -492,11 +502,18 @@ def enhance_non_engineering_body_html(body_html: str) -> str:
             return add_class(match, 'pse-kicker')
         return match.group(0)
 
-    for tag_name in ('h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tr', 'th', 'td'):
+    for tag_name in ('h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'p', 'li'):
         body_html = strip_attrs_for_tag(tag_name, body_html)
-    body_html = strip_attrs_for_tag('span', body_html, drop_all_classes=True)
+    body_html = re.sub(r'</?span\b[^>]*>', '', body_html, flags=re.IGNORECASE)
     body_html = re.sub(r'<p([^>]*)>(.*?)</p>', classify_paragraph, body_html, flags=re.DOTALL)
     body_html = body_html.replace('<table', '<div class="pse-table-wrap"><table', 1).replace('</table>', '</table></div>', 1)
+    for label, href in NON_ENGINEERING_READING_LINKS:
+        body_html = re.sub(
+            rf'(<p[^>]*>\s*(?:<strong>)?){re.escape(label)}((?:<br\s*/?>)(?:</strong>)?)',
+            rf'\1<a href="{href}">{label}</a>\2',
+            body_html,
+            flags=re.IGNORECASE,
+        )
     return body_html
 
 
@@ -858,6 +875,11 @@ def pick_related_candidates(
         related_surface_items = []
         ref_items = []
 
+    if str(source_meta.get("content_type")) == "non-engineering":
+        read_next_items = []
+        verification_items = []
+        related_surface_items = []
+
     verification_items: list[dict[str, object]] = []
     replication_candidates.sort(key=lambda row: (-row[0], str(row[1]["title"]).lower(), str(row[1]["slug"])))
     for score, target in replication_candidates[:2]:
@@ -868,6 +890,11 @@ def pick_related_candidates(
             "score": round(score, 6),
             "slug": str(target["slug"]),
         })
+
+    if str(source_meta.get("content_type")) == "non-engineering":
+        read_next_items = []
+        verification_items = []
+        related_surface_items = []
 
     return ref_items, read_next_items, related_surface_items, verification_items, debug_excluded
 
@@ -1076,13 +1103,23 @@ def split_non_engineering_collection(body_html: str) -> list[dict[str, str]]:
     pattern = re.compile(r'<h2\b[^>]*>.*?</h2>', flags=re.IGNORECASE | re.DOTALL)
     matches = list(pattern.finditer(body_html))
     sections: list[dict[str, str]] = []
+    skip_next = False
     for idx, match in enumerate(matches):
+        if skip_next:
+            skip_next = False
+            continue
         title = strip_tags_to_text(match.group(0)).strip()
         if not title:
             continue
         section_start = match.start()
         section_end = matches[idx + 1].start() if idx + 1 < len(matches) else len(body_html)
         section_html = body_html[section_start:section_end].strip()
+        if normalize_for_match(title) == 'the mechanism' and idx + 1 < len(matches):
+            next_title = strip_tags_to_text(matches[idx + 1].group(0)).strip()
+            if normalize_for_match(next_title) == 'why this is not obvious':
+                section_end = matches[idx + 2].start() if idx + 2 < len(matches) else len(body_html)
+                section_html = body_html[section_start:section_end].strip()
+                skip_next = True
         if not section_html:
             continue
         sections.append({'title': title, 'slug': slugify_fragment(title), 'body_html': section_html})
@@ -1186,15 +1223,16 @@ def render_collection_navigation(collection_title: str, collection_href: str, it
         return ''
     current_index = next((idx for idx, item in enumerate(items) if item.get('slug') == current_slug), -1)
     position = f'{item_label} {current_index + 1} of {len(items)}' if current_index >= 0 else ''
-    links = ['<li class="pse-discovery-item"><a href="' + safe_text(collection_href) + '">Back to ' + safe_text(collection_title) + '</a></li>']
+    links: list[str] = []
+    if 0 <= current_index < len(items) - 1:
+        next_item = items[current_index + 1]
+        links.append('<li class="pse-discovery-item pse-discovery-item-next">Next: <a href="' + safe_text(next_item['href']) + '">' + safe_text(next_item['title']) + '</a></li>')
+    links.append('<li class="pse-discovery-item"><a href="' + safe_text(collection_href) + '">Back to ' + safe_text(collection_title) + '</a></li>')
     if current_index > 0:
         prev_item = items[current_index - 1]
         links.append('<li class="pse-discovery-item">Previous: <a href="' + safe_text(prev_item['href']) + '">' + safe_text(prev_item['title']) + '</a></li>')
-    if 0 <= current_index < len(items) - 1:
-        next_item = items[current_index + 1]
-        links.append('<li class="pse-discovery-item">Next: <a href="' + safe_text(next_item['href']) + '">' + safe_text(next_item['title']) + '</a></li>')
     label = '<p class="pse-compact">' + safe_text(position) + '</p>' if position else ''
-    return '<section class="pse-discovery"><h2>Collection navigation</h2>' + label + '<ul class="pse-discovery-list">' + ''.join(links) + '</ul></section>'
+    return '<section class="pse-discovery pse-discovery-nav"><h2>Guide navigation</h2>' + label + '<ul class="pse-discovery-list">' + ''.join(links) + '</ul></section>'
 
 
 def build_doc(
@@ -1345,7 +1383,8 @@ def build_doc(
             section_href = f"/{type_name}/{section_rel_slug}/"
             section_wrapped = render_document_page(raw_html, relative_href(section_href, metadata['pdf_path']), section_title, section_meta)
             section_wrapped = section_wrapped.replace(rendered_root_body_html, section_body_html, 1) if rendered_root_body_html in section_wrapped else section_wrapped
-            section_wrapped = inject_discovery_markup(section_wrapped, [render_collection_navigation(doc_title, relative_href(section_href, collection_href), collection_items, section_slug, 'Page')])
+            nav_html = render_collection_navigation(doc_title, relative_href(section_href, collection_href), collection_items, section_slug, 'Page')
+            section_wrapped = inject_non_engineering_top_navigation(section_wrapped, nav_html)
             (section_out_dir / 'index.html').write_text(section_wrapped, encoding='utf-8')
 
         entries[0]['description'] = f"Non-engineering guide with {len(collection_items)} linked pages." if collection_items else "Non-engineering guide landing page."
@@ -1493,14 +1532,16 @@ def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tupl
     grouped: dict[str, list[dict[str, str]]] = {k: [] for k in CONTENT_TYPES}
     source_entries = entries if mode == 'latest' else [e for e in entries]
     for entry in source_entries:
+        if entry['type'] == 'non-engineering':
+            continue
         grouped[entry['type']].append(entry)
     template = load_template('listing.html')
     title = 'Latest' if mode == 'latest' else 'Archive'
-    intro = 'Current latest authority writing, non-engineering guides, papers, contracts, and replication support artifacts.' if mode == 'latest' else 'Full archive with latest versions, older lineage, authority collection browsing, and split non-engineering guides.'
+    intro = 'Current latest authority writing, papers, contracts, and replication support artifacts.' if mode == 'latest' else 'Full archive with latest versions, older lineage, authority collection browsing, papers, contracts, and replication support artifacts.'
     home_href = '../' if mode in ('latest','archive') else './'
     latest_href = './' if mode == 'latest' else '../latest/'
     archive_href = './' if mode == 'archive' else '../archive/'
-    return render_template(template, {'SITE_NAME': safe_text(SITE_NAME), 'PAGE_TITLE': safe_text(f'{title} | {SITE_NAME}'), 'PAGE_HEADING': safe_text(title), 'PAGE_INTRO': safe_text(intro), 'HOME_HREF': home_href, 'LATEST_HREF': latest_href, 'ARCHIVE_HREF': archive_href, 'AUTHORITY_SECTIONS': render_sections(grouped['authority'], family_buckets, 'authority', mode, 'No authority collections yet.'), 'NON_ENGINEERING_SECTIONS': render_sections(grouped['non-engineering'], family_buckets, 'non-engineering', mode, 'No non-engineering guides yet.'), 'PAPERS_SECTIONS': render_sections(grouped['papers'], family_buckets, 'papers', mode, 'No results yet.'), 'CONTRACTS_SECTIONS': render_sections(grouped['contracts'], family_buckets, 'contracts', mode, 'No engineering artifacts yet.'), 'REPLICATION_SECTIONS': render_sections(grouped['replication'], family_buckets, 'replication', mode, 'No replication materials yet.')})
+    return render_template(template, {'SITE_NAME': safe_text(SITE_NAME), 'PAGE_TITLE': safe_text(f'{title} | {SITE_NAME}'), 'PAGE_HEADING': safe_text(title), 'PAGE_INTRO': safe_text(intro), 'HOME_HREF': home_href, 'LATEST_HREF': latest_href, 'ARCHIVE_HREF': archive_href, 'AUTHORITY_SECTIONS': render_sections(grouped['authority'], family_buckets, 'authority', mode, 'No authority collections yet.'), 'PAPERS_SECTIONS': render_sections(grouped['papers'], family_buckets, 'papers', mode, 'No results yet.'), 'CONTRACTS_SECTIONS': render_sections(grouped['contracts'], family_buckets, 'contracts', mode, 'No engineering artifacts yet.'), 'REPLICATION_SECTIONS': render_sections(grouped['replication'], family_buckets, 'replication', mode, 'No replication materials yet.')})
 
 
 def render_home_page(latest_entries: list[dict[str, str]]) -> str:
