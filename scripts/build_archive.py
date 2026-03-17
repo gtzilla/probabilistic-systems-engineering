@@ -38,6 +38,7 @@ from archive_build.listing_render import (
 )
 from archive_build.discovery import (
     document_match_context,
+    inject_discovery_markup,
     inject_discovery_sections,
     write_recommendation_index,
 )
