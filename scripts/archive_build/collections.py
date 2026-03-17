@@ -221,6 +221,23 @@ def render_non_engineering_collection_landing(doc_title: str, description: str, 
     )
 
 
+def render_authority_section_body(section_title: str, section_body_html: str) -> str:
+    refined_body = refine_body_html(section_body_html)
+    title_match = re.match(r'^\s*<h1\b[^>]*>(.*?)</h1>', refined_body, flags=re.IGNORECASE | re.DOTALL)
+    if title_match:
+        candidate_title = strip_tags_to_text(title_match.group(1)).strip()
+        if authority_title_matches_canonical(candidate_title, section_title):
+            refined_body = refined_body[title_match.end():].lstrip()
+
+    return (
+        '<header class="pse-doc-header">'
+        + '<p class="pse-lead-in">Authority, Execution, and Refusal</p>'
+        + '<h1>' + safe_text(section_title) + '</h1>'
+        + '</header>'
+        + refined_body
+    )
+
+
 def render_collection_sections(items: list[dict[str, str]], current_slug: str = "") -> str:
     if not items:
         return ""
