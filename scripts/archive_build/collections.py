@@ -3,7 +3,7 @@ from __future__ import annotations
 import html
 import re
 
-from archive_build.html_processing import strip_tags_to_text
+from archive_build.html_processing import refine_body_html, strip_tags_to_text
 
 
 def safe_text(value: str) -> str:
