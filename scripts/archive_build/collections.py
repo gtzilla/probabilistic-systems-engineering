@@ -113,27 +113,66 @@ def split_authority_collection(body_html: str) -> list[dict[str, str]]:
 def split_non_engineering_collection(body_html: str) -> list[dict[str, str]]:
     pattern = re.compile(r"<h2\b[^>]*>.*?</h2>", flags=re.IGNORECASE | re.DOTALL)
     matches = list(pattern.finditer(body_html))
-    sections: list[dict[str, str]] = []
-    skip_next = False
+    raw_sections: list[dict[str, str]] = []
     for idx, match in enumerate(matches):
-        if skip_next:
-            skip_next = False
-            continue
         title = strip_tags_to_text(match.group(0)).strip()
         if not title:
             continue
         section_start = match.start()
         section_end = matches[idx + 1].start() if idx + 1 < len(matches) else len(body_html)
         section_html = body_html[section_start:section_end].strip()
-        if normalize_for_match(title) == "the mechanism" and idx + 1 < len(matches):
-            next_title = strip_tags_to_text(matches[idx + 1].group(0)).strip()
-            if normalize_for_match(next_title) == "why this is not obvious":
-                section_end = matches[idx + 2].start() if idx + 2 < len(matches) else len(body_html)
-                section_html = body_html[section_start:section_end].strip()
-                skip_next = True
         if not section_html:
             continue
-        sections.append({"title": title, "slug": slugify_fragment(title), "body_html": section_html})
+        raw_sections.append({
+            "title": title,
+            "slug": slugify_fragment(title),
+            "body_html": section_html,
+            "key": normalize_for_match(title),
+        })
+
+    if not raw_sections:
+        return []
+
+    overview_keys = {
+        "the core finding",
+        "the mechanism",
+        "why this is not obvious",
+        "the research behind this",
+    }
+    profile_keys = [
+        "for designers",
+        "for startup and growth stage executives",
+        "for enterprise and public company executives",
+    ]
+
+    overview_parts = [section["body_html"] for section in raw_sections if section["key"] in overview_keys]
+    sections: list[dict[str, str]] = []
+    if overview_parts:
+        sections.append({
+            "title": "Start Here",
+            "slug": "start-here",
+            "body_html": "\n".join(overview_parts),
+        })
+
+    for key in profile_keys:
+        for section in raw_sections:
+            if section["key"] == key:
+                sections.append({
+                    "title": section["title"],
+                    "slug": section["slug"],
+                    "body_html": section["body_html"],
+                })
+                break
+
+    for section in raw_sections:
+        if section["key"] in overview_keys or section["key"] in profile_keys:
+            continue
+        sections.append({
+            "title": section["title"],
+            "slug": section["slug"],
+            "body_html": section["body_html"],
+        })
+
     return sections
 
 
@@ -163,7 +202,7 @@ def render_non_engineering_collection_sections(items: list[dict[str, str]], curr
         title = safe_text(item["title"])
         current = ' <span class="pse-discovery-kind">Current</span>' if item.get("slug") == current_slug else ""
         rows.append(f'<li class="pse-discovery-item"><a href="{href}">{title}</a>{current}</li>')
-    return '<section class="pse-discovery pse-discovery-collection"><h2>Guide pages</h2><p class="pse-compact">Browse the guide by section. The designer-facing path lives inside this split collection.</p><ul class="pse-discovery-list">' + ''.join(rows) + "</ul></section>"
+    return '<section class="pse-discovery pse-discovery-collection"><h2>Guide pages</h2><p class="pse-compact">Start with the overview, then move into the audience-specific paths.</p><ul class="pse-discovery-list">' + ''.join(rows) + "</ul></section>"
 
 
 def render_non_engineering_collection_landing(doc_title: str, description: str, items: list[dict[str, str]]) -> str:
@@ -174,7 +213,7 @@ def render_non_engineering_collection_landing(doc_title: str, description: str, 
     return (
         '<section class="pse-authority-collection">'
         + f"<h1>{safe_text(doc_title)}</h1>"
-        + '<p class="pse-lead-in"><strong>Non-engineering guide.</strong> This landing page replaces the bundled full-text view and turns the source document into separate web-native pages.</p>'
+        + '<p class="pse-lead-in"><strong>Non-engineering guide.</strong> Start with the overview, then move into the audience-specific paths for design, startup, or enterprise readers.</p>'
         + intro_html
         + f'<p class="pse-compact"><strong>Contents:</strong> {safe_text(count_label)}</p>'
         + toc
@@ -235,20 +274,10 @@ def render_collection_navigation(collection_title: str, collection_href: str, it
     links: list[str] = []
     if 0 <= current_index < len(items) - 1:
         next_item = items[current_index + 1]
-        links.append('<li class="pse-discovery-item pse-discovery-item-next">Next: <a href="' + safe_text(next_item["href"]) + '">' + safe_text(next_item["title"]) + "</a></li>")
-    links.append('<li class="pse-discovery-item"><a href="' + safe_text(collection_href) + '">Back to ' + safe_text(collection_title) + "</a></li>")
+        links.append('<li class="pse-discovery-item pse-discovery-item-next"><span class="pse-nav-label">Next</span><a href="' + safe_text(next_item["href"]) + '">' + safe_text(next_item["title"]) + "</a></li>")
     if current_index > 0:
         prev_item = items[current_index - 1]
-        links.append('<li class="pse-discovery-item">Previous: <a href="' + safe_text(prev_item["href"]) + '">' + safe_text(prev_item["title"]) + "</a></li>")
+        links.append('<li class="pse-discovery-item"><span class="pse-nav-label">Previous</span><a href="' + safe_text(prev_item["href"]) + '">' + safe_text(prev_item["title"]) + "</a></li>")
+    links.append('<li class="pse-discovery-item"><span class="pse-nav-label">Guide</span><a href="' + safe_text(collection_href) + '">Back to ' + safe_text(collection_title) + "</a></li>")
     label = f'<p class="pse-compact">{safe_text(position)}</p>' if position else ""
-    return '<section class="pse-discovery pse-discovery-nav"><h2>Guide navigation</h2>' + label + '<ul class="pse-discovery-list">' + ''.join(links) + "</ul></section>"
-
-
-def inject_non_engineering_top_navigation(html_text: str, nav_html: str) -> str:
-    if not nav_html:
-        return html_text
-    main_match = re.search(r"<main\b[^>]*>", html_text, flags=re.IGNORECASE)
-    if not main_match:
-        return html_text
-    insert_at = main_match.end()
-    return html_text[:insert_at] + nav_html + html_text[insert_at:]
+    return '<section class="pse-discovery pse-discovery-nav"><h2>Continue</h2>' + label + '<ul class="pse-discovery-list">' + ''.join(links) + "</ul></section>"
