@@ -37,9 +37,7 @@ from archive_build.listing_render import (
     render_redirect_page,
 )
 from archive_build.discovery import (
-    build_version_relations,
     document_match_context,
-    inject_discovery_markup,
     inject_discovery_sections,
     write_recommendation_index,
 )
@@ -213,52 +211,6 @@ def derive_document_metadata(
     }
     return metadata, document_match_context(metadata, full_text)
 
-
-def compute_tfidf_vectors(contexts: dict[str, dict[str, object]]) -> dict[str, dict[str, float]]:
-    doc_tokens: dict[str, list[str]] = {}
-    document_frequency: dict[str, int] = defaultdict(int)
-
-    for slug, ctx in contexts.items():
-        tokens = list(ctx.get("recommendation_tokens", []))
-        doc_tokens[slug] = tokens
-        for token in set(tokens):
-            document_frequency[token] += 1
-
-    total_docs = max(1, len(doc_tokens))
-    idf: dict[str, float] = {}
-    for token, df in document_frequency.items():
-        idf[token] = math.log((1 + total_docs) / (1 + df)) + 1.0
-
-    vectors: dict[str, dict[str, float]] = {}
-    for slug, tokens in doc_tokens.items():
-        if not tokens:
-            vectors[slug] = {}
-            continue
-
-        counts = Counter(tokens)
-        total_terms = sum(counts.values()) or 1
-        vector: dict[str, float] = {}
-        for token, count in counts.items():
-            tf = count / total_terms
-            vector[token] = tf * idf.get(token, 1.0)
-        vectors[slug] = vector
-
-    return vectors
-
-
-def cosine_similarity_sparse(left: dict[str, float], right: dict[str, float]) -> float:
-    if not left or not right:
-        return 0.0
-    if len(left) > len(right):
-        left, right = right, left
-    dot = sum(value * right.get(token, 0.0) for token, value in left.items())
-    if dot <= 0.0:
-        return 0.0
-    left_norm = math.sqrt(sum(value * value for value in left.values()))
-    right_norm = math.sqrt(sum(value * value for value in right.values()))
-    if left_norm <= 0.0 or right_norm <= 0.0:
-        return 0.0
-    return dot / (left_norm * right_norm)
 
 
 def build_structured_data(metadata: dict[str, object]) -> str:
@@ -713,25 +665,8 @@ def copy_static_assets() -> None:
 
 
 
-def inject_discovery_sections(dist_root: Path, metadata_index: list[dict[str, object]], contexts: dict[str, dict[str, object]]) -> dict[str, dict[str, object]]:
-    discovery_sections, recommendation_artifacts = build_discovery_sections(metadata_index, contexts)
-    version_relations = build_version_relations(metadata_index)
-    for item in metadata_index:
-        source_slug = str(item['slug'])
-        section_html = discovery_sections.get(source_slug, {})
-        relation = version_relations.get(source_slug)
-        footer_html = ''
-        if relation and not relation.get('is_latest'):
-            family_key = str(relation.get('family_key', ''))
-            family_href = relative_href(f'/{item["content_type"]}/{source_slug}/', f'/{item["content_type"]}/{family_key}/')
-            footer_html = '<section class="pse-discovery"><h2>Version status</h2><ul class="pse-discovery-list"><li class="pse-discovery-item">This is not the latest version. <a href="' + safe_text(family_href) + '">See the latest.</a></li></ul></section>'
-        out_path = dist_root / str(item['content_type']) / Path(source_slug) / 'index.html'
-        if not out_path.exists():
-            continue
-        html_text = out_path.read_text(encoding='utf-8')
-        html_text = inject_discovery_markup(html_text, [footer_html, section_html.get('version_html', ''), section_html.get('references_html', ''), section_html.get('read_next_html', ''), section_html.get('related_html', ''), section_html.get('verification_html', '')])
-        out_path.write_text(html_text, encoding='utf-8')
-    return recommendation_artifacts
+
+
 def main() -> int:
     if DIST.exists():
         shutil.rmtree(DIST)
@@ -771,9 +706,11 @@ def main() -> int:
         archive_dir.mkdir(parents=True, exist_ok=True)
         (archive_dir / 'index.html').write_text(render_listing_page(entries, family_buckets, 'archive', CONTENT_TYPES, SITE_NAME, load_template, render_template), encoding='utf-8')
         write_family_redirects(DIST, family_buckets)
-        recommendation_artifacts = inject_discovery_sections(DIST, metadata_index, match_contexts)
+        recommendation_artifacts = inject_discovery_sections(
+            DIST, metadata_index, match_contexts, TYPE_LABELS, safe_text, relative_href
+        )
         write_site_metadata_index(DIST, entries, metadata_index)
-        write_recommendation_index(DIST, recommendation_artifacts)
+        write_recommendation_index(DIST, recommendation_artifacts, SITE_NAME, SITE_URL)
         write_sitemap(DIST, entries)
         write_build_manifest(DIST)
         print(f"Built archive into {DIST}")
