@@ -222,13 +222,15 @@ def render_non_engineering_collection_landing(doc_title: str, description: str, 
 
 
 def render_authority_section_body(section_title: str, section_body_html: str) -> str:
-    refined_body = refine_body_html(section_body_html)
-    title_match = re.match(r'^\s*<h1\b[^>]*>(.*?)</h1>', refined_body, flags=re.IGNORECASE | re.DOTALL)
-    if title_match:
-        candidate_title = strip_tags_to_text(title_match.group(1)).strip()
-        if authority_title_matches_canonical(candidate_title, section_title):
-            refined_body = refined_body[title_match.end():].lstrip()
-
+    refined_body = strip_leading_authority_title_wrappers(refine_body_html(section_body_html), section_title)
+    while True:
+        title_match = re.match(r'^\s*<h([1-3])\b[^>]*>(.*?)</h\1>', refined_body, flags=re.IGNORECASE | re.DOTALL)
+        if not title_match:
+            break
+        candidate_title = strip_tags_to_text(title_match.group(2)).strip()
+        if not authority_title_matches_canonical(candidate_title, section_title):
+            break
+        refined_body = refined_body[title_match.end():].lstrip()
     return (
         '<header class="pse-doc-header">'
         + '<p class="pse-lead-in">Authority, Execution, and Refusal</p>'
