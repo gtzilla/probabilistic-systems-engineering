@@ -1025,6 +1025,57 @@ def split_authority_collection(body_html: str) -> list[dict[str, str]]:
     return sections
 
 
+def split_non_engineering_collection(body_html: str) -> list[dict[str, str]]:
+    pattern = re.compile(r'<h2\b[^>]*>.*?</h2>', flags=re.IGNORECASE | re.DOTALL)
+    matches = list(pattern.finditer(body_html))
+    sections: list[dict[str, str]] = []
+    for idx, match in enumerate(matches):
+        title = strip_tags_to_text(match.group(0)).strip()
+        if not title:
+            continue
+        section_start = match.start()
+        section_end = matches[idx + 1].start() if idx + 1 < len(matches) else len(body_html)
+        section_html = body_html[section_start:section_end].strip()
+        if not section_html:
+            continue
+        sections.append({'title': title, 'slug': slugify_fragment(title), 'body_html': section_html})
+    return sections
+
+
+def render_non_engineering_entry_children(item: dict[str, object]) -> str:
+    section_items = item.get("section_items")
+    if not section_items or not isinstance(section_items, list):
+        return ""
+    links: list[str] = []
+    for section in section_items:
+        if not isinstance(section, dict):
+            continue
+        href = safe_text(str(section.get("href", "")))
+        title = safe_text(str(section.get("title", "")))
+        if not href or not title:
+            continue
+        links.append(f'<li><a href="{href}">{title}</a></li>')
+    if not links:
+        return ""
+    return '<div class="item-children"><div class="item-children-label">Guide pages</div><ol class="item-children-list">' + ''.join(links) + '</ol></div>'
+
+
+def render_non_engineering_collection_landing(doc_title: str, description: str, items: list[dict[str, str]]) -> str:
+    intro = safe_text(description).strip()
+    intro_html = f'<p>{intro}</p>' if intro else ''
+    count_label = f'{len(items)} pages' if items else 'No pages detected yet.'
+    toc = render_collection_sections(items)
+    return (
+        '<section class="pse-authority-collection">'
+        + '<h2>' + safe_text(doc_title) + '</h2>'
+        + '<p class="pse-lead-in"><strong>Non-engineering guide.</strong> This landing page replaces the bundled full-text view and turns the source document into separate web-native pages.</p>'
+        + intro_html
+        + '<p class="pse-compact"><strong>Contents:</strong> ' + safe_text(count_label) + '</p>'
+        + toc.replace('Collection essays', 'Guide pages').replace('Read in order. Each essay builds on the last.', 'Browse the guide by section. The designer-facing path lives inside this split collection.')
+        + '</section>'
+    )
+
+
 def render_collection_sections(items: list[dict[str, str]], current_slug: str = '') -> str:
     if not items:
         return ''
@@ -1193,6 +1244,42 @@ def build_doc(
         landing_body_html = render_authority_collection_landing(doc_title, str(metadata.get('description', '')), collection_items)
         wrapped_html = wrapped_html.replace(body_html, landing_body_html, 1) if body_html in wrapped_html else wrapped_html
 
+    elif type_name == "non-engineering":
+        sections = split_non_engineering_collection(body_html)
+        collection_items = []
+        collection_href = f"/{type_name}/{slug}/"
+        for section in sections:
+            section_slug = section['slug']
+            section_title = section['title']
+            section_rel_slug = f"{relative_slug}/{section_slug}"
+            section_out_dir = DIST / type_name / Path(section_rel_slug)
+            section_out_dir.mkdir(parents=True, exist_ok=True)
+            section_body_html = enhance_non_engineering_body_html(section['body_html'])
+            section_metadata, section_context = derive_document_metadata(type_name, section_rel_slug, section_title, pdf.name, section['body_html'])
+            section_metadata['kind'] = 'non-engineering-page'
+            section_metadata['schema_type'] = 'Article'
+            section_metadata['group_key'] = relative_slug.split('/')[0] if '/' in relative_slug else relative_slug
+            section_metadata['family_key'] = relative_slug
+            section_metadata['version'] = metadata.get('version', '')
+            section_metadata['version_tuple'] = list(metadata.get('version_tuple', []))
+            section_metadata['pdf_path'] = metadata['pdf_path']
+            section_metadata['pdf_url'] = metadata['pdf_url']
+            section_href = f"/{type_name}/{section_rel_slug}/"
+            collection_items.append({'slug': section_slug, 'title': section_title, 'href': section_href, 'meta_slug': section_rel_slug})
+            metadata_items.append(section_metadata)
+            match_contexts[str(section_metadata['slug'])] = section_context
+
+            section_wrapped = render_document_page(raw_html, relative_href(section_href, metadata['pdf_path']), section_title, section_metadata)
+            section_wrapped = section_wrapped.replace(enhance_non_engineering_body_html(refine_body_html(raw_body_html)), section_body_html, 1) if enhance_non_engineering_body_html(refine_body_html(raw_body_html)) in section_wrapped else section_wrapped.replace(body_html, section_body_html, 1)
+            section_wrapped = inject_discovery_markup(section_wrapped, [render_collection_navigation(doc_title, relative_href(section_href, collection_href), collection_items, section_slug)])
+            (section_out_dir / 'index.html').write_text(section_wrapped, encoding='utf-8')
+
+        entries[0]['description'] = f"Non-engineering guide with {len(collection_items)} linked pages." if collection_items else "Non-engineering guide landing page."
+        entries[0]['section_count'] = str(len(collection_items))
+        entries[0]['section_items'] = [{'title': item['title'], 'href': item['href']} for item in collection_items]
+        landing_body_html = render_non_engineering_collection_landing(doc_title, str(metadata.get('description', '')), collection_items)
+        wrapped_html = wrapped_html.replace(body_html, landing_body_html, 1) if body_html in wrapped_html else wrapped_html
+
     (out_dir / "index.html").write_text(wrapped_html, encoding="utf-8")
     return entries, metadata_items, match_contexts
 
@@ -1278,7 +1365,11 @@ def render_item_card(item: dict[str, str]) -> str:
         if suffix not in description:
             description = (description + ' ' + suffix).strip() if description else suffix.strip()
     desc_html = f'<div class="item-description">{safe_text(description)}</div>' if description else ''
-    children_html = render_authority_entry_children(item) if item.get("type") == "authority" else ''
+    children_html = ''
+    if item.get("type") == "authority":
+        children_html = render_authority_entry_children(item)
+    elif item.get("type") == "non-engineering":
+        children_html = render_non_engineering_entry_children(item)
     latest_badge = '<span class="item-badge">Latest</span>' if item.get("is_latest") == "true" else ''
     version_note = '<span class="item-version-note">Older version</span>' if item.get("is_latest") == "false" else ''
     return ('<li class="archive-item">' f'<div class="item-title">{title_html}{latest_badge}{version_note}</div>' f'{desc_html}' f'{children_html}' f'<div class="item-actions">{meta}</div>' '</li>')
@@ -1331,11 +1422,11 @@ def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tupl
         grouped[entry['type']].append(entry)
     template = load_template('listing.html')
     title = 'Latest' if mode == 'latest' else 'Archive'
-    intro = 'Current latest authority writing, papers, contracts, and replication support artifacts.' if mode == 'latest' else 'Full archive with latest versions, older lineage, and authority collection browsing.'
+    intro = 'Current latest authority writing, non-engineering guides, papers, contracts, and replication support artifacts.' if mode == 'latest' else 'Full archive with latest versions, older lineage, authority collection browsing, and split non-engineering guides.'
     home_href = '../' if mode in ('latest','archive') else './'
     latest_href = './' if mode == 'latest' else '../latest/'
     archive_href = './' if mode == 'archive' else '../archive/'
-    return render_template(template, {'SITE_NAME': safe_text(SITE_NAME), 'PAGE_TITLE': safe_text(f'{title} | {SITE_NAME}'), 'PAGE_HEADING': safe_text(title), 'PAGE_INTRO': safe_text(intro), 'HOME_HREF': home_href, 'LATEST_HREF': latest_href, 'ARCHIVE_HREF': archive_href, 'AUTHORITY_SECTIONS': render_sections(grouped['authority'], family_buckets, 'authority', mode, 'No authority collections yet.'), 'PAPERS_SECTIONS': render_sections(grouped['papers'], family_buckets, 'papers', mode, 'No results yet.'), 'CONTRACTS_SECTIONS': render_sections(grouped['contracts'], family_buckets, 'contracts', mode, 'No engineering artifacts yet.'), 'REPLICATION_SECTIONS': render_sections(grouped['replication'], family_buckets, 'replication', mode, 'No replication materials yet.')})
+    return render_template(template, {'SITE_NAME': safe_text(SITE_NAME), 'PAGE_TITLE': safe_text(f'{title} | {SITE_NAME}'), 'PAGE_HEADING': safe_text(title), 'PAGE_INTRO': safe_text(intro), 'HOME_HREF': home_href, 'LATEST_HREF': latest_href, 'ARCHIVE_HREF': archive_href, 'AUTHORITY_SECTIONS': render_sections(grouped['authority'], family_buckets, 'authority', mode, 'No authority collections yet.'), 'NON_ENGINEERING_SECTIONS': render_sections(grouped['non-engineering'], family_buckets, 'non-engineering', mode, 'No non-engineering guides yet.'), 'PAPERS_SECTIONS': render_sections(grouped['papers'], family_buckets, 'papers', mode, 'No results yet.'), 'CONTRACTS_SECTIONS': render_sections(grouped['contracts'], family_buckets, 'contracts', mode, 'No engineering artifacts yet.'), 'REPLICATION_SECTIONS': render_sections(grouped['replication'], family_buckets, 'replication', mode, 'No replication materials yet.')})
 
 
 def render_home_page(latest_entries: list[dict[str, str]]) -> str:
