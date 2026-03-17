@@ -6,6 +6,9 @@
   <title>{{PAGE_TITLE}}</title>
   <meta name="description" content="{{PAGE_DESCRIPTION}}">
   <meta name="author" content="Gregory Tomlinson">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="canonical" href="{{CANONICAL_URL}}">
   <script type="application/ld+json">{{STRUCTURED_DATA_JSON}}</script>
   {{EXPORTED_STYLES}}
@@ -41,7 +44,7 @@
       background: var(--pse-bg);
       color: var(--pse-text);
       overflow-x: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       box-sizing: border-box;
     }
 
@@ -119,6 +122,18 @@
       max-width: 100% !important;
       overflow-x: auto !important;
       -webkit-overflow-scrolling: touch;
+    }
+
+
+    .pse-doc-shell h1,
+    .pse-doc-shell h2,
+    .pse-doc-shell h3,
+    .pse-doc-shell h4,
+    .pse-doc-shell h5,
+    .pse-doc-shell h6,
+    .pse-site-link,
+    .pse-nav {
+      font-family: "Manrope", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
     .pse-doc-shell p,
@@ -336,6 +351,33 @@
 
     .pse-discovery-item a:hover {
       text-decoration: underline;
+    }
+
+    .pse-nav-label {
+      display: block;
+      margin: 0 0 0.24rem;
+      color: var(--pse-muted);
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      text-transform: uppercase;
+    }
+
+    .pse-doc-header {
+      margin: 0 0 2rem;
+    }
+
+    .pse-doc-header .pse-lead-in {
+      color: var(--pse-muted) !important;
+      font-size: 0.98rem !important;
+      font-weight: 700 !important;
+      letter-spacing: 0.01em;
+      text-transform: uppercase;
+      margin-bottom: 0.55rem !important;
+    }
+
+    .pse-doc-header h1 {
+      margin: 0 0 0.55rem !important;
     }
 
     .pse-discovery-collection .pse-compact {
