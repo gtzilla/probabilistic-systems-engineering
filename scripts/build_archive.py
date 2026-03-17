@@ -528,7 +528,13 @@ def build_doc(
             section_meta['collection_index'] = idx + 1
             section_meta['collection_size'] = len(collection_items)
             section_meta['collection_title'] = doc_title
-            section_body_html = refine_body_html(sections[idx]['body_html'])
+            section_body_html = (
+                '<header class="pse-doc-header">'
+                + '<p class="pse-lead-in">Authority, Execution, and Refusal</p>'
+                + '<h1>' + safe_text(str(section['title'])) + '</h1>'
+                + '</header>'
+                + refine_body_html(sections[idx]['body_html'])
+            )
             section_href = f"/{type_name}/{section_rel_slug}/"
             essay_wrapped = render_document_page(raw_html, relative_href(section_href, metadata['pdf_path']), str(section['title']), section_meta)
             essay_html = essay_wrapped.replace(body_html, section_body_html, 1) if body_html in essay_wrapped else essay_wrapped
