@@ -1057,21 +1057,33 @@ def render_non_engineering_entry_children(item: dict[str, object]) -> str:
         links.append(f'<li><a href="{href}">{title}</a></li>')
     if not links:
         return ""
-    return '<div class="item-children"><div class="item-children-label">Guide pages</div><ol class="item-children-list">' + ''.join(links) + '</ol></div>'
+    return '<div class="item-children"><div class="item-children-label">Guide pages</div><ul class="item-children-list">' + ''.join(links) + '</ul></div>'
+
+
+def render_non_engineering_collection_sections(items: list[dict[str, str]], current_slug: str = '') -> str:
+    if not items:
+        return ''
+    rows: list[str] = []
+    for item in items:
+        href = safe_text(item['href'])
+        title = safe_text(item['title'])
+        current = ' <span class="pse-discovery-kind">Current</span>' if item.get('slug') == current_slug else ''
+        rows.append('<li class="pse-discovery-item"><a href="' + href + '">' + title + '</a>' + current + '</li>')
+    return '<section class="pse-discovery pse-discovery-collection"><h2>Guide pages</h2><p class="pse-compact">Browse the guide by section. The designer-facing path lives inside this split collection.</p><ul class="pse-discovery-list">' + ''.join(rows) + '</ul></section>'
 
 
 def render_non_engineering_collection_landing(doc_title: str, description: str, items: list[dict[str, str]]) -> str:
     intro = safe_text(description).strip()
     intro_html = f'<p>{intro}</p>' if intro else ''
     count_label = f'{len(items)} pages' if items else 'No pages detected yet.'
-    toc = render_collection_sections(items)
+    toc = render_non_engineering_collection_sections(items)
     return (
         '<section class="pse-authority-collection">'
-        + '<h2>' + safe_text(doc_title) + '</h2>'
+        + '<h1>' + safe_text(doc_title) + '</h1>'
         + '<p class="pse-lead-in"><strong>Non-engineering guide.</strong> This landing page replaces the bundled full-text view and turns the source document into separate web-native pages.</p>'
         + intro_html
         + '<p class="pse-compact"><strong>Contents:</strong> ' + safe_text(count_label) + '</p>'
-        + toc.replace('Collection essays', 'Guide pages').replace('Read in order. Each essay builds on the last.', 'Browse the guide by section. The designer-facing path lives inside this split collection.')
+        + toc
         + '</section>'
     )
 
@@ -1122,11 +1134,11 @@ def render_authority_collection_landing(doc_title: str, description: str, items:
     )
 
 
-def render_collection_navigation(collection_title: str, collection_href: str, items: list[dict[str, str]], current_slug: str) -> str:
+def render_collection_navigation(collection_title: str, collection_href: str, items: list[dict[str, str]], current_slug: str, item_label: str = 'Essay') -> str:
     if not items:
         return ''
     current_index = next((idx for idx, item in enumerate(items) if item.get('slug') == current_slug), -1)
-    position = f'Essay {current_index + 1} of {len(items)}' if current_index >= 0 else ''
+    position = f'{item_label} {current_index + 1} of {len(items)}' if current_index >= 0 else ''
     links = ['<li class="pse-discovery-item"><a href="' + safe_text(collection_href) + '">Back to ' + safe_text(collection_title) + '</a></li>']
     if current_index > 0:
         prev_item = items[current_index - 1]
@@ -1248,20 +1260,19 @@ def build_doc(
         sections = split_non_engineering_collection(body_html)
         collection_items = []
         collection_href = f"/{type_name}/{slug}/"
+        rendered_root_body_html = enhance_non_engineering_body_html(body_html)
+
         for section in sections:
             section_slug = section['slug']
             section_title = section['title']
             section_rel_slug = f"{relative_slug}/{section_slug}"
-            section_out_dir = DIST / type_name / Path(section_rel_slug)
-            section_out_dir.mkdir(parents=True, exist_ok=True)
-            section_body_html = enhance_non_engineering_body_html(section['body_html'])
             section_metadata, section_context = derive_document_metadata(type_name, section_rel_slug, section_title, pdf.name, section['body_html'])
             section_metadata['kind'] = 'non-engineering-page'
             section_metadata['schema_type'] = 'Article'
             section_metadata['group_key'] = relative_slug.split('/')[0] if '/' in relative_slug else relative_slug
-            section_metadata['family_key'] = relative_slug
-            section_metadata['version'] = metadata.get('version', '')
-            section_metadata['version_tuple'] = list(metadata.get('version_tuple', []))
+            section_metadata['family_key'] = ''
+            section_metadata['version'] = ''
+            section_metadata['version_tuple'] = []
             section_metadata['pdf_path'] = metadata['pdf_path']
             section_metadata['pdf_url'] = metadata['pdf_url']
             section_href = f"/{type_name}/{section_rel_slug}/"
@@ -1269,16 +1280,32 @@ def build_doc(
             metadata_items.append(section_metadata)
             match_contexts[str(section_metadata['slug'])] = section_context
 
-            section_wrapped = render_document_page(raw_html, relative_href(section_href, metadata['pdf_path']), section_title, section_metadata)
-            section_wrapped = section_wrapped.replace(enhance_non_engineering_body_html(refine_body_html(raw_body_html)), section_body_html, 1) if enhance_non_engineering_body_html(refine_body_html(raw_body_html)) in section_wrapped else section_wrapped.replace(body_html, section_body_html, 1)
-            section_wrapped = inject_discovery_markup(section_wrapped, [render_collection_navigation(doc_title, relative_href(section_href, collection_href), collection_items, section_slug)])
+        for idx, section in enumerate(sections):
+            section_slug = section['slug']
+            section_title = section['title']
+            section_rel_slug = f"{relative_slug}/{section_slug}"
+            section_out_dir = DIST / type_name / Path(section_rel_slug)
+            section_out_dir.mkdir(parents=True, exist_ok=True)
+            section_body_html = enhance_non_engineering_body_html(section['body_html'])
+            section_meta = next(item for item in metadata_items if str(item['slug']) == section_rel_slug)
+            prev_slug = collection_items[idx - 1]['meta_slug'] if idx > 0 else ''
+            next_slug = collection_items[idx + 1]['meta_slug'] if idx + 1 < len(collection_items) else ''
+            section_meta['collection_prev_slug'] = prev_slug
+            section_meta['collection_next_slug'] = next_slug
+            section_meta['collection_index'] = idx + 1
+            section_meta['collection_size'] = len(collection_items)
+            section_meta['collection_title'] = doc_title
+            section_href = f"/{type_name}/{section_rel_slug}/"
+            section_wrapped = render_document_page(raw_html, relative_href(section_href, metadata['pdf_path']), section_title, section_meta)
+            section_wrapped = section_wrapped.replace(rendered_root_body_html, section_body_html, 1) if rendered_root_body_html in section_wrapped else section_wrapped
+            section_wrapped = inject_discovery_markup(section_wrapped, [render_collection_navigation(doc_title, relative_href(section_href, collection_href), collection_items, section_slug, 'Page')])
             (section_out_dir / 'index.html').write_text(section_wrapped, encoding='utf-8')
 
         entries[0]['description'] = f"Non-engineering guide with {len(collection_items)} linked pages." if collection_items else "Non-engineering guide landing page."
         entries[0]['section_count'] = str(len(collection_items))
         entries[0]['section_items'] = [{'title': item['title'], 'href': item['href']} for item in collection_items]
         landing_body_html = render_non_engineering_collection_landing(doc_title, str(metadata.get('description', '')), collection_items)
-        wrapped_html = wrapped_html.replace(body_html, landing_body_html, 1) if body_html in wrapped_html else wrapped_html
+        wrapped_html = wrapped_html.replace(rendered_root_body_html, landing_body_html, 1) if rendered_root_body_html in wrapped_html else wrapped_html
 
     (out_dir / "index.html").write_text(wrapped_html, encoding="utf-8")
     return entries, metadata_items, match_contexts
