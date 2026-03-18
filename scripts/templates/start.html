@@ -3,21 +3,54 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 <title>Start Here | {{SITE_NAME}}</title>
 <style>
-:root{--bg:#fcfcf9;--panel:#ffffff;--soft:#f5f2ea;--text:#171717;--muted:#6b7280;--border:#e6e3dc;--link:#1f2937}
-html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
-body{font-size:18px;line-height:1.65}
-.page{max-width:70rem;margin:0 auto;padding:2rem 1rem 4rem;box-sizing:border-box}.top{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin-bottom:1.2rem}.top nav{display:flex;gap:.9rem;flex-wrap:wrap}.top a,.card a,.reading-path a,.proof-link{color:var(--link);text-decoration:none}.top a:hover,.card a:hover,.reading-path a:hover,.proof-link:hover{text-decoration:underline}.kicker{margin:0 0 .35rem;color:var(--muted);font-size:.82rem;letter-spacing:.08em;text-transform:uppercase}.hero{background:var(--panel);border:1px solid var(--border);border-radius:22px;padding:1.3rem 1.2rem 1.15rem}.hero h1{margin:0 0 .65rem;font-size:clamp(2rem,6vw,3.15rem);line-height:1.03;letter-spacing:-.03em}.hero p{margin:.55rem 0;max-width:52rem}.hero .note{color:#4b5563}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin-top:1rem}.card,.section{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:1.05rem}.card h2,.section h2{margin:0 0 .55rem;font-size:1.18rem;line-height:1.2}.card p,.section p,.section li{margin:0;color:#4b5563}.card-links{margin-top:.65rem;display:grid;gap:.45rem}.card-links a{font-weight:600}.stack{display:grid;gap:1rem;margin-top:1rem}.reading-path{margin:0;padding-left:1.2rem}.reading-path li+li{margin-top:.8rem}.reading-path span{display:block;color:#4b5563;font-size:.96rem}.terms{display:grid;gap:.75rem}.term dt{font-weight:700;margin:0 0 .2rem}.term dd{margin:0;color:#4b5563}.small{font-size:.96rem;color:#4b5563}
-@media (max-width:900px){.grid{grid-template-columns:1fr}.top{display:block}.top nav{margin-top:.8rem}}
+:root{--bg:#fcfcf9;--panel:#ffffff;--text:#171717;--muted:#6b7280;--border:#e6e3dc;--soft:#f5f2ea}
+html{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:"Inter",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;box-sizing:border-box;overflow-x:hidden}
+body{margin:0;padding:0;overflow-x:hidden}*,*::before,*::after{box-sizing:inherit}main,section,div,nav{min-width:0}
+.page{max-width:60rem;margin:0 auto;padding:1.6rem 1rem 3.5rem}
+.top{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin-bottom:1.35rem;padding-bottom:.95rem;border-bottom:1px solid var(--border)}
+.site-kicker{margin:0 0 .45rem;color:var(--muted);font-size:.8rem;line-height:1.3;letter-spacing:.08em;text-transform:uppercase}
+.heading h1{margin:0 0 .35rem;font-size:clamp(2rem,7vw,3.2rem);line-height:1.02;letter-spacing:-.035em;font-family:"Manrope","Inter",sans-serif;font-weight:800}
+.credit{margin:0 0 .4rem;color:var(--muted);font-size:.88rem;line-height:1.35}
+.intro,.warning{margin:0;color:#4b5563;max-width:46rem;font-size:.98rem;line-height:1.58}
+.warning{margin-top:.7rem}
+.top nav{display:flex;gap:.9rem;flex-wrap:wrap;padding-top:.15rem;font-family:"Manrope","Inter",sans-serif;font-weight:600}
+.top a,.section a,.reading-path a,.path-links a{text-decoration:none;color:#374151}
+.top a:hover,.section a:hover,.reading-path a:hover,.path-links a:hover{text-decoration:underline}
+.stack{display:grid;gap:1rem}
+.section{background:var(--panel);border:1px solid var(--border);border-radius:22px;padding:1rem .95rem .95rem;box-shadow:0 1px 0 rgba(17,17,17,.02)}
+.section h2{margin:0 0 .8rem;font-size:1.18rem;letter-spacing:-.02em;font-family:"Manrope","Inter",sans-serif;font-weight:700}
+.section p,.section li,.section dd{color:#4b5563}
+.section > p{margin:0 0 .9rem;font-size:.95rem;line-height:1.55}
+.path-list{display:grid;gap:.9rem}
+.path-item + .path-item{padding-top:.9rem;border-top:1px solid var(--border)}
+.path-item h3{margin:0 0 .25rem;font-size:1rem;line-height:1.35;font-family:"Manrope","Inter",sans-serif}
+.path-item p{margin:0 0 .45rem;font-size:.93rem;line-height:1.5}
+.path-links{display:flex;flex-wrap:wrap;gap:.8rem;font-size:.93rem}
+.reading-path{margin:0;padding-left:1.2rem}
+.reading-path li+li{margin-top:.8rem}
+.reading-path span{display:block;color:#4b5563;font-size:.94rem;line-height:1.5}
+.terms{display:grid;gap:.72rem}
+.term{display:grid;gap:.15rem}
+.term dt{margin:0;font-weight:700;color:var(--text)}
+.term dd{margin:0;font-size:.93rem;line-height:1.5}
+.small{margin-top:.9rem;font-size:.93rem;color:#4b5563}
+@media (max-width:900px){.page{padding:1.15rem .95rem 2.6rem}.top{display:block}.top nav{margin-top:.8rem}}
 </style>
 </head>
 <body>
 <main class="page">
   <div class="top">
-    <div>
-      <p class="kicker">Orientation</p>
-      <h1 style="margin:0;">Start Here</h1>
+    <div class="heading">
+      <p class="site-kicker">Orientation</p>
+      <h1>Start Here</h1>
+      <p class="credit">Gregory Tomlinson</p>
+      <p class="intro">Probabilistic Systems Engineering is a bounded body of work about preserving decision authority when AI makes implementation cheap, fast, and difficult to safely review.</p>
+      <p class="warning">Start with the authority essays and core papers. Contracts are support artifacts. Replication is portability and rerun support, not the primary cold-reading path.</p>
     </div>
     <nav>
       <a href="{{HOME_HREF}}">Home</a>
@@ -27,65 +60,59 @@ body{font-size:18px;line-height:1.65}
     </nav>
   </div>
 
-  <section class="hero">
-    <p class="kicker">What this site is</p>
-    <h1>{{SITE_NAME}}</h1>
-    <p>Probabilistic Systems Engineering is a bounded body of work about preserving decision authority when AI makes implementation cheap, fast, and difficult to safely review.</p>
-    <p class="note">The site has four layers: authority essays that explain where control lives, papers that make the engineering claims legible, contracts that expose the source of truth, and replication materials kept for portability, rerun support, and verification.</p>
-    <p class="note">Do not start with replication. It exists so the work can be rerun, checked, and transported. It is not the primary cold-reading path.</p>
-  </section>
+  <div class="stack">
+    <section class="section" aria-label="Choose your path">
+      <h2>Choose your path</h2>
+      <div class="path-list">
+        <div class="path-item">
+          <h3>Engineers / researchers</h3>
+          <p>Start with the authority problem, then move into the engineering and stability papers.</p>
+          <div class="path-links">
+            <a href="{{AUTHORITY_HREF}}">{{AUTHORITY_TITLE}}</a>
+            <a href="{{CCE_HREF}}">{{CCE_TITLE}}</a>
+            <a href="{{STABILITY_HREF}}">{{STABILITY_TITLE}}</a>
+          </div>
+        </div>
+        <div class="path-item">
+          <h3>Managers / executives</h3>
+          <p>Use the non-engineering bridge first, then return to the proof summary only if you want the bounded research claim.</p>
+          <div class="path-links">
+            <a href="{{NON_ENGINEERING_HREF}}">{{NON_ENGINEERING_TITLE}}</a>
+            <a href="{{PROOF_HREF}}">What is proven / what is not</a>
+          </div>
+        </div>
+        <div class="path-item">
+          <h3>Curious outsiders</h3>
+          <p>Read the shortest path that explains the problem, the main claim, and the evidence boundary.</p>
+          <div class="path-links">
+            <a href="{{AUTHORITY_HREF}}">Start with authority</a>
+            <a href="{{PROOF_HREF}}">Then read the proof boundary</a>
+          </div>
+        </div>
+      </div>
+    </section>
 
-  <section class="grid" aria-label="Choose your path">
-    <article class="card">
-      <h2>Engineers / researchers</h2>
-      <p>Start with the authority problem, then move into the core engineering and stability papers.</p>
-      <div class="card-links">
-        <a href="{{AUTHORITY_HREF}}">{{AUTHORITY_TITLE}}</a>
-        <a href="{{CCE_HREF}}">{{CCE_TITLE}}</a>
-        <a href="{{STABILITY_HREF}}">{{STABILITY_TITLE}}</a>
-      </div>
-    </article>
-    <article class="card">
-      <h2>Managers / executives</h2>
-      <p>Use the non-engineering bridge first, then return to the proof summary only if you want the bounded research claim.</p>
-      <div class="card-links">
-        <a href="{{NON_ENGINEERING_HREF}}">{{NON_ENGINEERING_TITLE}}</a>
-        <a href="{{PROOF_HREF}}">What is proven / what is not</a>
-      </div>
-    </article>
-    <article class="card">
-      <h2>Curious outsiders</h2>
-      <p>Read the shortest path that explains the problem, the main claim, and the evidence boundary.</p>
-      <div class="card-links">
-        <a href="{{AUTHORITY_HREF}}">Start with authority</a>
-        <a href="{{PROOF_HREF}}">Then read the proof boundary</a>
-      </div>
-    </article>
-  </section>
-
-  <section class="stack">
-    <article class="section">
+    <section class="section">
       <h2>Core reading path</h2>
       <ol class="reading-path">
         {{CORE_PATH_ITEMS}}
       </ol>
       <p class="small">Contracts are support artifacts. Replication is rerun support. Archive browsing is optional unless you care about lineage.</p>
-    </article>
+    </section>
 
-    <article class="section">
-      <h2>Terms for humans</h2>
+    <section class="section">
+      <h2>Key terms</h2>
+      <p>These are the only terms you need up front. The full glossary remains in the replication material for portability and rerun support.</p>
       <dl class="terms">
         <div class="term"><dt>Authority</dt><dd>The place where a system can actually permit, refuse, or constrain action.</dd></div>
         <div class="term"><dt>Contract</dt><dd>An explicit source of truth for what must stay true across change.</dd></div>
         <div class="term"><dt>Invariant</dt><dd>A rule that must continue to hold after a change.</dd></div>
         <div class="term"><dt>Decision surface</dt><dd>The place where acceptance, persistence, execution, or refusal actually occurs.</dd></div>
-        <div class="term"><dt>Same-surface change</dt><dd>A change that touches only the place named in the request or prompt.</dd></div>
-        <div class="term"><dt>Cross-surface invariant</dt><dd>A rule that must hold across multiple mutation paths, not just one named location.</dd></div>
         <div class="term"><dt>Replication</dt><dd>Portable rerun material for checking or transporting the work.</dd></div>
-        <div class="term"><dt>Proof-of-mechanism</dt><dd>Evidence that a repeatable failure mechanism exists, not a claim of universal statistical proof.</dd></div>
+        <div class="term"><dt>Proof-of-mechanism</dt><dd>Evidence that a repeatable failure mechanism exists, not a claim of universal statistical closure.</dd></div>
       </dl>
-    </article>
-  </section>
+    </section>
+  </div>
 </main>
 </body>
 </html>
