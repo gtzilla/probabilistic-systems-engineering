@@ -1,10 +1,11 @@
 # Probabilistic Systems Engineering / Contract-Centered Engineering
+
 > A bounded body of work about preserving decision authority when AI makes implementation cheap, fast, and difficult to safely review.
 
 Start with the authority essays and core papers. Use contracts as supporting source-of-truth artifacts. Replication materials are provided for portability, rerun support, and verification, not as the primary cold-reading path.
 
 ## Primary reading path
-- /start : human-oriented entry page for new readers
+- /start/ : human-oriented entry page for new readers
 - /authority/ : authority essays and conceptual framing
 - /contract-centered-engineering/ : main engineering thesis
 - /contract-centered-iterative-stability/ : iterative stability / failure mechanism work
@@ -20,3 +21,4 @@ Start with the authority essays and core papers. Use contracts as supporting sou
 ## Verification support
 - /replication/ : portability, rerun support, and verification materials
 - /sitemap.xml : crawlable node list
+
