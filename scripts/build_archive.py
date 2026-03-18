@@ -676,6 +676,17 @@ def copy_static_assets() -> None:
             shutil.copy2(child, dest)
 
 
+def copy_root_passthrough_files() -> None:
+    passthrough_names = ["llms.txt"]
+    for name in passthrough_names:
+        source = ROOT / name
+        if not source.exists():
+            continue
+        if not source.is_file():
+            fail(f"{source} exists but is not a file")
+        shutil.copy2(source, DIST / name)
+
+
 
 
 
@@ -709,6 +720,7 @@ def main() -> int:
 
         entries = collect_pdf_only_contract_entries(entries)
         copy_static_assets()
+        copy_root_passthrough_files()
         latest_entries, family_buckets = latest_entries_and_families(entries)
         (DIST / 'index.html').write_text(render_home_page(latest_entries, CONTENT_TYPES, SITE_NAME, load_template, render_template), encoding='utf-8')
         start_dir = DIST / 'start'

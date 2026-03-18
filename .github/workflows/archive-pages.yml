@@ -10,6 +10,7 @@ on:
       - 'contracts/**'
       - 'scripts/**'
       - '.github/workflows/**'
+      - 'llms.txt'
   schedule:
     - cron: '17 10 * * *'
   workflow_dispatch:
