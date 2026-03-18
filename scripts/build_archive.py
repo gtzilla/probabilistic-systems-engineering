@@ -35,7 +35,9 @@ from archive_build.non_engineering import (
 from archive_build.listing_render import (
     render_home_page,
     render_listing_page,
+    render_proof_page,
     render_redirect_page,
+    render_start_page,
 )
 from archive_build.discovery import (
     document_match_context,
@@ -709,6 +711,12 @@ def main() -> int:
         copy_static_assets()
         latest_entries, family_buckets = latest_entries_and_families(entries)
         (DIST / 'index.html').write_text(render_home_page(latest_entries, CONTENT_TYPES, SITE_NAME, load_template, render_template), encoding='utf-8')
+        start_dir = DIST / 'start'
+        start_dir.mkdir(parents=True, exist_ok=True)
+        (start_dir / 'index.html').write_text(render_start_page(latest_entries, SITE_NAME, load_template, render_template), encoding='utf-8')
+        proof_dir = DIST / 'proof'
+        proof_dir.mkdir(parents=True, exist_ok=True)
+        (proof_dir / 'index.html').write_text(render_proof_page(latest_entries, SITE_NAME, load_template, render_template), encoding='utf-8')
         latest_dir = DIST / 'latest'
         latest_dir.mkdir(parents=True, exist_ok=True)
         (latest_dir / 'index.html').write_text(render_listing_page(latest_entries, family_buckets, 'latest', CONTENT_TYPES, SITE_NAME, load_template, render_template), encoding='utf-8')

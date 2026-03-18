@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What Is Proven | {{SITE_NAME}}</title>
+<style>
+:root{--bg:#fcfcf9;--panel:#ffffff;--text:#171717;--muted:#6b7280;--border:#e6e3dc;--link:#1f2937}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+body{font-size:18px;line-height:1.65}.page{max-width:64rem;margin:0 auto;padding:2rem 1rem 4rem;box-sizing:border-box}.top{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin-bottom:1.1rem}.top nav{display:flex;gap:.9rem;flex-wrap:wrap}.top a,.section a{color:var(--link);text-decoration:none}.top a:hover,.section a:hover{text-decoration:underline}.kicker{margin:0 0 .35rem;color:var(--muted);font-size:.82rem;letter-spacing:.08em;text-transform:uppercase}.hero,.section{background:var(--panel);border:1px solid var(--border);border-radius:22px;padding:1.2rem 1.1rem}.hero h1{margin:0 0 .6rem;font-size:clamp(2rem,6vw,3rem);line-height:1.03;letter-spacing:-.03em}.hero p,.section p,.section li{margin:.5rem 0;color:#4b5563}.stack{display:grid;gap:1rem;margin-top:1rem}.section h2{margin:0 0 .45rem;font-size:1.16rem;color:var(--text)}.section ul{margin:.4rem 0 0;padding-left:1.2rem}.small{font-size:.96rem}
+@media (max-width:900px){.top{display:block}.top nav{margin-top:.8rem}}
+</style>
+</head>
+<body>
+<main class="page">
+  <div class="top">
+    <div>
+      <p class="kicker">Proof boundary</p>
+      <h1 style="margin:0;">What is proven here</h1>
+    </div>
+    <nav>
+      <a href="{{HOME_HREF}}">Home</a>
+      <a href="{{START_HREF}}">Start here</a>
+      <a href="{{LATEST_HREF}}">Latest</a>
+      <a href="{{ARCHIVE_HREF}}">Archive</a>
+    </nav>
+  </div>
+
+  <section class="hero">
+    <p>The core claim is that workflows which externalize authority into explicit, versioned contracts exhibit lower iterative drift than workflows that modify code directly through conversational prompts.</p>
+    <p>This site argues for a repeatable mechanism, not a universal proof about every model, every team, or every software domain.</p>
+  </section>
+
+  <section class="stack">
+    <article class="section">
+      <h2>Type of evidence</h2>
+      <p>The evidence here is mechanism evidence: repeated structured runs, comparative tracks, clause-level evaluation, and explicit failure localization across deltas. Start with <a href="{{STABILITY_HREF}}">{{STABILITY_TITLE}}</a> and the compact framing in <a href="{{THESIS_HREF}}">{{THESIS_TITLE}}</a>.</p>
+    </article>
+
+    <article class="section">
+      <h2>What has been replicated</h2>
+      <p>The site includes portable replication materials, methodology, and program-level packaging intended to let the work be rerun or checked without making replication the front door. See <a href="{{REPLICATION_HREF}}">{{REPLICATION_TITLE}}</a>.</p>
+    </article>
+
+    <article class="section">
+      <h2>What remains bounded</h2>
+      <ul>
+        <li>This is a bounded engineering research corpus, not a universal benchmark claim.</li>
+        <li>The current evidence is strongest on invariant-scope drift under iterative change.</li>
+        <li>The research argues for authority structure as the differentiator, not raw model capability.</li>
+      </ul>
+    </article>
+
+    <article class="section">
+      <h2>What this work does not claim</h2>
+      <ul>
+        <li>It does not claim every AI-assisted workflow fails.</li>
+        <li>It does not claim all prompts are useless.</li>
+        <li>It does not claim statistical closure across every model, organization, or domain.</li>
+        <li>It does not replace the broader conceptual framing in <a href="{{CCE_HREF}}">{{CCE_TITLE}}</a>.</li>
+      </ul>
+      <p class="small">The closure move here is explicit boundedness: a clear claim, a clear evidence type, and a clear limit surface.</p>
+    </article>
+  </section>
+</main>
+</body>
+</html>

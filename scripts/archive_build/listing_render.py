@@ -152,10 +152,122 @@ def render_home_page(latest_entries: list[dict[str, str]], content_types: list[s
         "SITE_NAME": safe_text(site_name),
         "LATEST_HREF": "./latest/",
         "ARCHIVE_HREF": "./archive/",
+        "START_HREF": "./start/",
+        "PROOF_HREF": "./proof/",
         "ENTRY_PAPER_HREF": "./papers/contract-centered-iterative-stability-v4.7.3/",
         "AUTHORITY_COUNT": str(authority_count),
         "AUTHORITY_COLLECTION_COUNT": str(authority_collection_count),
         "PAPERS_COUNT": str(len(grouped["papers"])),
         "CONTRACTS_COUNT": str(len(grouped["contracts"])),
         "REPLICATION_COUNT": str(len(grouped["replication"])),
+    })
+
+
+def find_entry_by_slug_prefix(entries: list[dict[str, str]], type_name: str, slug_prefix: str) -> dict[str, str] | None:
+    for entry in entries:
+        if entry.get("type") == type_name and entry.get("slug", "").startswith(slug_prefix):
+            return entry
+    return None
+
+
+def href_or_fallback(entry: dict[str, str] | None, fallback: str) -> str:
+    if entry and entry.get("url"):
+        return str(entry["url"])
+    return fallback
+
+
+def title_or_fallback(entry: dict[str, str] | None, fallback: str) -> str:
+    if entry and entry.get("title"):
+        return str(entry["title"])
+    return fallback
+
+
+def render_start_page(latest_entries: list[dict[str, str]], site_name: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str]) -> str:
+    template = load_template("start.html")
+
+    authority_entry = next((entry for entry in latest_entries if entry.get("type") == "authority"), None)
+    non_engineering_entry = next((entry for entry in latest_entries if entry.get("type") == "non-engineering"), None)
+    cce_entry = find_entry_by_slug_prefix(latest_entries, "papers", "contract-centered-engineering-")
+    stability_entry = find_entry_by_slug_prefix(latest_entries, "papers", "contract-centered-iterative-stability-")
+    thesis_entry = find_entry_by_slug_prefix(latest_entries, "papers", "thesis-experimental-methodology-")
+
+    authority_href = href_or_fallback(authority_entry, "/latest/#authority")
+    non_engineering_href = href_or_fallback(non_engineering_entry, "/non-engineering/")
+    cce_href = href_or_fallback(cce_entry, "/latest/#papers")
+    stability_href = href_or_fallback(stability_entry, "/latest/#papers")
+    thesis_href = href_or_fallback(thesis_entry, "/latest/#replication")
+
+    core_path_items = [
+        (
+            title_or_fallback(authority_entry, "Authority, Execution, and Refusal"),
+            authority_href,
+            "Establishes the authority problem before the engineering claims.",
+        ),
+        (
+            title_or_fallback(cce_entry, "Contract-Centered Engineering"),
+            cce_href,
+            "Explains why contracts become primary when implementation cost collapses.",
+        ),
+        (
+            title_or_fallback(stability_entry, "Contract-Centered Iterative Stability"),
+            stability_href,
+            "Shows the repeated drift mechanism and the boundary where prompts stop carrying invariant scope.",
+        ),
+        (
+            title_or_fallback(thesis_entry, "Thesis & Experimental Methodology"),
+            thesis_href,
+            "Provides the compact thesis and experiment frame without making replication the front door.",
+        ),
+    ]
+    core_path_html = "".join(
+        '<li><a href="{href}">{title}</a><span>{desc}</span></li>'.format(
+            href=safe_text(href),
+            title=safe_text(title),
+            desc=safe_text(desc),
+        )
+        for title, href, desc in core_path_items
+    )
+
+    return render_template(template, {
+        "SITE_NAME": safe_text(site_name),
+        "HOME_HREF": "../",
+        "LATEST_HREF": "../latest/",
+        "ARCHIVE_HREF": "../archive/",
+        "PROOF_HREF": "../proof/",
+        "AUTHORITY_HREF": safe_text(authority_href),
+        "AUTHORITY_TITLE": safe_text(title_or_fallback(authority_entry, "Authority, Execution, and Refusal")),
+        "NON_ENGINEERING_HREF": safe_text(non_engineering_href),
+        "NON_ENGINEERING_TITLE": safe_text(title_or_fallback(non_engineering_entry, "What AI Gets Wrong When You Iterate")),
+        "CCE_HREF": safe_text(cce_href),
+        "CCE_TITLE": safe_text(title_or_fallback(cce_entry, "Contract-Centered Engineering")),
+        "STABILITY_HREF": safe_text(stability_href),
+        "STABILITY_TITLE": safe_text(title_or_fallback(stability_entry, "Contract-Centered Iterative Stability")),
+        "THESIS_HREF": safe_text(thesis_href),
+        "THESIS_TITLE": safe_text(title_or_fallback(thesis_entry, "Thesis & Experimental Methodology")),
+        "CORE_PATH_ITEMS": core_path_html,
+    })
+
+
+def render_proof_page(latest_entries: list[dict[str, str]], site_name: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str]) -> str:
+    template = load_template("proof.html")
+
+    stability_entry = find_entry_by_slug_prefix(latest_entries, "papers", "contract-centered-iterative-stability-")
+    thesis_entry = find_entry_by_slug_prefix(latest_entries, "papers", "thesis-experimental-methodology-")
+    replication_entry = find_entry_by_slug_prefix(latest_entries, "replication", "context-injection-research-program")
+    cce_entry = find_entry_by_slug_prefix(latest_entries, "papers", "contract-centered-engineering-")
+
+    return render_template(template, {
+        "SITE_NAME": safe_text(site_name),
+        "HOME_HREF": "../",
+        "START_HREF": "../start/",
+        "LATEST_HREF": "../latest/",
+        "ARCHIVE_HREF": "../archive/",
+        "STABILITY_HREF": safe_text(href_or_fallback(stability_entry, "/latest/#papers")),
+        "STABILITY_TITLE": safe_text(title_or_fallback(stability_entry, "Contract-Centered Iterative Stability")),
+        "THESIS_HREF": safe_text(href_or_fallback(thesis_entry, "/latest/#replication")),
+        "THESIS_TITLE": safe_text(title_or_fallback(thesis_entry, "Thesis & Experimental Methodology")),
+        "REPLICATION_HREF": safe_text(href_or_fallback(replication_entry, "/latest/#replication")),
+        "REPLICATION_TITLE": safe_text(title_or_fallback(replication_entry, "Context Injection Research Program")),
+        "CCE_HREF": safe_text(href_or_fallback(cce_entry, "/latest/#papers")),
+        "CCE_TITLE": safe_text(title_or_fallback(cce_entry, "Contract-Centered Engineering")),
     })
