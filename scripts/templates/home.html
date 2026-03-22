@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 <title>{{SITE_NAME}}</title>
 <style>
-:root{--bg:#f6f5f1;--panel:rgba(255,255,255,.84);--panel-strong:rgba(255,255,255,.92);--text:#171717;--muted:#5f6672;--border:rgba(34,34,34,.10);--border-strong:rgba(34,34,34,.18);--accent:#111111;--soft:rgba(245,242,234,.78);--hero-image:url("../../assets/home-hero-geometry.jpg")}
+:root{--bg:#f6f5f1;--panel:rgba(255,255,255,.84);--panel-strong:rgba(255,255,255,.92);--text:#171717;--muted:#5f6672;--border:rgba(34,34,34,.10);--border-strong:rgba(34,34,34,.18);--accent:#111111;--soft:rgba(245,242,234,.78);--papers-accent:#365b8c;--contracts-accent:#586847;--replication-accent:#7b5b2f;--authority-accent:#6b5a7a;--hero-image:url("../../assets/home-hero-geometry.jpg")}
 html{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:"Inter",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;box-sizing:border-box;overflow-x:hidden}
 body{margin:0;padding:0;min-height:100vh;overflow-x:hidden;position:relative}body::before{content:"";position:fixed;inset:0;background-image:linear-gradient(to bottom, rgba(246,245,241,.70), rgba(246,245,241,.88)),var(--hero-image);background-position:center top;background-size:cover;background-repeat:no-repeat;opacity:.9;z-index:-2;transform:translateZ(0)}body::after{content:"";position:fixed;inset:0;background:linear-gradient(to bottom, rgba(255,255,255,.18), rgba(246,245,241,.34));z-index:-1;pointer-events:none}*,*::before,*::after{box-sizing:inherit}main,section,div,a,nav{min-width:0}
 .page{max-width:64rem;margin:0 auto;padding:2rem 1rem 4rem}
@@ -22,7 +22,7 @@ h1{margin:0 0 .9rem;font-size:clamp(2.4rem,8vw,4.6rem);line-height:.98;letter-sp
 .primary-feature,.primary-row,.secondary-row{border:1px solid var(--border);border-radius:24px;background:var(--panel);padding:1rem 1rem 1.05rem;text-decoration:none;color:inherit;display:block}
 .primary-feature:hover,.primary-row a:hover,.secondary-row a:hover{box-shadow:0 10px 24px rgba(0,0,0,.06)}
 .primary-feature .eyebrow,.primary-row .eyebrow,.secondary-row .eyebrow{display:block;color:var(--muted);font-size:.8rem;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.35rem}
-.primary-feature h2,.primary-row h2,.secondary-row h2{margin:0 0 .25rem;font-size:1.36rem;line-height:1.14;letter-spacing:-.02em;font-family:"Manrope","Inter",sans-serif;font-weight:700}
+.primary-feature h2,.primary-row h2,.secondary-row h2{margin:0 0 .25rem;font-size:1.48rem;line-height:1.1;letter-spacing:-.025em;font-family:"Manrope","Inter",sans-serif;font-weight:800}.primary-feature h2{color:var(--papers-accent)}.primary-row.authority h2{color:var(--authority-accent)}.secondary-row.contracts h2{color:var(--contracts-accent)}.secondary-row.replication h2{color:var(--replication-accent)}
 .primary-feature p,.primary-row p,.secondary-row p{margin:0;color:#4b5563;line-height:1.5;font-size:.96rem}
 .primary-feature .count,.primary-row .count,.secondary-row .count{margin-top:.55rem;color:var(--muted);font-size:.9rem}
 .primary-pair,.secondary-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
@@ -53,7 +53,7 @@ h1{margin:0 0 .9rem;font-size:clamp(2.4rem,8vw,4.6rem);line-height:.98;letter-sp
         <div class="count">{{PAPERS_COUNT}} current items</div>
       </a>
       <div class="primary-pair">
-        <a class="primary-row" href="{{LATEST_HREF}}#authority">
+        <a class="primary-row authority" href="{{LATEST_HREF}}#authority">
           <span class="eyebrow">Primary path</span>
           <h2>Authority</h2>
           <p>Collections and linked essays that diagnose where control actually lives and why understanding alone does not restore it.</p>
@@ -71,13 +71,13 @@ h1{margin:0 0 .9rem;font-size:clamp(2.4rem,8vw,4.6rem);line-height:.98;letter-sp
     <section class="section-divider">
       <p class="secondary-label">Secondary and support surfaces</p>
       <div class="secondary-pair">
-        <a class="secondary-row" href="{{LATEST_HREF}}#contracts">
+        <a class="secondary-row contracts" href="{{LATEST_HREF}}#contracts">
           <span class="eyebrow">Secondary</span>
           <h2>Contracts</h2>
           <p>Governing artifacts and operational semantics that support the papers. Valuable as explicit source-of-truth artifacts, but not presented here as the live authority surface.</p>
           <div class="count">{{CONTRACTS_COUNT}} current items</div>
         </a>
-        <a class="secondary-row" href="{{LATEST_HREF}}#replication">
+        <a class="secondary-row replication" href="{{LATEST_HREF}}#replication">
           <span class="eyebrow">Secondary</span>
           <h2>Replication & verification</h2>
           <p>Portable rerun support, extracted packets, and verification materials. Secondary to the primary reading path.</p>

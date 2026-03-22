@@ -128,7 +128,7 @@ def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tupl
         grouped[entry["type"]].append(entry)
     template = load_template("listing.html")
     title = "Latest" if mode == "latest" else "Archive"
-    intro = "Current latest authority writing, papers, contracts, and replication support artifacts." if mode == "latest" else "Full archive with latest versions, older lineage, authority collection browsing, papers, contracts, and replication support artifacts."
+    intro = "Current papers, supporting contracts, replication materials, and authority essays." if mode == "latest" else "Full archive with latest versions, older lineage, papers, supporting contracts, replication materials, and authority essays."
     home_href = "../" if mode in ("latest", "archive") else "./"
     latest_href = "./" if mode == "latest" else "../latest/"
     archive_href = "./" if mode == "archive" else "../archive/"

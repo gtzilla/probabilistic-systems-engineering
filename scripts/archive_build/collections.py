@@ -202,7 +202,7 @@ def render_non_engineering_collection_sections(items: list[dict[str, str]], curr
         title = safe_text(item["title"])
         current = ' <span class="pse-discovery-kind">Current</span>' if item.get("slug") == current_slug else ""
         rows.append(f'<li class="pse-discovery-item"><a href="{href}">{title}</a>{current}</li>')
-    return '<section class="pse-discovery pse-discovery-collection"><h2>Guide pages</h2><p class="pse-compact">Start with the overview, then move into the audience-specific paths.</p><ul class="pse-discovery-list">' + ''.join(rows) + "</ul></section>"
+    return '<section><h2>Guide pages</h2><p>Start with the overview, then move into the audience-specific paths.</p><ul>' + ''.join(rows) + "</ul></section>"
 
 
 def render_non_engineering_collection_landing(doc_title: str, description: str, items: list[dict[str, str]]) -> str:
@@ -213,9 +213,9 @@ def render_non_engineering_collection_landing(doc_title: str, description: str, 
     return (
         '<section class="pse-authority-collection">'
         + f"<h1>{safe_text(doc_title)}</h1>"
-        + '<p class="pse-lead-in"><strong>Non-engineering guide.</strong> Start with the overview, then move into the audience-specific paths for design, startup, or enterprise readers.</p>'
+        + '<p><strong>Non-engineering guide.</strong> Start with the overview, then move into the audience-specific paths for design, startup, or enterprise readers.</p>'
         + intro_html
-        + f'<p class="pse-compact"><strong>Contents:</strong> {safe_text(count_label)}</p>'
+        + f'<p><strong>Contents:</strong> {safe_text(count_label)}</p>'
         + toc
         + "</section>"
     )
@@ -249,7 +249,7 @@ def render_collection_sections(items: list[dict[str, str]], current_slug: str = 
         title = safe_text(item["title"])
         current = ' <span class="pse-discovery-kind">Current</span>' if item.get("slug") == current_slug else ""
         rows.append(f'<li class="pse-discovery-item"><a href="{href}">{idx}. {title}</a>{current}</li>')
-    return '<section class="pse-discovery pse-discovery-collection"><h2>Collection essays</h2><p class="pse-compact">Read in order. Each essay builds on the last.</p><ol class="pse-discovery-list pse-discovery-list-ordered">' + ''.join(rows) + "</ol></section>"
+    return '<section><h2>Collection essays</h2><p>Read in order. Each essay builds on the last.</p><ol>' + ''.join(rows) + "</ol></section>"
 
 
 def render_authority_entry_children(item: dict[str, object]) -> str:
@@ -277,9 +277,9 @@ def render_authority_collection_landing(doc_title: str, description: str, items:
     return (
         '<section class="pse-authority-collection">'
         + f"<h1>{safe_text(doc_title)}</h1>"
-        + '<p class="pse-lead-in"><strong>Authority collection.</strong> Read these essays in order. This landing page replaces the bundled full-text view and keeps the collection as a table of contents rather than one giant article.</p>'
+        + '<p><strong>Authority collection.</strong> Read these essays in order. This landing page keeps the collection as a table of contents rather than one bundled full-text article.</p>'
         + intro_html
-        + f'<p class="pse-compact"><strong>Contents:</strong> {safe_text(count_label)}</p>'
+        + f'<p><strong>Contents:</strong> {safe_text(count_label)}</p>'
         + toc
         + "</section>"
     )
@@ -298,5 +298,5 @@ def render_collection_navigation(collection_title: str, collection_href: str, it
         prev_item = items[current_index - 1]
         links.append('<li class="pse-discovery-item"><span class="pse-nav-label">Previous</span><a href="' + safe_text(prev_item["href"]) + '">' + safe_text(prev_item["title"]) + "</a></li>")
     links.append('<li class="pse-discovery-item"><span class="pse-nav-label">Guide</span><a href="' + safe_text(collection_href) + '">Back to ' + safe_text(collection_title) + "</a></li>")
-    label = f'<p class="pse-compact">{safe_text(position)}</p>' if position else ""
-    return '<section class="pse-discovery pse-discovery-nav"><h2>Continue</h2>' + label + '<ul class="pse-discovery-list">' + ''.join(links) + "</ul></section>"
+    label = f'<p>{safe_text(position)}</p>' if position else ""
+    return '<section><h2>Continue</h2>' + label + '<ul>' + ''.join(links) + "</ul></section>"
