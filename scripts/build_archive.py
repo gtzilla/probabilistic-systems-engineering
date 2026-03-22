@@ -155,6 +155,52 @@ def format_publication_date(date_value: str, style: str) -> str:
     fail(f"Unknown publication date style: {style}")
 
 
+def apply_paper_family_publication_monotonicity(entries: list[dict[str, str]], metadata_index: list[dict[str, object]]) -> None:
+    metadata_by_slug: dict[str, dict[str, object]] = {
+        str(item.get("slug", "")): item
+        for item in metadata_index
+        if str(item.get("content_type", "")) == "papers" and str(item.get("slug", ""))
+    }
+    family_members: dict[str, list[tuple[tuple[int, ...], str]]] = {}
+    for entry in entries:
+        if entry.get("type") != "papers":
+            continue
+        family_key, version_tuple = family_slug_and_version(entry)
+        if not family_key or not version_tuple:
+            continue
+        family_members.setdefault(family_key, []).append((version_tuple, entry["slug"]))
+
+    for slug_list in family_members.values():
+        sorted_members = sorted(slug_list, key=lambda item: item[0])
+        effective_dates: dict[str, str] = {}
+        latest_effective_date = ""
+        for _version_tuple, slug in sorted_members:
+            entry = next((row for row in entries if row.get("type") == "papers" and row.get("slug") == slug), None)
+            metadata = metadata_by_slug.get(slug)
+            base_date = ""
+            if metadata and str(metadata.get("publication_date", "")):
+                base_date = str(metadata["publication_date"])
+            elif entry and str(entry.get("publication_date", "")):
+                base_date = str(entry["publication_date"])
+            if not base_date:
+                continue
+            effective_date = max(base_date, latest_effective_date) if latest_effective_date else base_date
+            effective_dates[slug] = effective_date
+            latest_effective_date = effective_date
+
+        for slug, effective_date in effective_dates.items():
+            entry = next((row for row in entries if row.get("type") == "papers" and row.get("slug") == slug), None)
+            if entry is not None:
+                entry["publication_date"] = effective_date
+                entry["archive_date"] = format_publication_date(effective_date, "archive")
+            metadata = metadata_by_slug.get(slug)
+            if metadata is not None:
+                metadata["publication_date"] = effective_date
+                metadata["publication_date_archive"] = format_publication_date(effective_date, "archive")
+                metadata["publication_date_document"] = format_publication_date(effective_date, "document")
+                metadata["publication_date_effective"] = effective_date
+
+
 
 def detect_version(text: str) -> str:
     match = re.search(r"\bv\d+(?:\.\d+)*\b", text, flags=re.IGNORECASE)
@@ -801,6 +847,7 @@ def main() -> int:
                 match_contexts.update(doc_match_contexts)
 
         entries = collect_pdf_only_contract_entries(entries)
+        apply_paper_family_publication_monotonicity(entries, metadata_index)
         copy_static_assets()
         copy_root_passthrough_files()
         latest_entries, family_buckets = latest_entries_and_families(entries)
