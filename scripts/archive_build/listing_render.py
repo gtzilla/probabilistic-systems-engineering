@@ -105,7 +105,13 @@ def render_sections(items: list[dict[str, str]], family_buckets: dict[tuple[str,
     if flat_items:
         rendered_items = "".join(render_item_card(dict(item, is_latest="true")) for item in sorted(flat_items, key=lambda value: value["title"].lower()))
         blocks.append('<section class="group-block"><ul class="archive-list">' + rendered_items + "</ul></section>")
-    for family_key in sorted(family_latest):
+
+    def family_order_key(family_key: str) -> tuple[int, str]:
+        if mode == "latest" and type_name == "papers" and family_key.endswith("contract-authority-under-ai"):
+            return (0, family_key)
+        return (1, family_key)
+
+    for family_key in sorted(family_latest, key=family_order_key):
         latest_item = family_latest[family_key]
         all_items = family_buckets.get((type_name, family_key), [latest_item])
         family_label = humanize_slug(family_key.split("/")[-1])
@@ -154,7 +160,6 @@ def render_home_page(latest_entries: list[dict[str, str]], content_types: list[s
         "ARCHIVE_HREF": "./archive/",
         "START_HREF": "./start/",
         "PROOF_HREF": "./proof/",
-        "ENTRY_PAPER_HREF": "./papers/contract-centered-iterative-stability-v4.7.3/",
         "AUTHORITY_COUNT": str(authority_count),
         "AUTHORITY_COLLECTION_COUNT": str(authority_collection_count),
         "PAPERS_COUNT": str(len(grouped["papers"])),
@@ -190,23 +195,20 @@ def render_start_page(latest_entries: list[dict[str, str]], site_name: str, load
     cce_entry = find_entry_by_slug_prefix(latest_entries, "papers", "contract-centered-engineering-")
     stability_entry = find_entry_by_slug_prefix(latest_entries, "papers", "contract-centered-iterative-stability-")
     thesis_entry = find_entry_by_slug_prefix(latest_entries, "papers", "thesis-experimental-methodology-")
+    boundary_entry = find_entry_by_slug_prefix(latest_entries, "papers", "contract-authority-under-ai-")
 
     authority_href = href_or_fallback(authority_entry, "/latest/#authority")
     non_engineering_href = href_or_fallback(non_engineering_entry, "/non-engineering/")
     cce_href = href_or_fallback(cce_entry, "/latest/#papers")
     stability_href = href_or_fallback(stability_entry, "/latest/#papers")
     thesis_href = href_or_fallback(thesis_entry, "/latest/#replication")
+    boundary_href = href_or_fallback(boundary_entry, "/latest/#papers")
 
     core_path_items = [
         (
-            title_or_fallback(authority_entry, "Authority, Execution, and Refusal"),
-            authority_href,
-            "Establishes the authority problem before the engineering claims.",
-        ),
-        (
-            title_or_fallback(cce_entry, "Contract-Centered Engineering"),
-            cce_href,
-            "Explains why contracts become primary when implementation cost collapses.",
+            title_or_fallback(boundary_entry, "Contract Authority Under AI"),
+            boundary_href,
+            "States the narrower result, the surviving claim, and the authority boundary that did not hold.",
         ),
         (
             title_or_fallback(stability_entry, "Contract-Centered Iterative Stability"),
@@ -214,9 +216,14 @@ def render_start_page(latest_entries: list[dict[str, str]], site_name: str, load
             "Shows the repeated drift mechanism and the boundary where prompts stop carrying invariant scope.",
         ),
         (
-            title_or_fallback(thesis_entry, "Thesis & Experimental Methodology"),
-            thesis_href,
-            "Provides the compact thesis and experiment frame without making replication the front door.",
+            title_or_fallback(cce_entry, "Contract-Centered Engineering"),
+            cce_href,
+            "Explains why explicit source-of-truth artifacts still matter even when they are not the final authority surface.",
+        ),
+        (
+            title_or_fallback(authority_entry, "Authority, Execution, and Refusal"),
+            authority_href,
+            "Moves from the bounded engineering result into the broader authority framing.",
         ),
     ]
     core_path_html = "".join(
@@ -236,6 +243,8 @@ def render_start_page(latest_entries: list[dict[str, str]], site_name: str, load
         "PROOF_HREF": "../proof/",
         "AUTHORITY_HREF": safe_text(authority_href),
         "AUTHORITY_TITLE": safe_text(title_or_fallback(authority_entry, "Authority, Execution, and Refusal")),
+        "BOUNDARY_HREF": safe_text(boundary_href),
+        "BOUNDARY_TITLE": safe_text(title_or_fallback(boundary_entry, "Contract Authority Under AI")),
         "NON_ENGINEERING_HREF": safe_text(non_engineering_href),
         "NON_ENGINEERING_TITLE": safe_text(title_or_fallback(non_engineering_entry, "What AI Gets Wrong When You Iterate")),
         "CCE_HREF": safe_text(cce_href),
@@ -255,6 +264,7 @@ def render_proof_page(latest_entries: list[dict[str, str]], site_name: str, load
     thesis_entry = find_entry_by_slug_prefix(latest_entries, "papers", "thesis-experimental-methodology-")
     replication_entry = find_entry_by_slug_prefix(latest_entries, "replication", "context-injection-research-program")
     cce_entry = find_entry_by_slug_prefix(latest_entries, "papers", "contract-centered-engineering-")
+    boundary_entry = find_entry_by_slug_prefix(latest_entries, "papers", "contract-authority-under-ai-")
 
     return render_template(template, {
         "SITE_NAME": safe_text(site_name),
@@ -262,6 +272,8 @@ def render_proof_page(latest_entries: list[dict[str, str]], site_name: str, load
         "START_HREF": "../start/",
         "LATEST_HREF": "../latest/",
         "ARCHIVE_HREF": "../archive/",
+        "BOUNDARY_HREF": safe_text(href_or_fallback(boundary_entry, "/latest/#papers")),
+        "BOUNDARY_TITLE": safe_text(title_or_fallback(boundary_entry, "Contract Authority Under AI")),
         "STABILITY_HREF": safe_text(href_or_fallback(stability_entry, "/latest/#papers")),
         "STABILITY_TITLE": safe_text(title_or_fallback(stability_entry, "Contract-Centered Iterative Stability")),
         "THESIS_HREF": safe_text(href_or_fallback(thesis_entry, "/latest/#replication")),

@@ -37,27 +37,27 @@ h1{margin:0 0 .9rem;font-size:clamp(2.4rem,8vw,4.6rem);line-height:.98;letter-sp
     <p class="kicker">AI engineering research</p>
     <h1>{{SITE_NAME}}</h1>
     <p class="credit">Gregory Tomlinson</p>
-    <p class="lead">A bounded body of work about preserving decision authority when AI accelerates implementation faster than humans can safely review it.</p>
-    <p class="lead">Start with the orientation path, then move into the authority essays and core papers. Contracts support the claims. Replication stays available for portability and rerun support, not as the primary cold-reading surface.</p>
+    <p class="lead">A bounded research corpus on AI-assisted software work: how explicit source-of-truth artifacts reduce drift, where authority actually lives, and what contracts can and cannot prove.</p>
+    <p class="lead">Start with the orientation path, then move into the papers and authority essays. Contracts support the claims. Replication stays available for portability and rerun support, not as the primary cold-reading surface.</p>
     <div class="actions">
       <a class="primary" href="{{START_HREF}}">Start here</a>
       <a href="{{PROOF_HREF}}">What is proven</a>
-      <a href="{{LATEST_HREF}}">Read the core path</a>
+      <a href="{{LATEST_HREF}}">Read the papers</a>
     </div>
 
     <section class="primary-stack" aria-label="Primary sections">
-      <a class="primary-feature" href="{{LATEST_HREF}}#authority">
+      <a class="primary-feature" href="{{LATEST_HREF}}#papers">
         <span class="eyebrow">Primary path</span>
-        <h2>Authority</h2>
-        <p>Collections and linked essays that diagnose where control actually lives and why understanding alone does not restore it.</p>
-        <div class="count">{{AUTHORITY_COLLECTION_COUNT}} collection · {{AUTHORITY_COUNT}} essays</div>
+        <h2>Papers</h2>
+        <p>Research and mechanism papers, boundary papers, comparisons, and synthesis that make the engineering claims legible.</p>
+        <div class="count">{{PAPERS_COUNT}} current items</div>
       </a>
       <div class="primary-pair">
-        <a class="primary-row" href="{{LATEST_HREF}}#papers">
+        <a class="primary-row" href="{{LATEST_HREF}}#authority">
           <span class="eyebrow">Primary path</span>
-          <h2>Papers</h2>
-          <p>Research and mechanism papers, comparisons, and synthesis that make the engineering claims legible.</p>
-          <div class="count">{{PAPERS_COUNT}} current items</div>
+          <h2>Authority</h2>
+          <p>Collections and linked essays that diagnose where control actually lives and why understanding alone does not restore it.</p>
+          <div class="count">{{AUTHORITY_COLLECTION_COUNT}} collection · {{AUTHORITY_COUNT}} essays</div>
         </a>
         <a class="primary-row" href="{{ARCHIVE_HREF}}">
           <span class="eyebrow">Browse</span>
@@ -74,7 +74,7 @@ h1{margin:0 0 .9rem;font-size:clamp(2.4rem,8vw,4.6rem);line-height:.98;letter-sp
         <a class="secondary-row" href="{{LATEST_HREF}}#contracts">
           <span class="eyebrow">Secondary</span>
           <h2>Contracts</h2>
-          <p>Operational semantics and governing artifacts that support the papers without becoming the front door.</p>
+          <p>Governing artifacts and operational semantics that support the papers. Valuable as explicit source-of-truth artifacts, but not presented here as the live authority surface.</p>
           <div class="count">{{CONTRACTS_COUNT}} current items</div>
         </a>
         <a class="secondary-row" href="{{LATEST_HREF}}#replication">

@@ -35,8 +35,8 @@ body{margin:0;padding:0;overflow-x:hidden}*,*::before,*::after{box-sizing:inheri
     <div class="heading">
       <p class="kicker">Proof boundary</p>
       <h1>What is proven here</h1>
-      <p class="intro">The core claim is that workflows which externalize authority into explicit, versioned contracts exhibit lower iterative drift than workflows that modify code directly through conversational prompts.</p>
-      <p class="warning">This site argues for a repeatable mechanism and a bounded research claim, not a universal proof about every model, team, or software domain.</p>
+      <p class="intro">The strongest claim did not survive. What is supported here is narrower: explicit source-of-truth artifacts materially reduce drift and improve invariant preservation in AI-assisted iteration, especially when guarantees span multiple mutation surfaces.</p>
+      <p class="warning">What is not proven here is that contracts themselves become the live authority surface. This site argues for a repeatable mechanism and a bounded research claim, not a universal proof about every model, team, or software domain.</p>
     </div>
     <nav>
       <a href="{{HOME_HREF}}">Home</a>
@@ -48,21 +48,26 @@ body{margin:0;padding:0;overflow-x:hidden}*,*::before,*::after{box-sizing:inheri
 
   <div class="stack">
     <section class="section">
-      <h2>Type of evidence</h2>
-      <p>The evidence here is mechanism evidence: repeated structured runs, comparative tracks, clause-level evaluation, and explicit failure localization across deltas. Start with <a href="{{STABILITY_HREF}}">{{STABILITY_TITLE}}</a> and the compact framing in <a href="{{THESIS_HREF}}">{{THESIS_TITLE}}</a>.</p>
+      <h2>What held</h2>
+      <p>The strongest positive result is narrower than the earlier framing. When important guarantees span multiple mutation surfaces, explicit source-of-truth artifacts help preserve invariant scope during AI-assisted iteration. Start with <a href="{{BOUNDARY_HREF}}">{{BOUNDARY_TITLE}}</a> and <a href="{{STABILITY_HREF}}">{{STABILITY_TITLE}}</a>.</p>
     </section>
 
     <section class="section">
-      <h2>What has been replicated</h2>
-      <p>The site includes portable replication materials, methodology, and program-level packaging intended to let the work be rerun or checked without making replication the front door. See <a href="{{REPLICATION_HREF}}">{{REPLICATION_TITLE}}</a>.</p>
+      <h2>What did not hold</h2>
+      <p>Contracts did not become the place where the system actually permits, refuses, or constrains action. Once operationalized, effective control moved into downstream machinery such as manifests, fixtures, and evaluators.</p>
+    </section>
+
+    <section class="section">
+      <h2>Type of evidence</h2>
+      <p>The evidence here is mechanism evidence: repeated structured runs, comparative tracks, clause-level evaluation, and explicit failure localization across deltas. Start with <a href="{{STABILITY_HREF}}">{{STABILITY_TITLE}}</a>, the compact framing in <a href="{{THESIS_HREF}}">{{THESIS_TITLE}}</a>, and the broader engineering framing in <a href="{{CCE_HREF}}">{{CCE_TITLE}}</a>.</p>
     </section>
 
     <section class="section">
       <h2>What remains bounded</h2>
       <ul>
         <li>This is a bounded engineering research corpus, not a universal benchmark claim.</li>
-        <li>The current evidence is strongest on invariant-scope drift under iterative change.</li>
-        <li>The research argues for authority structure as the differentiator, not raw model capability.</li>
+        <li>The current evidence is strongest on cross-surface invariant-scope drift under iterative change.</li>
+        <li>The research supports explicit source-of-truth artifacts reducing drift, not contracts as the final authority surface.</li>
       </ul>
     </section>
 
@@ -71,10 +76,10 @@ body{margin:0;padding:0;overflow-x:hidden}*,*::before,*::after{box-sizing:inheri
       <ul>
         <li>It does not claim every AI-assisted workflow fails.</li>
         <li>It does not claim all prompts are useless.</li>
+        <li>It does not claim contracts alone bind models or systems.</li>
         <li>It does not claim statistical closure across every model, organization, or domain.</li>
-        <li>It does not replace the broader conceptual framing in <a href="{{CCE_HREF}}">{{CCE_TITLE}}</a>.</li>
       </ul>
-      <p class="note">The closure move here is explicit boundedness: a clear claim, a clear evidence type, and a clear limit surface.</p>
+      <p class="note">The closure move here is explicit boundedness: a clear claim, a clear evidence type, and a clear limit surface. Portable rerun material remains available in <a href="{{REPLICATION_HREF}}">{{REPLICATION_TITLE}}</a> without becoming the front door.</p>
     </section>
   </div>
 </main>
