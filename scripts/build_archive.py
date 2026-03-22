@@ -52,6 +52,8 @@ DIST = ROOT / "dist"
 TEMPLATES = ROOT / "scripts" / "templates"
 SITE_NAME = "Probabilistic Systems Engineering"
 SITE_URL = "https://ai.gtzilla.com"
+GITHUB_REPO_URL = "https://github.com/gtzilla/probabilistic-systems-engineering"
+GITHUB_DISCUSSIONS_URL = f"{GITHUB_REPO_URL}/discussions"
 CONTENT_TYPES = ["authority", "papers", "contracts", "replication", "non-engineering"]
 TYPE_LABELS = {"authority": "Authority", "papers": "Papers", "contracts": "Contracts", "replication": "Replication & Verification", "non-engineering": "Non-Engineering"}
 
@@ -340,6 +342,13 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
         non_engineering_theme = infer_non_engineering_theme(metadata, doc_title)
 
     template = load_template(template_name)
+    discussion_html = ""
+    if str(metadata.get("content_type")) == "papers" and str(metadata.get("kind")) == "paper":
+        discussion_html = (
+            '<a class="pse-footer-link" href="'
+            + safe_text(GITHUB_DISCUSSIONS_URL)
+            + '">Discussion</a>'
+        )
     return render_template(
         template,
         {
@@ -353,6 +362,7 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
             "EXPORTED_STYLES": exported_styles,
             "DOCUMENT_BODY": body_html,
             "NON_ENGINEERING_THEME": safe_text(non_engineering_theme),
+            "DOCUMENT_FOOTER_LINK": discussion_html,
         },
     )
 

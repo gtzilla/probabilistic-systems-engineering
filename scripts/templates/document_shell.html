@@ -400,6 +400,18 @@
       font-size: 0.95rem;
     }
 
+    .pse-footer-link {
+      display: inline-block;
+      margin-right: 1rem;
+      color: var(--pse-link);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .pse-footer-link:hover {
+      text-decoration: underline;
+    }
+
     @media (max-width: 820px) {
       .pse-topbar-inner {
         display: block;
@@ -462,6 +474,6 @@
   <main class="pse-doc-shell">
     {{DOCUMENT_BODY}}
   </main>
-  <footer class="pse-footer">Authored by Gregory Tomlinson</footer>
+  <footer class="pse-footer">{{DOCUMENT_FOOTER_LINK}}Authored by Gregory Tomlinson</footer>
 </body>
 </html>
