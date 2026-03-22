@@ -7,6 +7,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import zipfile
 from datetime import datetime, timezone
@@ -108,6 +109,41 @@ def derive_folder_publication_date(doc_dir: Path) -> str:
 
 
 
+def derive_git_first_seen_publication_date(doc_dir: Path) -> str:
+    try:
+        result = subprocess.run(
+            [
+                'git',
+                'log',
+                '--diff-filter=A',
+                '--follow',
+                '--format=%aI',
+                '--',
+                str(doc_dir),
+            ],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return ''
+
+    if result.returncode != 0:
+        return ''
+
+    lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    if not lines:
+        return ''
+
+    first_seen = lines[-1]
+    try:
+        return datetime.fromisoformat(first_seen.replace('Z', '+00:00')).date().isoformat()
+    except ValueError:
+        return ''
+
+
+
 def read_json_file(path: Path) -> dict[str, Any]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -130,19 +166,17 @@ def resolve_paper_publication_metadata(doc_dir: Path) -> dict[str, str]:
             parsed = datetime.strptime(date_value, "%Y-%m-%d")
         except ValueError:
             fail(f"{metadata_path}: date must use YYYY-MM-DD")
-        source_value = str(data.get("date_source", "manual")).strip() or "manual"
         return {
             "date": parsed.date().isoformat(),
-            "date_source": source_value,
+            "date_source": "manual",
         }
 
-    derived_date = derive_folder_publication_date(doc_dir)
-    payload = {
+    git_first_seen = derive_git_first_seen_publication_date(doc_dir)
+    derived_date = git_first_seen or derive_folder_publication_date(doc_dir)
+    return {
         "date": derived_date,
-        "date_source": "auto",
+        "date_source": "git-first-seen" if git_first_seen else "folder-derived",
     }
-    metadata_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    return payload
 
 
 
@@ -153,53 +187,6 @@ def format_publication_date(date_value: str, style: str) -> str:
     if style == "document":
         return parsed.strftime("%B %d, %Y")
     fail(f"Unknown publication date style: {style}")
-
-
-def apply_paper_family_publication_monotonicity(entries: list[dict[str, str]], metadata_index: list[dict[str, object]]) -> None:
-    metadata_by_slug: dict[str, dict[str, object]] = {
-        str(item.get("slug", "")): item
-        for item in metadata_index
-        if str(item.get("content_type", "")) == "papers" and str(item.get("slug", ""))
-    }
-    family_members: dict[str, list[tuple[tuple[int, ...], str]]] = {}
-    for entry in entries:
-        if entry.get("type") != "papers":
-            continue
-        family_key, version_tuple = family_slug_and_version(entry)
-        if not family_key or not version_tuple:
-            continue
-        family_members.setdefault(family_key, []).append((version_tuple, entry["slug"]))
-
-    for slug_list in family_members.values():
-        sorted_members = sorted(slug_list, key=lambda item: item[0])
-        effective_dates: dict[str, str] = {}
-        latest_effective_date = ""
-        for _version_tuple, slug in sorted_members:
-            entry = next((row for row in entries if row.get("type") == "papers" and row.get("slug") == slug), None)
-            metadata = metadata_by_slug.get(slug)
-            base_date = ""
-            if metadata and str(metadata.get("publication_date", "")):
-                base_date = str(metadata["publication_date"])
-            elif entry and str(entry.get("publication_date", "")):
-                base_date = str(entry["publication_date"])
-            if not base_date:
-                continue
-            effective_date = max(base_date, latest_effective_date) if latest_effective_date else base_date
-            effective_dates[slug] = effective_date
-            latest_effective_date = effective_date
-
-        for slug, effective_date in effective_dates.items():
-            entry = next((row for row in entries if row.get("type") == "papers" and row.get("slug") == slug), None)
-            if entry is not None:
-                entry["publication_date"] = effective_date
-                entry["archive_date"] = format_publication_date(effective_date, "archive")
-            metadata = metadata_by_slug.get(slug)
-            if metadata is not None:
-                metadata["publication_date"] = effective_date
-                metadata["publication_date_archive"] = format_publication_date(effective_date, "archive")
-                metadata["publication_date_document"] = format_publication_date(effective_date, "document")
-                metadata["publication_date_effective"] = effective_date
-
 
 
 def detect_version(text: str) -> str:
@@ -236,6 +223,22 @@ def slug_family_info(slug: str) -> tuple[str, str, tuple[int, ...]]:
     version = match.group("version")
     family_parts = parts[:-1] + [family_leaf]
     return ("/".join(family_parts), version, parse_version_tuple(version))
+
+
+def find_latest_paper_slugs(doc_specs: list[tuple[Path, str]]) -> set[str]:
+    family_members: dict[str, list[tuple[tuple[int, ...], str]]] = {}
+    latest_slugs: set[str] = set()
+    for doc_dir, relative_slug in doc_specs:
+        family_key, _version, version_tuple = slug_family_info(relative_slug)
+        if not family_key or not version_tuple:
+            latest_slugs.add(relative_slug)
+            continue
+        family_members.setdefault(family_key, []).append((version_tuple, relative_slug))
+
+    for members in family_members.values():
+        latest_slugs.add(max(members, key=lambda item: item[0])[1])
+
+    return latest_slugs
 
 
 def estimate_reading_time_minutes(text: str) -> int:
@@ -457,12 +460,16 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
 
     template = load_template(template_name)
     discussion_html = ""
+    publication_html = ""
     if str(metadata.get("content_type")) == "papers" and str(metadata.get("kind")) == "paper":
         discussion_html = (
             '<a class="pse-footer-link" href="'
             + safe_text(GITHUB_DISCUSSIONS_URL)
             + '">Discussion</a>'
         )
+        publication_date_document = str(metadata.get("publication_date_document", "")).strip()
+        if publication_date_document:
+            publication_html = '<span class="pse-footer-date">' + safe_text(publication_date_document) + '</span>'
     return render_template(
         template,
         {
@@ -477,7 +484,7 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
             "DOCUMENT_BODY": body_html,
             "NON_ENGINEERING_THEME": safe_text(non_engineering_theme),
             "DOCUMENT_FOOTER_LINK": discussion_html,
-            "DOCUMENT_PUBLICATION_DATE": safe_text(str(metadata.get("publication_date_document", ""))),
+            "DOCUMENT_PUBLICATION_HTML": publication_html,
         },
     )
 
@@ -568,6 +575,7 @@ def build_doc(
     doc_dir: Path,
     relative_slug: str,
     tmp_root: Path,
+    latest_paper_slugs: set[str],
 ) -> tuple[list[dict[str, str]], list[dict[str, object]], dict[str, dict[str, object]]]:
     slug = relative_slug
     pdf = find_exactly_one(doc_dir, "*.pdf", "PDF")
@@ -602,7 +610,8 @@ def build_doc(
     normalized = normalize_exported_html(raw_html)
     raw_body_html = extract_body_inner_html(normalized)
     body_html = refine_body_html(raw_body_html)
-    publication_metadata = resolve_paper_publication_metadata(doc_dir) if type_name == "papers" else None
+    is_latest_paper_version = type_name != "papers" or relative_slug in latest_paper_slugs
+    publication_metadata = resolve_paper_publication_metadata(doc_dir) if type_name == "papers" and is_latest_paper_version else None
     metadata, match_context = derive_document_metadata(type_name, relative_slug, doc_title, pdf.name, body_html, publication_metadata)
     wrapped_html = render_document_page(raw_html, pdf_href, doc_title, metadata)
     shutil.copy2(pdf, out_dir / pdf.name)
@@ -833,21 +842,25 @@ def main() -> int:
     match_contexts: dict[str, dict[str, object]] = {}
 
     try:
+        doc_specs_by_type: dict[str, list[tuple[Path, str]]] = {}
         for type_name in CONTENT_TYPES:
             type_root = INCOMING / type_name
             if not type_root.exists():
                 continue
             if not type_root.is_dir():
                 fail(f"{type_root} exists but is not a directory")
+            doc_specs_by_type[type_name] = discover_doc_dirs(type_root)
 
-            for doc_dir, relative_slug in discover_doc_dirs(type_root):
-                doc_entries, doc_metadata_items, doc_match_contexts = build_doc(type_name, doc_dir, relative_slug, tmp_root)
+        latest_paper_slugs = find_latest_paper_slugs(doc_specs_by_type.get("papers", []))
+
+        for type_name in CONTENT_TYPES:
+            for doc_dir, relative_slug in doc_specs_by_type.get(type_name, []):
+                doc_entries, doc_metadata_items, doc_match_contexts = build_doc(type_name, doc_dir, relative_slug, tmp_root, latest_paper_slugs)
                 entries.extend(doc_entries)
                 metadata_index.extend(doc_metadata_items)
                 match_contexts.update(doc_match_contexts)
 
         entries = collect_pdf_only_contract_entries(entries)
-        apply_paper_family_publication_monotonicity(entries, metadata_index)
         copy_static_assets()
         copy_root_passthrough_files()
         latest_entries, family_buckets = latest_entries_and_families(entries)
