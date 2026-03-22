@@ -10,6 +10,7 @@ import shutil
 import sys
 import zipfile
 from datetime import datetime, timezone
+from typing import Any
 from pathlib import Path
 
 from archive_build.html_processing import (
@@ -56,6 +57,7 @@ GITHUB_REPO_URL = "https://github.com/gtzilla/probabilistic-systems-engineering"
 GITHUB_DISCUSSIONS_URL = f"{GITHUB_REPO_URL}/discussions"
 CONTENT_TYPES = ["authority", "papers", "contracts", "replication", "non-engineering"]
 TYPE_LABELS = {"authority": "Authority", "papers": "Papers", "contracts": "Contracts", "replication": "Replication & Verification", "non-engineering": "Non-Engineering"}
+PAPER_PUBLICATION_FILENAME = "published.json"
 
 
 def fail(msg: str) -> None:
@@ -93,6 +95,64 @@ def safe_json(value: object) -> str:
 
 
 
+def derive_folder_publication_date(doc_dir: Path) -> str:
+    timestamps: list[datetime] = []
+    for child in sorted(doc_dir.iterdir()):
+        if child.name == PAPER_PUBLICATION_FILENAME or child.name.startswith('.'):
+            continue
+        stat = child.stat()
+        timestamps.append(datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc))
+    if not timestamps:
+        fail(f"{doc_dir}: unable to derive publication date; folder is empty")
+    return min(timestamps).date().isoformat()
+
+
+
+def read_json_file(path: Path) -> dict[str, Any]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        fail(f"{path}: invalid JSON ({exc})")
+    if not isinstance(data, dict):
+        fail(f"{path}: expected a JSON object")
+    return data
+
+
+
+def resolve_paper_publication_metadata(doc_dir: Path) -> dict[str, str]:
+    metadata_path = doc_dir / PAPER_PUBLICATION_FILENAME
+    if metadata_path.exists():
+        data = read_json_file(metadata_path)
+        date_value = str(data.get("date", "")).strip()
+        if not date_value:
+            fail(f"{metadata_path}: missing required 'date'")
+        try:
+            parsed = datetime.strptime(date_value, "%Y-%m-%d")
+        except ValueError:
+            fail(f"{metadata_path}: date must use YYYY-MM-DD")
+        source_value = str(data.get("date_source", "manual")).strip() or "manual"
+        return {
+            "date": parsed.date().isoformat(),
+            "date_source": source_value,
+        }
+
+    derived_date = derive_folder_publication_date(doc_dir)
+    payload = {
+        "date": derived_date,
+        "date_source": "auto",
+    }
+    metadata_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return payload
+
+
+
+def format_publication_date(date_value: str, style: str) -> str:
+    parsed = datetime.strptime(date_value, "%Y-%m-%d")
+    if style == "archive":
+        return parsed.strftime("%Y-%m")
+    if style == "document":
+        return parsed.strftime("%B %d, %Y")
+    fail(f"Unknown publication date style: {style}")
 
 
 
@@ -182,6 +242,7 @@ def derive_document_metadata(
     doc_title: str,
     pdf_name: str,
     body_html: str,
+    publication_metadata: dict[str, str] | None = None,
 ) -> tuple[dict[str, object], dict[str, object]]:
     paragraphs = extract_candidate_paragraph_texts(body_html)
     description = derive_description(paragraphs, doc_title)
@@ -215,6 +276,11 @@ def derive_document_metadata(
         "word_count": len(re.findall(r"\S+", full_text)),
         "reading_time_minutes": estimate_reading_time_minutes(full_text),
     }
+    if publication_metadata:
+        metadata["publication_date"] = publication_metadata["date"]
+        metadata["publication_date_document"] = format_publication_date(publication_metadata["date"], "document")
+        metadata["publication_date_archive"] = format_publication_date(publication_metadata["date"], "archive")
+        metadata["publication_date_source"] = publication_metadata.get("date_source", "manual")
     return metadata, document_match_context(metadata, full_text)
 
 
@@ -244,6 +310,8 @@ def build_structured_data(metadata: dict[str, object]) -> str:
     }
     if metadata.get("version"):
         payload["version"] = metadata["version"]
+    if metadata.get("publication_date"):
+        payload["datePublished"] = metadata["publication_date"]
     if metadata.get("group_key"):
         payload["isPartOf"] = {
             "@type": "CreativeWorkSeries",
@@ -363,6 +431,7 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
             "DOCUMENT_BODY": body_html,
             "NON_ENGINEERING_THEME": safe_text(non_engineering_theme),
             "DOCUMENT_FOOTER_LINK": discussion_html,
+            "DOCUMENT_PUBLICATION_DATE": safe_text(str(metadata.get("publication_date_document", ""))),
         },
     )
 
@@ -487,7 +556,8 @@ def build_doc(
     normalized = normalize_exported_html(raw_html)
     raw_body_html = extract_body_inner_html(normalized)
     body_html = refine_body_html(raw_body_html)
-    metadata, match_context = derive_document_metadata(type_name, relative_slug, doc_title, pdf.name, body_html)
+    publication_metadata = resolve_paper_publication_metadata(doc_dir) if type_name == "papers" else None
+    metadata, match_context = derive_document_metadata(type_name, relative_slug, doc_title, pdf.name, body_html, publication_metadata)
     wrapped_html = render_document_page(raw_html, pdf_href, doc_title, metadata)
     shutil.copy2(pdf, out_dir / pdf.name)
 
@@ -499,6 +569,8 @@ def build_doc(
         "url": f"/{type_name}/{slug}/",
         "pdf_url": f"/{type_name}/{slug}/{pdf.name}",
         "description": document_generated_description(body_html, pdf.stem),
+        "publication_date": str(metadata.get("publication_date", "")),
+        "archive_date": str(metadata.get("publication_date_archive", "")),
     }]
     metadata_items = [metadata]
     match_contexts = {str(metadata["slug"]): match_context}

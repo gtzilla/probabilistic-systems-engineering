@@ -31,6 +31,13 @@ def family_slug_and_version(entry: dict[str, str]) -> tuple[str, tuple[int, ...]
     return family_key, version_tuple
 
 
+
+def entry_sort_key(entry: dict[str, str]) -> tuple[str, str]:
+    publication_date = entry.get("publication_date", "")
+    title = entry.get("title", "").lower()
+    return (publication_date, title)
+
+
 def render_redirect_page(target_href: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str], site_name: str) -> str:
     template = load_template("redirect.html")
     return render_template(template, {"TARGET_HREF": safe_text(target_href), "SITE_NAME": safe_text(site_name)})
@@ -55,13 +62,19 @@ def render_item_card(item: dict[str, str]) -> str:
         actions.append(f'<a class="item-action" href="{safe_text(item["url"])}">Read</a>')
     actions.append(f'<a class="item-action" href="{safe_text(item["pdf_url"])}">PDF</a>')
     meta = " · ".join(actions)
-    title_html = f'<a class="item-title-link" href="{safe_text(primary_href)}">{safe_text(item["title"])}' + "</a>" if primary_href else safe_text(item["title"])
+    title_html = (
+        f'<a class="item-title-link" href="{safe_text(primary_href)}">{safe_text(item["title"])}' + "</a>"
+        if primary_href else safe_text(item["title"])
+    )
     description = (item.get("description") or "").strip()
     essay_count = int(item.get("essay_count", "0") or "0")
     if item.get("type") == "authority" and essay_count > 0:
         suffix = f" Includes {essay_count} essays."
         if suffix not in description:
             description = (description + " " + suffix).strip() if description else suffix.strip()
+    date_html = ""
+    if item.get("archive_date"):
+        date_html = f'<div class="item-date">{safe_text(item["archive_date"])}' + "</div>"
     desc_html = f'<div class="item-description">{safe_text(description)}</div>' if description else ""
     children_html = ""
     if item.get("type") == "authority":
@@ -70,7 +83,12 @@ def render_item_card(item: dict[str, str]) -> str:
         children_html = render_non_engineering_entry_children(item)
     latest_badge = '<span class="item-badge">Latest</span>' if item.get("is_latest") == "true" else ""
     version_note = '<span class="item-version-note">Older version</span>' if item.get("is_latest") == "false" else ""
-    return '<li class="archive-item">' + f'<div class="item-title">{title_html}{latest_badge}{version_note}</div>' + f"{desc_html}{children_html}<div class=\"item-actions\">{meta}</div>" + "</li>"
+    return (
+        '<li class="archive-item">'
+        + f'<div class="item-title">{title_html}{latest_badge}{version_note}</div>'
+        + f'{date_html}{desc_html}{children_html}<div class="item-actions">{meta}</div>'
+        + '</li>'
+    )
 
 
 def render_family_block(family_label: str, latest_item: dict[str, str], all_items: list[dict[str, str]], mode: str) -> str:
@@ -103,15 +121,19 @@ def render_sections(items: list[dict[str, str]], family_buckets: dict[tuple[str,
             flat_items.append(item)
     blocks: list[str] = []
     if flat_items:
-        rendered_items = "".join(render_item_card(dict(item, is_latest="true")) for item in sorted(flat_items, key=lambda value: value["title"].lower()))
+        flat_sorted = sorted(flat_items, key=entry_sort_key, reverse=True) if type_name == "papers" else sorted(flat_items, key=lambda value: value["title"].lower())
+        rendered_items = "".join(render_item_card(dict(item, is_latest="true")) for item in flat_sorted)
         blocks.append('<section class="group-block"><ul class="archive-list">' + rendered_items + "</ul></section>")
 
-    def family_order_key(family_key: str) -> tuple[int, str]:
+    def family_order_key(family_key: str) -> tuple[str, str]:
+        latest_item = family_latest[family_key]
         if mode == "latest" and type_name == "papers" and family_key.endswith("contract-authority-under-ai"):
-            return (0, family_key)
-        return (1, family_key)
+            return ("9999-99-99", family_key)
+        if type_name == "papers":
+            return (latest_item.get("publication_date", ""), family_key)
+        return ("", family_key)
 
-    for family_key in sorted(family_latest, key=family_order_key):
+    for family_key in sorted(family_latest.keys(), key=family_order_key, reverse=(type_name == "papers")):
         latest_item = family_latest[family_key]
         all_items = family_buckets.get((type_name, family_key), [latest_item])
         family_label = humanize_slug(family_key.split("/")[-1])

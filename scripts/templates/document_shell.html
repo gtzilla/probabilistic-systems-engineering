@@ -412,6 +412,11 @@
       text-decoration: underline;
     }
 
+    .pse-footer-date {
+      display: inline-block;
+      margin-right: 1rem;
+    }
+
     @media (max-width: 820px) {
       .pse-topbar-inner {
         display: block;
@@ -474,6 +479,6 @@
   <main class="pse-doc-shell">
     {{DOCUMENT_BODY}}
   </main>
-  <footer class="pse-footer">{{DOCUMENT_FOOTER_LINK}}Authored by Gregory Tomlinson</footer>
+  <footer class="pse-footer">{{DOCUMENT_FOOTER_LINK}}<span class="pse-footer-date">{{DOCUMENT_PUBLICATION_DATE}}</span>Authored by Gregory Tomlinson</footer>
 </body>
 </html>
