@@ -2,23 +2,22 @@
 
 > A bounded body of work about preserving decision authority when AI makes implementation cheap, fast, and difficult to safely review.
 
-Start with the authority essays and core papers. Use contracts as supporting source-of-truth artifacts. Replication materials are provided for portability, rerun support, and verification, not as the primary cold-reading path.
+Start with the core papers for the bounded research claim. Authority essays remain part of the surrounding conceptual track, but they are not the first mechanism or proof entry. Contracts are supporting source-of-truth artifacts that preserve operational semantics and cross-surface constraints. Replication materials are provided for portability, rerun support, and verification.
 
 ## Primary reading path
 - /start/ : human-oriented entry page for new readers
-- /authority/ : authority essays and conceptual framing
+- /contract-authority-under-ai/ : boundary paper and primary entry to the current claim set
 - /contract-centered-engineering/ : main engineering thesis
-- /contract-centered-iterative-stability/ : iterative stability / failure mechanism work
+- /contract-centered-iterative-stability/ : iterative stability and failure mechanism work
+
+## Research library
+- /latest/ : current library of papers, contracts, and supporting materials
+- /archive/ : versioned historical library
 
 ## Supporting artifacts
 - /contracts/ : governing artifacts and operational semantics
-- /latest/ : current library
-- /archive/ : versioned historical library
-
-## Audience-specific path
-- /non-engineering/ : non-engineering introduction and executive/manager path
+- /authority/ : authority essays and conceptual framing
 
 ## Verification support
 - /replication/ : portability, rerun support, and verification materials
 - /sitemap.xml : crawlable node list
-
