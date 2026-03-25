@@ -59,6 +59,13 @@ GITHUB_DISCUSSIONS_URL = f"{GITHUB_REPO_URL}/discussions"
 CONTENT_TYPES = ["authority", "papers", "contracts", "replication", "non-engineering"]
 TYPE_LABELS = {"authority": "Authority", "papers": "Papers", "contracts": "Contracts", "replication": "Replication & Verification", "non-engineering": "Non-Engineering"}
 PAPER_PUBLICATION_FILENAME = "published.json"
+OG_IMAGE_PATH = "/assets/brand-card-hal-9000.png"
+OG_IMAGE_URL = f"{SITE_URL}{OG_IMAGE_PATH}"
+OG_IMAGE_ALT = "HAL-inspired AI / GTzilla preview card"
+FAVICON_ICO_HREF = "/assets/favicon.ico"
+FAVICON_32_HREF = "/assets/hal-32x32.png"
+FAVICON_16_HREF = "/assets/hal-16x16.png"
+APPLE_TOUCH_ICON_HREF = "/assets/hal-180x180.png"
 
 
 def fail(msg: str) -> None:
@@ -480,6 +487,12 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
             "PDF_HREF": safe_text(pdf_href),
             "CANONICAL_URL": safe_text(str(metadata["html_url"])),
             "STRUCTURED_DATA_JSON": build_structured_data(metadata),
+            "OG_IMAGE_URL": safe_text(OG_IMAGE_URL),
+            "OG_IMAGE_ALT": safe_text(OG_IMAGE_ALT),
+            "FAVICON_ICO_HREF": safe_text(FAVICON_ICO_HREF),
+            "FAVICON_32_HREF": safe_text(FAVICON_32_HREF),
+            "FAVICON_16_HREF": safe_text(FAVICON_16_HREF),
+            "APPLE_TOUCH_ICON_HREF": safe_text(APPLE_TOUCH_ICON_HREF),
             "EXPORTED_STYLES": exported_styles,
             "DOCUMENT_BODY": body_html,
             "NON_ENGINEERING_THEME": safe_text(non_engineering_theme),
@@ -864,19 +877,19 @@ def main() -> int:
         copy_static_assets()
         copy_root_passthrough_files()
         latest_entries, family_buckets = latest_entries_and_families(entries)
-        (DIST / 'index.html').write_text(render_home_page(latest_entries, CONTENT_TYPES, SITE_NAME, load_template, render_template), encoding='utf-8')
+        (DIST / 'index.html').write_text(render_home_page(latest_entries, CONTENT_TYPES, SITE_NAME, SITE_URL, OG_IMAGE_URL, OG_IMAGE_ALT, FAVICON_ICO_HREF, FAVICON_32_HREF, FAVICON_16_HREF, APPLE_TOUCH_ICON_HREF, load_template, render_template), encoding='utf-8')
         start_dir = DIST / 'start'
         start_dir.mkdir(parents=True, exist_ok=True)
-        (start_dir / 'index.html').write_text(render_start_page(latest_entries, SITE_NAME, load_template, render_template), encoding='utf-8')
+        (start_dir / 'index.html').write_text(render_start_page(latest_entries, SITE_NAME, SITE_URL, OG_IMAGE_URL, OG_IMAGE_ALT, FAVICON_ICO_HREF, FAVICON_32_HREF, FAVICON_16_HREF, APPLE_TOUCH_ICON_HREF, load_template, render_template), encoding='utf-8')
         proof_dir = DIST / 'proof'
         proof_dir.mkdir(parents=True, exist_ok=True)
-        (proof_dir / 'index.html').write_text(render_proof_page(latest_entries, SITE_NAME, load_template, render_template), encoding='utf-8')
+        (proof_dir / 'index.html').write_text(render_proof_page(latest_entries, SITE_NAME, SITE_URL, OG_IMAGE_URL, OG_IMAGE_ALT, FAVICON_ICO_HREF, FAVICON_32_HREF, FAVICON_16_HREF, APPLE_TOUCH_ICON_HREF, load_template, render_template), encoding='utf-8')
         latest_dir = DIST / 'latest'
         latest_dir.mkdir(parents=True, exist_ok=True)
-        (latest_dir / 'index.html').write_text(render_listing_page(latest_entries, family_buckets, 'latest', CONTENT_TYPES, SITE_NAME, load_template, render_template), encoding='utf-8')
+        (latest_dir / 'index.html').write_text(render_listing_page(latest_entries, family_buckets, 'latest', CONTENT_TYPES, SITE_NAME, SITE_URL, OG_IMAGE_URL, OG_IMAGE_ALT, FAVICON_ICO_HREF, FAVICON_32_HREF, FAVICON_16_HREF, APPLE_TOUCH_ICON_HREF, load_template, render_template), encoding='utf-8')
         archive_dir = DIST / 'archive'
         archive_dir.mkdir(parents=True, exist_ok=True)
-        (archive_dir / 'index.html').write_text(render_listing_page(entries, family_buckets, 'archive', CONTENT_TYPES, SITE_NAME, load_template, render_template), encoding='utf-8')
+        (archive_dir / 'index.html').write_text(render_listing_page(entries, family_buckets, 'archive', CONTENT_TYPES, SITE_NAME, SITE_URL, OG_IMAGE_URL, OG_IMAGE_ALT, FAVICON_ICO_HREF, FAVICON_32_HREF, FAVICON_16_HREF, APPLE_TOUCH_ICON_HREF, load_template, render_template), encoding='utf-8')
         write_family_redirects(DIST, family_buckets)
         write_non_engineering_root_redirect(DIST)
         recommendation_artifacts = inject_discovery_sections(

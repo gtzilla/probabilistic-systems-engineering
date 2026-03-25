@@ -141,7 +141,7 @@ def render_sections(items: list[dict[str, str]], family_buckets: dict[tuple[str,
     return "\n".join(blocks)
 
 
-def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tuple[str, str], list[dict[str, str]]], mode: str, content_types: list[str], site_name: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str]) -> str:
+def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tuple[str, str], list[dict[str, str]]], mode: str, content_types: list[str], site_name: str, site_url: str, og_image_url: str, og_image_alt: str, favicon_ico_href: str, favicon_32_href: str, favicon_16_href: str, apple_touch_icon_href: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str]) -> str:
     grouped: dict[str, list[dict[str, str]]] = {key: [] for key in content_types}
     source_entries = entries if mode == "latest" else list(entries)
     for entry in source_entries:
@@ -154,9 +154,18 @@ def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tupl
     home_href = "../" if mode in ("latest", "archive") else "./"
     latest_href = "./" if mode == "latest" else "../latest/"
     archive_href = "./" if mode == "archive" else "../archive/"
+    canonical_url = f"{site_url}/{mode}/"
     return render_template(template, {
         "SITE_NAME": safe_text(site_name),
         "PAGE_TITLE": safe_text(f"{title} | {site_name}"),
+        "PAGE_DESCRIPTION": safe_text(intro),
+        "CANONICAL_URL": safe_text(canonical_url),
+        "OG_IMAGE_URL": safe_text(og_image_url),
+        "OG_IMAGE_ALT": safe_text(og_image_alt),
+        "FAVICON_ICO_HREF": safe_text(favicon_ico_href),
+        "FAVICON_32_HREF": safe_text(favicon_32_href),
+        "FAVICON_16_HREF": safe_text(favicon_16_href),
+        "APPLE_TOUCH_ICON_HREF": safe_text(apple_touch_icon_href),
         "PAGE_HEADING": safe_text(title),
         "PAGE_INTRO": safe_text(intro),
         "HOME_HREF": home_href,
@@ -169,15 +178,25 @@ def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tupl
     })
 
 
-def render_home_page(latest_entries: list[dict[str, str]], content_types: list[str], site_name: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str]) -> str:
+def render_home_page(latest_entries: list[dict[str, str]], content_types: list[str], site_name: str, site_url: str, og_image_url: str, og_image_alt: str, favicon_ico_href: str, favicon_32_href: str, favicon_16_href: str, apple_touch_icon_href: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str]) -> str:
     grouped: dict[str, list[dict[str, str]]] = {key: [] for key in content_types}
     for entry in latest_entries:
         grouped[entry["type"]].append(entry)
     authority_count = sum(int(entry.get("essay_count", "1")) for entry in grouped["authority"])
     authority_collection_count = len(grouped["authority"])
     template = load_template("home.html")
+    page_description = "A bounded research corpus on AI-assisted software work: how explicit source-of-truth artifacts reduce drift, where authority actually lives, and what contracts can and cannot prove."
     return render_template(template, {
         "SITE_NAME": safe_text(site_name),
+        "PAGE_TITLE": safe_text(site_name),
+        "PAGE_DESCRIPTION": safe_text(page_description),
+        "CANONICAL_URL": safe_text(f"{site_url}/"),
+        "OG_IMAGE_URL": safe_text(og_image_url),
+        "OG_IMAGE_ALT": safe_text(og_image_alt),
+        "FAVICON_ICO_HREF": safe_text(favicon_ico_href),
+        "FAVICON_32_HREF": safe_text(favicon_32_href),
+        "FAVICON_16_HREF": safe_text(favicon_16_href),
+        "APPLE_TOUCH_ICON_HREF": safe_text(apple_touch_icon_href),
         "LATEST_HREF": "./latest/",
         "ARCHIVE_HREF": "./archive/",
         "START_HREF": "./start/",
@@ -209,7 +228,7 @@ def title_or_fallback(entry: dict[str, str] | None, fallback: str) -> str:
     return fallback
 
 
-def render_start_page(latest_entries: list[dict[str, str]], site_name: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str]) -> str:
+def render_start_page(latest_entries: list[dict[str, str]], site_name: str, site_url: str, og_image_url: str, og_image_alt: str, favicon_ico_href: str, favicon_32_href: str, favicon_16_href: str, apple_touch_icon_href: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str]) -> str:
     template = load_template("start.html")
 
     authority_entry = next((entry for entry in latest_entries if entry.get("type") == "authority"), None)
@@ -259,6 +278,14 @@ def render_start_page(latest_entries: list[dict[str, str]], site_name: str, load
 
     return render_template(template, {
         "SITE_NAME": safe_text(site_name),
+        "PAGE_DESCRIPTION": safe_text("Start with the bounded result, then move into iterative stability, the broader engineering frame, and the authority essays."),
+        "CANONICAL_URL": safe_text(f"{site_url}/start/"),
+        "OG_IMAGE_URL": safe_text(og_image_url),
+        "OG_IMAGE_ALT": safe_text(og_image_alt),
+        "FAVICON_ICO_HREF": safe_text(favicon_ico_href),
+        "FAVICON_32_HREF": safe_text(favicon_32_href),
+        "FAVICON_16_HREF": safe_text(favicon_16_href),
+        "APPLE_TOUCH_ICON_HREF": safe_text(apple_touch_icon_href),
         "HOME_HREF": "../",
         "LATEST_HREF": "../latest/",
         "ARCHIVE_HREF": "../archive/",
@@ -279,7 +306,7 @@ def render_start_page(latest_entries: list[dict[str, str]], site_name: str, load
     })
 
 
-def render_proof_page(latest_entries: list[dict[str, str]], site_name: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str]) -> str:
+def render_proof_page(latest_entries: list[dict[str, str]], site_name: str, site_url: str, og_image_url: str, og_image_alt: str, favicon_ico_href: str, favicon_32_href: str, favicon_16_href: str, apple_touch_icon_href: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str]) -> str:
     template = load_template("proof.html")
 
     stability_entry = find_entry_by_slug_prefix(latest_entries, "papers", "contract-centered-iterative-stability-")
@@ -290,6 +317,14 @@ def render_proof_page(latest_entries: list[dict[str, str]], site_name: str, load
 
     return render_template(template, {
         "SITE_NAME": safe_text(site_name),
+        "PAGE_DESCRIPTION": safe_text("A bounded proof path: what is supported, what was tested, and where the current claims stop."),
+        "CANONICAL_URL": safe_text(f"{site_url}/proof/"),
+        "OG_IMAGE_URL": safe_text(og_image_url),
+        "OG_IMAGE_ALT": safe_text(og_image_alt),
+        "FAVICON_ICO_HREF": safe_text(favicon_ico_href),
+        "FAVICON_32_HREF": safe_text(favicon_32_href),
+        "FAVICON_16_HREF": safe_text(favicon_16_href),
+        "APPLE_TOUCH_ICON_HREF": safe_text(apple_touch_icon_href),
         "HOME_HREF": "../",
         "START_HREF": "../start/",
         "LATEST_HREF": "../latest/",
