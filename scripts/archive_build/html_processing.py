@@ -3,12 +3,143 @@ from __future__ import annotations
 import html
 import re
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString, Tag
 
 
 def strip_tags_to_text(raw: str) -> str:
     text = re.sub(r"<[^>]+>", " ", raw)
     return html.unescape(re.sub(r"\s+", " ", text)).strip()
+
+
+def _top_level_nodes(soup: BeautifulSoup) -> list[Tag | NavigableString]:
+    return [node for node in list(soup.contents)]
+
+
+def _is_block_tag(node: Tag | NavigableString) -> bool:
+    return isinstance(node, Tag) and node.name in {
+        "p", "div", "section", "article", "aside", "blockquote",
+        "pre", "table", "ul", "ol", "hr", "h1", "h2", "h3", "h4", "h5", "h6",
+    }
+
+
+def _heading_level(node: Tag | NavigableString) -> int | None:
+    if not isinstance(node, Tag) or not re.fullmatch(r"h[1-6]", node.name or "", flags=re.IGNORECASE):
+        return None
+    return int((node.name or "h0")[1:])
+
+
+def _marker_value(node: Tag | NavigableString, prefix: str) -> str:
+    if not isinstance(node, Tag) or node.name not in {"p", "h1", "h2", "h3", "h4", "h5", "h6"}:
+        return ""
+    text = strip_tags_to_text(str(node))
+    match = re.match(rf"^{re.escape(prefix)}\s*(.+?)\s*$", text, flags=re.IGNORECASE)
+    return match.group(1).strip() if match else ""
+
+
+def _preview_text_from_nodes(nodes: list[Tag | NavigableString], max_len: int = 180) -> str:
+    parts: list[str] = []
+    for node in nodes:
+        text = strip_tags_to_text(str(node))
+        if text:
+            parts.append(text)
+        joined = " ".join(parts).strip()
+        if len(joined) >= max_len:
+            break
+
+    preview = re.sub(r"\s+", " ", " ".join(parts)).strip()
+    if len(preview) > max_len:
+        return preview[: max_len - 1].rstrip() + "…"
+    return preview
+
+
+def apply_collapsible_markers(body_html: str) -> str:
+    soup = BeautifulSoup(body_html, "html.parser")
+    nodes = _top_level_nodes(soup)
+    idx = 0
+
+    while idx < len(nodes):
+        marker_node = nodes[idx]
+        title = _marker_value(marker_node, "Collapsed:")
+        if not title:
+            idx += 1
+            continue
+
+        marker_level = _heading_level(marker_node)
+        summary_text = ""
+        summary_node: Tag | NavigableString | None = None
+        content_start = idx + 1
+
+        while content_start < len(nodes):
+            candidate = nodes[content_start]
+            if isinstance(candidate, NavigableString) and not candidate.strip():
+                content_start += 1
+                continue
+            break
+
+        if content_start < len(nodes):
+            candidate = nodes[content_start]
+            summary_value = _marker_value(candidate, "Summary:")
+            if summary_value:
+                summary_text = summary_value
+                summary_node = candidate
+                content_start += 1
+
+        content_end = content_start
+        captured_nodes: list[Tag | NavigableString] = []
+
+        while content_end < len(nodes):
+            candidate = nodes[content_end]
+            level = _heading_level(candidate)
+            if level is not None:
+                if marker_level is not None and level <= marker_level:
+                    break
+                if marker_level is None:
+                    break
+            captured_nodes.append(candidate)
+            content_end += 1
+
+        block_nodes = [node for node in captured_nodes if not (isinstance(node, NavigableString) and not node.strip())]
+        has_block_content = any(_is_block_tag(node) or (isinstance(node, NavigableString) and node.strip()) for node in block_nodes)
+        if not has_block_content:
+            idx += 1
+            continue
+
+        preview_text = summary_text or _preview_text_from_nodes(block_nodes)
+
+        details = soup.new_tag("details", attrs={"class": "pse-collapsible-section"})
+        summary = soup.new_tag("summary", attrs={"class": "pse-collapsible-summary"})
+
+        title_span = soup.new_tag("span", attrs={"class": "pse-collapsible-title"})
+        title_span.string = title
+        summary.append(title_span)
+
+        if preview_text:
+            preview_span = soup.new_tag("span", attrs={"class": "pse-collapsible-preview"})
+            preview_span.string = preview_text
+            summary.append(preview_span)
+
+        toggle_span = soup.new_tag("span", attrs={"class": "pse-collapsible-toggle", "aria-hidden": "true"})
+        summary.append(toggle_span)
+
+        details.append(summary)
+
+        body = soup.new_tag("div", attrs={"class": "pse-collapsible-body"})
+        for node in block_nodes:
+            body.append(node.extract())
+        details.append(body)
+
+        marker_node.insert_before(details)
+        marker_node.extract()
+        if summary_node is not None:
+            summary_node.extract()
+
+        nodes = _top_level_nodes(soup)
+        try:
+            idx = nodes.index(details) + 1
+        except ValueError:
+            idx = content_end
+
+    return "".join(str(node) for node in soup.contents)
 
 
 def extract_candidate_paragraph_texts(body_html: str) -> list[str]:
@@ -169,6 +300,7 @@ def refine_body_html(body_html: str) -> str:
     )
 
     body_html = repair_flattened_nested_lists(body_html)
+    body_html = apply_collapsible_markers(body_html)
 
     def has_structural_content(raw: str) -> bool:
         return bool(re.search(r"<(img|svg|table|hr)\b", raw, flags=re.IGNORECASE))
