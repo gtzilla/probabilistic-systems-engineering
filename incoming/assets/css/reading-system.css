@@ -1,0 +1,184 @@
+/* DEV-like document reading surface */
+body.pse-page,
+body.nei-page {
+  background: var(--gtz-page-bg) !important;
+  color: var(--gtz-text);
+  font-size: 18px;
+  line-height: 1.65;
+}
+
+body.pse-page .pse-topbar,
+body.nei-page .nei-topbar {
+  background: transparent !important;
+  border-bottom: 0 !important;
+}
+
+body.pse-page .pse-topbar-inner,
+body.nei-page .nei-topbar-inner {
+  max-width: calc(var(--gtz-reading-width) + 2rem) !important;
+  margin: 0 auto;
+  padding-left: 0.5rem !important;
+  padding-right: 0.5rem !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body.pse-page .pse-doc-shell,
+body.nei-page .nei-doc-shell {
+  max-width: calc(var(--gtz-reading-width) + 2rem) !important;
+  margin: 0 auto 1.75rem !important;
+  padding: 0 1rem 2.5rem !important;
+}
+
+body.pse-page .pse-doc-shell,
+body.nei-page .nei-article {
+  background: #ffffff !important;
+  border: 1px solid #e7e5e4 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+}
+
+body.pse-page .pse-doc-shell {
+  padding: 1.55rem 1.75rem 2.75rem !important;
+}
+
+body.nei-page .nei-article {
+  padding: 1.55rem 1.75rem 2.75rem !important;
+}
+
+body.nei-page .nei-article::before {
+  display: none !important;
+}
+
+body.pse-page .pse-footer,
+body.nei-page .nei-footer {
+  max-width: calc(var(--gtz-reading-width) + 2rem) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+body.pse-page .pse-doc-shell p,
+body.pse-page .pse-doc-shell li,
+body.pse-page .pse-doc-shell blockquote,
+body.pse-page .pse-doc-shell table,
+body.nei-page .nei-article p,
+body.nei-page .nei-article li,
+body.nei-page .nei-article blockquote,
+body.nei-page .nei-article table {
+  font-size: 1.125rem !important;
+  line-height: 1.78 !important;
+}
+
+body.pse-page .pse-doc-shell h1,
+body.nei-page .nei-article h1 {
+  font-size: clamp(2.1rem, 4vw, 2.9rem) !important;
+  line-height: 1.05 !important;
+}
+
+body.pse-page .pse-doc-shell h2,
+body.nei-page .nei-article h2 {
+  font-size: clamp(1.55rem, 3vw, 2rem) !important;
+  line-height: 1.18 !important;
+}
+
+body.pse-page .pse-doc-shell h3,
+body.nei-page .nei-article h3 {
+  font-size: clamp(1.2rem, 2.2vw, 1.45rem) !important;
+  line-height: 1.24 !important;
+}
+
+body.pse-page .pse-doc-shell pre,
+body.nei-page .nei-article pre {
+  background: #0f172a !important;
+  color: #e5e7eb !important;
+  border: 1px solid #0b1220 !important;
+  border-radius: 10px !important;
+  padding: 1rem 1.1rem !important;
+  margin: 1.2rem 0 1.4rem !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: none !important;
+}
+
+body.pse-page .pse-doc-shell pre code,
+body.nei-page .nei-article pre code {
+  background: transparent !important;
+  color: inherit !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+body.pse-page .pse-doc-shell code,
+body.nei-page .nei-article code {
+  background: #f3f4f6;
+  color: #111827;
+  border-radius: 0.35rem;
+  padding: 0.12em 0.35em;
+}
+
+body.pse-page .pse-doc-shell blockquote,
+body.nei-page .nei-article blockquote {
+  background: #f9fafb !important;
+  border-left: 4px solid #d1d5db !important;
+  padding: 0.9rem 1rem !important;
+  color: #374151 !important;
+}
+
+body.pse-page .pse-collapsible-body,
+body.nei-page .pse-collapsible-body {
+  background: #ffffff !important;
+}
+
+@media (max-width: 820px) {
+  body.pse-page,
+  body.nei-page {
+    font-size: 19px;
+  }
+
+  body.pse-page .pse-topbar-inner,
+  body.nei-page .nei-topbar-inner {
+    padding-left: 0.3rem !important;
+    padding-right: 0.3rem !important;
+  }
+
+  body.pse-page .pse-doc-shell,
+  body.nei-page .nei-doc-shell {
+    padding-left: 1.15rem !important;
+    padding-right: 1.15rem !important;
+  }
+
+  body.pse-page .pse-doc-shell,
+  body.nei-page .nei-article {
+    border-radius: 8px !important;
+  }
+
+  body.pse-page .pse-doc-shell {
+    padding: 1.25rem 1.2rem 2rem !important;
+  }
+
+  body.nei-page .nei-article {
+    padding: 1.25rem 1.2rem 2rem !important;
+  }
+
+  body.pse-page .pse-doc-shell p,
+  body.pse-page .pse-doc-shell li,
+  body.pse-page .pse-doc-shell blockquote,
+  body.nei-page .nei-article p,
+  body.nei-page .nei-article li,
+  body.nei-page .nei-article blockquote {
+    font-size: 1.14rem !important;
+    line-height: 1.8 !important;
+  }
+
+  body.pse-page .pse-doc-shell pre,
+  body.nei-page .nei-article pre {
+    margin-left: -0.1rem !important;
+    margin-right: -0.1rem !important;
+  }
+}

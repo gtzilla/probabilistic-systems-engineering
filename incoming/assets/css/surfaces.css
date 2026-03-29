@@ -1,0 +1,147 @@
+/* Listing, proof, start, and home surface normalization */
+body.home-page,
+body.listing-page,
+body.start-page,
+body.proof-page,
+body.index-page {
+  background: var(--gtz-page-bg) !important;
+  color: var(--gtz-text);
+  font-size: 18px;
+  line-height: 1.65;
+}
+
+body.home-page::before,
+body.home-page::after {
+  display: none !important;
+}
+
+body.home-page .page,
+body.listing-page .page,
+body.start-page .page,
+body.proof-page .page,
+body.index-page .page {
+  max-width: var(--gtz-listing-width) !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+body.home-page .hero,
+body.listing-page .archive-section,
+body.start-page .stack,
+body.proof-page .stack,
+body.index-page .archive-section {
+  background: #ffffff !important;
+  border: 1px solid #e7e5e4 !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+}
+
+body.home-page .hero {
+  max-width: none !important;
+  border-radius: 10px !important;
+  padding: 1.5rem 1.5rem 1.7rem !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body.home-page .lead,
+body.listing-page .intro,
+body.listing-page .section-note,
+body.listing-page .item-description,
+body.start-page .intro,
+body.start-page .section p,
+body.start-page .section li,
+body.proof-page .intro,
+body.proof-page .warning,
+body.proof-page .section p,
+body.proof-page .section li,
+body.index-page .hero p,
+body.index-page .start-here,
+body.index-page .archive-section,
+body.index-page .archive-section li,
+body.index-page .archive-section p {
+  font-size: 1.05rem !important;
+  line-height: 1.7 !important;
+}
+
+body.home-page h1,
+body.listing-page .heading h1,
+body.start-page .heading h1,
+body.proof-page .heading h1,
+body.index-page .hero h1 {
+  letter-spacing: -0.035em !important;
+}
+
+body.listing-page .page,
+body.start-page .page,
+body.proof-page .page,
+body.index-page .page {
+  max-width: 54rem !important;
+}
+
+body.listing-page .top,
+body.start-page .top,
+body.proof-page .top {
+  margin-bottom: 1rem !important;
+}
+
+body.listing-page .archive-section,
+body.start-page .stack,
+body.proof-page .stack,
+body.index-page .archive-section {
+  border-radius: 10px !important;
+}
+
+body.index-page .page {
+  max-width: 58rem !important;
+}
+
+body.index-page .archive-grid {
+  gap: 1rem !important;
+}
+
+@media (max-width: 900px) {
+  body.home-page,
+  body.listing-page,
+  body.start-page,
+  body.proof-page,
+  body.index-page {
+    font-size: 19px;
+  }
+
+  body.home-page .page,
+  body.listing-page .page,
+  body.start-page .page,
+  body.proof-page .page,
+  body.index-page .page {
+    padding-left: 1.2rem !important;
+    padding-right: 1.2rem !important;
+  }
+
+  body.home-page .hero,
+  body.listing-page .archive-section,
+  body.start-page .stack,
+  body.proof-page .stack,
+  body.index-page .archive-section {
+    border-radius: 8px !important;
+  }
+
+  body.home-page .lead,
+  body.listing-page .intro,
+  body.listing-page .section-note,
+  body.listing-page .item-description,
+  body.start-page .intro,
+  body.start-page .section p,
+  body.start-page .section li,
+  body.proof-page .intro,
+  body.proof-page .warning,
+  body.proof-page .section p,
+  body.proof-page .section li,
+  body.index-page .hero p,
+  body.index-page .start-here,
+  body.index-page .archive-section,
+  body.index-page .archive-section li,
+  body.index-page .archive-section p {
+    font-size: 1.08rem !important;
+    line-height: 1.72 !important;
+  }
+}

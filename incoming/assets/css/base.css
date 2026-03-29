@@ -1,0 +1,24 @@
+/* Shared site reset and typography baseline */
+:root {
+  --gtz-page-bg: #f3f1eb;
+  --gtz-panel: #ffffff;
+  --gtz-text: #171717;
+  --gtz-muted: #5f6672;
+  --gtz-border: #e5e7eb;
+  --gtz-link: #1f2937;
+  --gtz-reading-width: 50rem;
+  --gtz-listing-width: 56rem;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  color: var(--gtz-text);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+a {
+  text-underline-offset: 0.15em;
+}
