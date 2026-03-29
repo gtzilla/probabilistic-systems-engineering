@@ -548,8 +548,22 @@
   <link rel="stylesheet" href="/assets/css/base.css">
   <link rel="stylesheet" href="/assets/css/reading-system.css">
   <link rel="stylesheet" href="/assets/css/surfaces.css">
+<script defer src="/assets/js/mobile-header.js"></script>
 </head>
-<body class="pse-page">
+<body class="pse-page has-mobile-header">
+  <header class="mobile-header" data-mobile-header>
+    <div class="mobile-header-bar">
+      <div class="mobile-header-title-wrap">
+        <a class="mobile-header-title" href="{{HOME_HREF}}">{{SITE_NAME}}</a>
+        <span class="mobile-header-section">Document</span>
+      </div>
+      <button class="mobile-header-toggle" type="button" data-mobile-menu-toggle aria-expanded="false" aria-controls="mobile-site-menu">Menu</button>
+    </div>
+    <nav id="mobile-site-menu" class="mobile-header-menu" data-mobile-menu aria-hidden="true">
+      <a href="{{HOME_HREF}}">Home</a>
+      <a href="{{PDF_HREF}}">PDF</a>
+    </nav>
+  </header>
   <header class="pse-topbar">
     <div class="pse-topbar-inner">
       <a class="pse-site-link" href="{{HOME_HREF}}">{{SITE_NAME}}</a>

@@ -49,8 +49,24 @@ body{margin:0;padding:0;overflow-x:hidden}*,*::before,*::after{box-sizing:inheri
   <link rel="stylesheet" href="/assets/css/base.css">
   <link rel="stylesheet" href="/assets/css/reading-system.css">
   <link rel="stylesheet" href="/assets/css/surfaces.css">
+<script defer src="/assets/js/mobile-header.js"></script>
 </head>
-<body class="proof-page">
+<body class="proof-page has-mobile-header">
+<header class="mobile-header" data-mobile-header>
+  <div class="mobile-header-bar">
+    <div class="mobile-header-title-wrap">
+      <a class="mobile-header-title" href="{{HOME_HREF}}">{{SITE_NAME}}</a>
+      <span class="mobile-header-section">Proof</span>
+    </div>
+    <button class="mobile-header-toggle" type="button" data-mobile-menu-toggle aria-expanded="false" aria-controls="mobile-site-menu">Menu</button>
+  </div>
+  <nav id="mobile-site-menu" class="mobile-header-menu" data-mobile-menu aria-hidden="true">
+    <a href="{{HOME_HREF}}">Home</a>
+    <a href="{{START_HREF}}">Start here</a>
+    <a href="{{LATEST_HREF}}">Latest</a>
+    <a href="{{ARCHIVE_HREF}}">Archive</a>
+  </nav>
+</header>
 <main class="page">
   <div class="top">
     <div class="heading">
