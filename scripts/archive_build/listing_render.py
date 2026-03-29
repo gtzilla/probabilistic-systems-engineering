@@ -268,7 +268,12 @@ def render_start_page(latest_entries: list[dict[str, str]], site_name: str, site
         ),
     ]
     core_path_html = "".join(
-        '<li><a href="{href}">{title}</a><span>{desc}</span></li>'.format(
+        (
+            '<li>'
+            '<a class="reading-path-link" href="{href}">{title}</a>'
+            '<p class="reading-path-desc">{desc}</p>'
+            '</li>'
+        ).format(
             href=safe_text(href),
             title=safe_text(title),
             desc=safe_text(desc),
