@@ -25,11 +25,11 @@
 <link rel="apple-touch-icon" sizes="180x180" href="{{APPLE_TOUCH_ICON_HREF}}">
 
 <style>
-:root{--bg:#f6f5f1;--panel:rgba(255,255,255,.84);--panel-strong:rgba(255,255,255,.92);--text:#171717;--muted:#5f6672;--border:rgba(34,34,34,.10);--border-strong:rgba(34,34,34,.18);--accent:#111111;--soft:rgba(245,242,234,.78);--papers-accent:#365b8c;--contracts-accent:#586847;--replication-accent:#7b5b2f;--authority-accent:#6b5a7a;--hero-image:url("../../assets/home-hero-geometry.jpg")}
+:root{--bg:#f6f5f1;--panel:rgba(255,255,255,.84);--panel-strong:rgba(255,255,255,.92);--text:#171717;--muted:#5f6672;--border:rgba(34,34,34,.10);--border-strong:rgba(34,34,34,.18);--accent:#111111;--soft:rgba(245,242,234,.78);--papers-accent:#365b8c;--contracts-accent:#586847;--replication-accent:#7b5b2f;--authority-accent:#6b5a7a;}
 html{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:"Inter",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;box-sizing:border-box;overflow-x:hidden}
-body{margin:0;padding:0;min-height:100vh;overflow-x:hidden;position:relative}body::before{content:"";position:fixed;inset:0;background-image:linear-gradient(to bottom, rgba(246,245,241,.70), rgba(246,245,241,.88)),var(--hero-image);background-position:center top;background-size:cover;background-repeat:no-repeat;opacity:.9;z-index:-2;transform:translateZ(0)}body::after{content:"";position:fixed;inset:0;background:linear-gradient(to bottom, rgba(255,255,255,.18), rgba(246,245,241,.34));z-index:-1;pointer-events:none}*,*::before,*::after{box-sizing:inherit}main,section,div,a,nav{min-width:0}
-.page{max-width:64rem;margin:0 auto;padding:2rem 1rem 4rem}
-.hero{max-width:48rem;padding:1.35rem 1.15rem 1.4rem;border:1px solid rgba(34,34,34,.08);border-radius:28px;background:var(--panel-strong);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 12px 42px rgba(0,0,0,.05)}
+body{margin:0;padding:0;min-height:100vh;overflow-x:hidden;position:relative;background:var(--bg)}*,*::before,*::after{box-sizing:inherit}main,section,div,a,nav{min-width:0}
+.page{max-width:64rem;margin:0 auto;padding:2rem 1.25rem 4rem}
+.hero{max-width:48rem;margin-left:0;padding:1.5rem 1.5rem 1.7rem;border:1px solid rgba(34,34,34,.08);border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .kicker{margin:0 0 .6rem;color:var(--muted);font-size:.84rem;line-height:1.3;letter-spacing:.08em;text-transform:uppercase}
 h1{margin:0 0 .9rem;font-size:clamp(2.4rem,8vw,4.6rem);line-height:.98;letter-spacing:-.04em;font-weight:800;font-family:"Manrope","Inter",sans-serif}
 .credit{margin:0 0 1rem;color:var(--muted);font-size:.9rem;line-height:1.4}
@@ -45,7 +45,7 @@ h1{margin:0 0 .9rem;font-size:clamp(2.4rem,8vw,4.6rem);line-height:.98;letter-sp
 .primary-pair,.secondary-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
 .section-divider{margin-top:1.3rem;padding-top:1.1rem;border-top:1px solid var(--border)}
 .secondary-label{margin:0 0 .8rem;font-size:.9rem;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
-@media (max-width:900px){.page{padding:1.4rem 1rem 3rem}.lead{font-size:1rem}.primary-pair,.secondary-pair{grid-template-columns:1fr}}
+@media (max-width:900px){.page{padding:1.4rem 1.35rem 3rem}.lead{font-size:1.08rem}.primary-pair,.secondary-pair{grid-template-columns:1fr}}
 </style>
   <link rel="stylesheet" href="/assets/css/base.css">
   <link rel="stylesheet" href="/assets/css/reading-system.css">

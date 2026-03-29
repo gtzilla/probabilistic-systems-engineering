@@ -6,8 +6,8 @@
   --gtz-muted: #5f6672;
   --gtz-border: #e5e7eb;
   --gtz-link: #1f2937;
-  --gtz-reading-width: 50rem;
-  --gtz-listing-width: 56rem;
+  --gtz-reading-width: 48rem;
+  --gtz-listing-width: 50rem;
 }
 
 html {
@@ -17,6 +17,8 @@ html {
 body {
   color: var(--gtz-text);
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 18px;
+  line-height: 1.65;
 }
 
 a {
