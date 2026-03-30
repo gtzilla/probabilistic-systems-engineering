@@ -59,12 +59,17 @@ a {
   }
 
   body.mobile-header-hidden .mobile-header {
-    transform: translateY(calc(-100% + 0.28rem));
+    transform: translateY(-110%);
   }
 
   body.mobile-menu-open .mobile-header {
     transform: translateY(0);
     box-shadow: 0 14px 32px rgba(17, 24, 39, 0.1);
+  }
+
+  body.mobile-scroll-lock {
+    overflow: hidden;
+    touch-action: none;
   }
 
   .mobile-header-bar {

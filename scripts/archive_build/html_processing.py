@@ -106,36 +106,33 @@ def apply_collapsible_markers(body_html: str) -> str:
 
         preview_text = summary_text or _preview_text_from_nodes(block_nodes)
 
-        details = soup.new_tag("details", attrs={"class": "pse-collapsible-section"})
-        summary = soup.new_tag("summary", attrs={"class": "pse-collapsible-summary"})
+        feature = soup.new_tag("section", attrs={"class": "pse-feature-block"})
+        header = soup.new_tag("div", attrs={"class": "pse-feature-block-header"})
 
-        title_span = soup.new_tag("span", attrs={"class": "pse-collapsible-title"})
-        title_span.string = title
-        summary.append(title_span)
+        title_el = soup.new_tag("h3", attrs={"class": "pse-feature-block-title"})
+        title_el.string = title
+        header.append(title_el)
 
         if preview_text:
-            preview_span = soup.new_tag("span", attrs={"class": "pse-collapsible-preview"})
-            preview_span.string = preview_text
-            summary.append(preview_span)
+            summary_el = soup.new_tag("p", attrs={"class": "pse-feature-block-summary"})
+            summary_el.string = preview_text
+            header.append(summary_el)
 
-        toggle_span = soup.new_tag("span", attrs={"class": "pse-collapsible-toggle", "aria-hidden": "true"})
-        summary.append(toggle_span)
-
-        details.append(summary)
-
-        body = soup.new_tag("div", attrs={"class": "pse-collapsible-body"})
+        body = soup.new_tag("div", attrs={"class": "pse-feature-block-body"})
         for node in block_nodes:
             body.append(node.extract())
-        details.append(body)
 
-        marker_node.insert_before(details)
+        feature.append(header)
+        feature.append(body)
+
+        marker_node.insert_before(feature)
         marker_node.extract()
         if summary_node is not None:
             summary_node.extract()
 
         nodes = _top_level_nodes(soup)
         try:
-            idx = nodes.index(details) + 1
+            idx = nodes.index(feature) + 1
         except ValueError:
             idx = content_end
 

@@ -477,6 +477,23 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
         publication_date_document = str(metadata.get("publication_date_document", "")).strip()
         if publication_date_document:
             publication_html = '<span class="pse-footer-date">' + safe_text(publication_date_document) + '</span>'
+    content_type = str(metadata.get("content_type", "")).strip()
+    section_label_map = {
+        "papers": "Papers",
+        "contracts": "Contracts",
+        "replication": "Replication",
+        "authority": "Authority",
+        "non-engineering": "Non-Engineering",
+    }
+    latest_href = f"{home_href}latest/"
+    archive_href = f"{home_href}archive/"
+    start_href = f"{home_href}start/"
+    proof_href = f"{home_href}proof/"
+    papers_href = f"{latest_href}#papers"
+    contracts_href = f"{latest_href}#contracts"
+    replication_href = f"{latest_href}#replication"
+    authority_href = f"{latest_href}#authority"
+
     return render_template(
         template,
         {
@@ -485,6 +502,15 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
             "SITE_NAME": safe_text(SITE_NAME),
             "HOME_HREF": home_href,
             "PDF_HREF": safe_text(pdf_href),
+            "LATEST_HREF": safe_text(latest_href),
+            "ARCHIVE_HREF": safe_text(archive_href),
+            "START_HREF": safe_text(start_href),
+            "PROOF_HREF": safe_text(proof_href),
+            "PAPERS_HREF": safe_text(papers_href),
+            "CONTRACTS_HREF": safe_text(contracts_href),
+            "REPLICATION_HREF": safe_text(replication_href),
+            "AUTHORITY_HREF": safe_text(authority_href),
+            "DOCUMENT_SECTION_LABEL": safe_text(section_label_map.get(content_type, "Document")),
             "CANONICAL_URL": safe_text(str(metadata["html_url"])),
             "STRUCTURED_DATA_JSON": build_structured_data(metadata),
             "OG_IMAGE_URL": safe_text(OG_IMAGE_URL),

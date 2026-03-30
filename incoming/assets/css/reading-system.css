@@ -182,3 +182,73 @@ body.nei-page .pse-collapsible-body {
     margin-right: -0.1rem !important;
   }
 }
+
+
+body.pse-page .pse-feature-block,
+body.nei-page .pse-feature-block {
+  margin: 1.6rem 0 1.8rem !important;
+  border: 1px solid #d7dee8 !important;
+  border-radius: 14px !important;
+  background: #f8fafc !important;
+  overflow: hidden !important;
+}
+
+body.pse-page .pse-feature-block-header,
+body.nei-page .pse-feature-block-header {
+  padding: 1rem 1.1rem 0.8rem !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  background: #eef2f7 !important;
+}
+
+body.pse-page .pse-feature-block-title,
+body.nei-page .pse-feature-block-title {
+  margin: 0 !important;
+  font-size: 1rem !important;
+  line-height: 1.35 !important;
+  font-family: "Manrope", "Inter", sans-serif !important;
+}
+
+body.pse-page .pse-feature-block-summary,
+body.nei-page .pse-feature-block-summary {
+  margin: 0.35rem 0 0 !important;
+  color: #475569 !important;
+  font-size: 0.95rem !important;
+  line-height: 1.5 !important;
+}
+
+body.pse-page .pse-feature-block-body,
+body.nei-page .pse-feature-block-body {
+  padding: 1rem 1.1rem 1.15rem !important;
+  background: #ffffff !important;
+}
+
+body.pse-page .pse-feature-block pre,
+body.nei-page .pse-feature-block pre {
+  background: #0b1220 !important;
+  color: #dbe7f3 !important;
+  border: 1px solid #0f172a !important;
+  border-radius: 12px !important;
+  padding: 1rem 1rem !important;
+  margin: 0.85rem 0 0 !important;
+}
+
+body.pse-page .pse-feature-block code,
+body.nei-page .pse-feature-block code {
+  background: transparent !important;
+  color: inherit !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+body.pse-page .pse-feature-block .tok-keyword,
+body.nei-page .pse-feature-block .tok-keyword { color: #c084fc !important; }
+body.pse-page .pse-feature-block .tok-string,
+body.nei-page .pse-feature-block .tok-string { color: #86efac !important; }
+body.pse-page .pse-feature-block .tok-comment,
+body.nei-page .pse-feature-block .tok-comment { color: #94a3b8 !important; }
+body.pse-page .pse-feature-block .tok-number,
+body.nei-page .pse-feature-block .tok-number { color: #fca5a5 !important; }
+body.pse-page .pse-feature-block .tok-builtin,
+body.nei-page .pse-feature-block .tok-builtin { color: #7dd3fc !important; }
+body.pse-page .pse-feature-block .tok-type,
+body.nei-page .pse-feature-block .tok-type { color: #fde68a !important; }
