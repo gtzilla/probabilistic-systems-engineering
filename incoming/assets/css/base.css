@@ -1,11 +1,11 @@
 /* Shared site reset and typography baseline */
 :root {
-  --gtz-page-bg: #f3f1eb;
+  --gtz-page-bg: #f5f5f5;
   --gtz-panel: #ffffff;
   --gtz-text: #171717;
-  --gtz-muted: #5f6672;
+  --gtz-muted: #6b7280;
   --gtz-border: #e5e7eb;
-  --gtz-link: #1f2937;
+  --gtz-link: #3b49df;
   --gtz-reading-width: 48rem;
   --gtz-listing-width: 50rem;
 }
@@ -45,7 +45,7 @@ a {
     right: 0;
     z-index: 1000;
     padding: 0.78rem 0.95rem 0.62rem;
-    background: rgba(252, 252, 249, 0.96);
+    background: rgba(255, 255, 255, 0.94);
     border-bottom: 1px solid var(--gtz-border, #e5e7eb);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
@@ -55,7 +55,7 @@ a {
   body.mobile-header-compact .mobile-header {
     padding-top: 0.5rem;
     padding-bottom: 0.45rem;
-    box-shadow: 0 10px 26px rgba(17, 24, 39, 0.06);
+    box-shadow: 0 10px 26px rgba(17, 24, 39, 0.08);
   }
 
   body.mobile-header-hidden .mobile-header {
