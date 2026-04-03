@@ -121,10 +121,17 @@ def render_discovery_links(items: list[dict[str, object]], label: str, safe_text
 
     links: list[str] = []
     for item in items:
+        kind_label = safe_text(str(item["kind_label"]))
+        kind_html = ''
+        if kind_label:
+            kind_html = (
+                '<span class="pse-discovery-separator" aria-hidden="true">·</span>'
+                f'<span class="pse-discovery-kind">{kind_label}</span>'
+            )
         links.append(
             '<li class="pse-discovery-item">'
             f'<a href="{safe_text(str(item["html_path"]))}">{safe_text(str(item["title"]))}</a>'
-            f'<span class="pse-discovery-kind">{safe_text(str(item["kind_label"]))}</span>'
+            f'{kind_html}'
             '</li>'
         )
 

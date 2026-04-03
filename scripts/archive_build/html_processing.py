@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import re
+from urllib.parse import parse_qs, urlparse
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 
@@ -52,6 +53,132 @@ def _preview_text_from_nodes(nodes: list[Tag | NavigableString], max_len: int = 
     return preview
 
 
+MONOSPACE_FONT_MARKERS = (
+    "consolas",
+    "roboto mono",
+    "menlo",
+    "monaco",
+    "courier",
+    "monospace",
+)
+
+
+def _extract_class_rule_map(exported_styles: str) -> dict[str, str]:
+    rules: dict[str, str] = {}
+    for class_name, declarations in re.findall(r"\.([A-Za-z0-9_-]+)\s*\{([^}]*)\}", exported_styles or "", flags=re.IGNORECASE | re.DOTALL):
+        rules[class_name] = " ".join(declarations.lower().split())
+    return rules
+
+
+def _style_implies_code(rule: str) -> bool:
+    if not rule or "font-family" not in rule:
+        return False
+    return any(marker in rule for marker in MONOSPACE_FONT_MARKERS)
+
+
+def _style_implies_indented_block(rule: str) -> bool:
+    if not rule:
+        return False
+
+    def pt_value(name: str) -> float:
+        match = re.search(rf"{name}:\s*([0-9]+(?:\.[0-9]+)?)pt", rule)
+        return float(match.group(1)) if match else 0.0
+
+    margin_left = pt_value("margin-left")
+    margin_right = pt_value("margin-right")
+    padding_left = pt_value("padding-left")
+    return margin_left >= 18 or padding_left >= 18 or (margin_left >= 12 and margin_right >= 12)
+
+
+def _extract_code_text(node: Tag) -> str:
+    parts: list[str] = []
+    for descendant in node.descendants:
+        if isinstance(descendant, NavigableString):
+            parts.append(str(descendant))
+        elif isinstance(descendant, Tag) and descendant.name == "br":
+            parts.append("\n")
+
+    text = html.unescape("".join(parts)).replace("\xa0", " ")
+    lines = [re.sub(r"[ \t]+$", "", line) for line in text.splitlines()]
+    normalized = "\n".join(lines).strip("\n")
+    return re.sub(r"\n{3,}", "\n\n", normalized)
+
+
+def convert_google_docs_code_tables(body_html: str, exported_styles: str) -> str:
+    class_rules = _extract_class_rule_map(exported_styles)
+    monospace_classes = {name for name, rule in class_rules.items() if _style_implies_code(rule)}
+    if not monospace_classes:
+        return body_html
+
+    soup = BeautifulSoup(body_html, "html.parser")
+    for table in soup.find_all("table"):
+        rows = table.find_all("tr", recursive=True)
+        cells = table.find_all(["td", "th"], recursive=True)
+        if len(rows) != 1 or len(cells) != 1:
+            continue
+
+        cell = cells[0]
+        descendant_classes: set[str] = set()
+        for tag in cell.find_all(True):
+            descendant_classes.update(tag.get("class", []))
+        if not (descendant_classes & monospace_classes):
+            continue
+
+        code_text = _extract_code_text(cell)
+        if len(code_text.strip()) < 12:
+            continue
+
+        pre = soup.new_tag("pre", attrs={"class": "pse-code-block"})
+        code = soup.new_tag("code")
+        code.string = code_text
+        pre.append(code)
+        table.replace_with(pre)
+
+    return "".join(str(node) for node in soup.contents)
+
+
+def unwrap_google_redirect_links(body_html: str) -> str:
+    soup = BeautifulSoup(body_html, "html.parser")
+
+    for anchor in soup.find_all("a", href=True):
+        href = html.unescape(anchor.get("href", "")).strip()
+        if not href:
+            continue
+
+        parsed = urlparse(href)
+        host = parsed.netloc.lower()
+        if host not in {"www.google.com", "google.com"} or parsed.path != "/url":
+            continue
+
+        query = parse_qs(parsed.query, keep_blank_values=False)
+        target = (query.get("q") or query.get("url") or [""])[0].strip()
+        if not target:
+            continue
+
+        target = html.unescape(target)
+        target_parsed = urlparse(target)
+        if target_parsed.scheme not in {"http", "https"} or not target_parsed.netloc:
+            continue
+
+        anchor["href"] = target
+        for attr_name in ("data-saferedirecturl", "ping", "data-ved"):
+            if attr_name in anchor.attrs:
+                del anchor[attr_name]
+
+    return "".join(str(node) for node in soup.contents)
+
+
+def wrap_tables_for_scroll(body_html: str) -> str:
+    soup = BeautifulSoup(body_html, "html.parser")
+    for table in soup.find_all("table"):
+        parent = table.parent
+        if isinstance(parent, Tag) and parent.name == "div" and "pse-table-wrap" in (parent.get("class") or []):
+            continue
+        wrapper = soup.new_tag("div", attrs={"class": "pse-table-wrap"})
+        table.wrap(wrapper)
+    return "".join(str(node) for node in soup.contents)
+
+
 def apply_collapsible_markers(body_html: str) -> str:
     soup = BeautifulSoup(body_html, "html.parser")
     nodes = _top_level_nodes(soup)
@@ -65,7 +192,6 @@ def apply_collapsible_markers(body_html: str) -> str:
             continue
 
         marker_level = _heading_level(marker_node)
-        summary_text = ""
         summary_node: Tag | NavigableString | None = None
         content_start = idx + 1
 
@@ -78,9 +204,7 @@ def apply_collapsible_markers(body_html: str) -> str:
 
         if content_start < len(nodes):
             candidate = nodes[content_start]
-            summary_value = _marker_value(candidate, "Summary:")
-            if summary_value:
-                summary_text = summary_value
+            if _marker_value(candidate, "Summary:"):
                 summary_node = candidate
                 content_start += 1
 
@@ -104,37 +228,16 @@ def apply_collapsible_markers(body_html: str) -> str:
             idx += 1
             continue
 
-        preview_text = summary_text or _preview_text_from_nodes(block_nodes)
-
-        feature = soup.new_tag("section", attrs={"class": "pse-feature-block"})
-        header = soup.new_tag("div", attrs={"class": "pse-feature-block-header"})
-
-        title_el = soup.new_tag("h3", attrs={"class": "pse-feature-block-title"})
-        title_el.string = title
-        header.append(title_el)
-
-        if preview_text:
-            summary_el = soup.new_tag("p", attrs={"class": "pse-feature-block-summary"})
-            summary_el.string = preview_text
-            header.append(summary_el)
-
-        body = soup.new_tag("div", attrs={"class": "pse-feature-block-body"})
+        insertion_anchor: Tag | NavigableString = marker_node
         for node in block_nodes:
-            body.append(node.extract())
+            insertion_anchor.insert_before(node.extract())
 
-        feature.append(header)
-        feature.append(body)
-
-        marker_node.insert_before(feature)
         marker_node.extract()
         if summary_node is not None:
             summary_node.extract()
 
         nodes = _top_level_nodes(soup)
-        try:
-            idx = nodes.index(feature) + 1
-        except ValueError:
-            idx = content_end
+        idx = max(0, content_start - 1)
 
     return "".join(str(node) for node in soup.contents)
 
@@ -268,7 +371,7 @@ def repair_flattened_nested_lists(body_html: str) -> str:
     return "".join(str(node) for node in soup.contents)
 
 
-def refine_body_html(body_html: str) -> str:
+def refine_body_html(body_html: str, exported_styles: str = "") -> str:
     def normalize_li_classes(match: re.Match[str]) -> str:
         attrs = match.group("attrs") or ""
         class_match = re.search(r'class\s*=\s*"([^"]*)"', attrs, flags=re.IGNORECASE)
@@ -296,8 +399,14 @@ def refine_body_html(body_html: str) -> str:
         flags=re.IGNORECASE,
     )
 
+    class_rules = _extract_class_rule_map(exported_styles)
+    indented_block_classes = {name for name, rule in class_rules.items() if _style_implies_indented_block(rule)}
+
     body_html = repair_flattened_nested_lists(body_html)
+    body_html = convert_google_docs_code_tables(body_html, exported_styles)
+    body_html = wrap_tables_for_scroll(body_html)
     body_html = apply_collapsible_markers(body_html)
+    body_html = unwrap_google_redirect_links(body_html)
 
     def has_structural_content(raw: str) -> bool:
         return bool(re.search(r"<(img|svg|table|hr)\b", raw, flags=re.IGNORECASE))
@@ -335,11 +444,12 @@ def refine_body_html(body_html: str) -> str:
         if match.start() > last_end:
             pieces.append({"kind": "raw", "html": body_html[last_end:match.start()]})
 
-        attrs = normalize_p_attrs(match.group("attrs") or "")
+        original_attrs = match.group("attrs") or ""
+        attrs = normalize_p_attrs(original_attrs)
         inner = match.group("body") or ""
         full = match.group(0)
         text = strip_tags_to_text(inner)
-        classes_match = re.search(r'class\s*=\s*"([^"]*)"', attrs, flags=re.IGNORECASE)
+        classes_match = re.search(r'class\s*=\s*"([^"]*)"', original_attrs, flags=re.IGNORECASE)
         class_list = (classes_match.group(1).split() if classes_match else [])
 
         pieces.append(
@@ -396,6 +506,10 @@ def refine_body_html(body_html: str) -> str:
 
             skip_until = group_indexes[-1]
             cleaned.append(f'<h1 class="pse-title">{html.escape(text)}</h1>')
+            continue
+
+        if indented_block_classes and classes & indented_block_classes and text:
+            cleaned.append(f'<blockquote class="pse-blockquote"><p{attrs}>{body}</p></blockquote>')
             continue
 
         cleaned.append(f"<p{attrs}>{body}</p>")

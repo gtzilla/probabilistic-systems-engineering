@@ -452,7 +452,7 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
     normalized = normalize_exported_html(raw_html)
     exported_styles = extract_head_styles(normalized)
     raw_body_html = extract_body_inner_html(normalized)
-    body_html = refine_body_html(raw_body_html)
+    body_html = refine_body_html(raw_body_html, exported_styles)
 
     slug = str(metadata["slug"])
     depth = len([part for part in slug.split("/") if part])
@@ -468,15 +468,17 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
     template = load_template(template_name)
     discussion_html = ""
     publication_html = ""
+    article_actions: list[str] = []
+    publication_date_document = str(metadata.get("publication_date_document", "")).strip()
     if str(metadata.get("content_type")) == "papers" and str(metadata.get("kind")) == "paper":
-        discussion_html = (
-            '<a class="pse-footer-link" href="'
-            + safe_text(GITHUB_DISCUSSIONS_URL)
-            + '">Discussion</a>'
-        )
-        publication_date_document = str(metadata.get("publication_date_document", "")).strip()
         if publication_date_document:
             publication_html = '<span class="pse-footer-date">' + safe_text(publication_date_document) + '</span>'
+
+    article_actions.append(
+        '<a class="pse-meta-button pse-meta-button-primary" href="'
+        + safe_text(pdf_href)
+        + '">PDF</a>'
+    )
     content_type = str(metadata.get("content_type", "")).strip()
     section_label_map = {
         "papers": "Papers",
@@ -484,6 +486,13 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
         "replication": "Replication",
         "authority": "Authority",
         "non-engineering": "Non-Engineering",
+    }
+    article_kind_label_map = {
+        "papers": "Paper",
+        "contracts": "Contract",
+        "replication": "Replication",
+        "authority": "Essay",
+        "non-engineering": "Guide",
     }
     latest_href = f"{home_href}latest/"
     archive_href = f"{home_href}archive/"
@@ -493,6 +502,11 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
     contracts_href = f"{latest_href}#contracts"
     replication_href = f"{latest_href}#replication"
     authority_href = f"{latest_href}#authority"
+
+    article_meta_parts = [str(metadata.get("author", "Gregory Tomlinson")).strip() or "Gregory Tomlinson"]
+    if publication_date_document:
+        article_meta_parts.append(publication_date_document)
+    article_meta_line = " · ".join(article_meta_parts)
 
     return render_template(
         template,
@@ -511,6 +525,9 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
             "REPLICATION_HREF": safe_text(replication_href),
             "AUTHORITY_HREF": safe_text(authority_href),
             "DOCUMENT_SECTION_LABEL": safe_text(section_label_map.get(content_type, "Document")),
+            "ARTICLE_KIND_LABEL": safe_text(article_kind_label_map.get(content_type, "Document")),
+            "ARTICLE_META_LINE": safe_text(article_meta_line),
+            "ARTICLE_ACTIONS_HTML": "".join(article_actions),
             "CANONICAL_URL": safe_text(str(metadata["html_url"])),
             "STRUCTURED_DATA_JSON": build_structured_data(metadata),
             "OG_IMAGE_URL": safe_text(OG_IMAGE_URL),
@@ -647,8 +664,9 @@ def build_doc(
     doc_title = pdf.stem
     raw_html = source_html.read_text(encoding="utf-8")
     normalized = normalize_exported_html(raw_html)
+    extracted_styles = extract_head_styles(normalized)
     raw_body_html = extract_body_inner_html(normalized)
-    body_html = refine_body_html(raw_body_html)
+    body_html = refine_body_html(raw_body_html, extracted_styles)
     is_latest_paper_version = type_name != "papers" or relative_slug in latest_paper_slugs
     publication_metadata = resolve_paper_publication_metadata(doc_dir) if type_name == "papers" and is_latest_paper_version else None
     metadata, match_context = derive_document_metadata(type_name, relative_slug, doc_title, pdf.name, body_html, publication_metadata)
@@ -679,7 +697,7 @@ def build_doc(
             section_rel_slug = f"{relative_slug}/{section_slug}"
             section_out_dir = DIST / type_name / Path(section_rel_slug)
             section_out_dir.mkdir(parents=True, exist_ok=True)
-            section_body_html = refine_body_html(section['body_html'])
+            section_body_html = refine_body_html(section['body_html'], extracted_styles)
             section_metadata, section_context = derive_document_metadata(type_name, section_rel_slug, section_title, pdf.name, section_body_html)
             section_metadata['kind'] = 'authority-essay'
             section_metadata['schema_type'] = 'Article'
