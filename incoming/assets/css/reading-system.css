@@ -96,12 +96,17 @@ body.nei-page .nei-article h3 {
 
 body.pse-page .pse-doc-shell pre,
 body.nei-page .nei-article pre {
+  --pse-code-bleed: var(--pse-article-gutter);
+  display: block !important;
+  width: calc(100% + (2 * var(--pse-code-bleed))) !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
   background: #0f172a !important;
   color: #e5e7eb !important;
   border: 0 !important;
   border-radius: 0 !important;
-  padding: 1rem var(--pse-article-gutter) !important;
-  margin: 1.2rem calc(-1 * var(--pse-article-gutter)) 1.4rem !important;
+  padding: 1rem calc(var(--pse-code-bleed) - 0.15rem) !important;
+  margin: 1.2rem calc(-1 * var(--pse-code-bleed)) 1.4rem !important;
   overflow-x: auto !important;
   -webkit-overflow-scrolling: touch;
   box-shadow: none !important;
@@ -180,8 +185,10 @@ body.nei-page .pse-collapsible-body {
 
   body.pse-page .pse-doc-shell pre,
   body.nei-page .nei-article pre {
-    margin-left: calc(-1 * var(--pse-article-gutter)) !important;
-    margin-right: calc(-1 * var(--pse-article-gutter)) !important;
+    --pse-code-bleed: var(--pse-article-gutter);
+    width: calc(100% + (2 * var(--pse-code-bleed))) !important;
+    margin-left: calc(-1 * var(--pse-code-bleed)) !important;
+    margin-right: calc(-1 * var(--pse-code-bleed)) !important;
   }
 }
 

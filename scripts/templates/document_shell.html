@@ -135,10 +135,11 @@
     }
 
     .pse-doc-shell {
+      --pse-doc-shell-gutter: 2.3rem;
       width: 100%;
       max-width: 100%;
       margin: 0;
-      padding: 1.6rem 2.3rem 2.8rem;
+      padding: 1.6rem var(--pse-doc-shell-gutter) 2.8rem;
       background: var(--pse-surface);
       border: 1px solid var(--pse-border);
       border-radius: 12px;
@@ -346,11 +347,14 @@
 
     .pse-doc-shell pre {
       display: block;
-      margin: 1.3rem 0 1.5rem !important;
-      padding: 1rem 1.1rem !important;
+      width: calc(100% + (2 * var(--pse-doc-shell-gutter))) !important;
+      max-width: none !important;
+      box-sizing: border-box !important;
+      margin: 1.3rem calc(-1 * var(--pse-doc-shell-gutter)) 1.5rem !important;
+      padding: 1rem calc(var(--pse-doc-shell-gutter) - 0.15rem) !important;
       overflow-x: auto !important;
-      border: 1px solid #111827 !important;
-      border-radius: 10px !important;
+      border: 0 !important;
+      border-radius: 0 !important;
       background: #0f172a !important;
       color: #e5e7eb !important;
       box-shadow: none !important;
@@ -564,15 +568,17 @@
       }
 
       .pse-doc-shell {
-        padding: 1.25rem 1.2rem 2rem;
+        --pse-doc-shell-gutter: 1.2rem;
+        padding: 1.25rem var(--pse-doc-shell-gutter) 2rem;
         border-radius: 10px;
       }
     }
 
     @media (max-width: 720px) {
       .pse-doc-shell {
-        padding-left: 1rem;
-        padding-right: 1rem;
+        --pse-doc-shell-gutter: 1rem;
+        padding-left: var(--pse-doc-shell-gutter);
+        padding-right: var(--pse-doc-shell-gutter);
       }
 
       .pse-article-meta {
