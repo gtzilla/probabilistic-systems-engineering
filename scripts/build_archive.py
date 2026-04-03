@@ -471,16 +471,6 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
     article_actions: list[str] = []
     publication_date_document = str(metadata.get("publication_date_document", "")).strip()
     if str(metadata.get("content_type")) == "papers" and str(metadata.get("kind")) == "paper":
-        discussion_html = (
-            '<a class="pse-footer-link" href="'
-            + safe_text(GITHUB_DISCUSSIONS_URL)
-            + '">Discussion</a>'
-        )
-        article_actions.append(
-            '<a class="pse-meta-button" href="'
-            + safe_text(GITHUB_DISCUSSIONS_URL)
-            + '">Discussion</a>'
-        )
         if publication_date_document:
             publication_html = '<span class="pse-footer-date">' + safe_text(publication_date_document) + '</span>'
 
