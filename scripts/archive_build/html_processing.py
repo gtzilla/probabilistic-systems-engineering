@@ -160,7 +160,6 @@ def apply_collapsible_markers(body_html: str) -> str:
             continue
 
         marker_level = _heading_level(marker_node)
-        summary_text = ""
         summary_node: Tag | NavigableString | None = None
         content_start = idx + 1
 
@@ -173,9 +172,7 @@ def apply_collapsible_markers(body_html: str) -> str:
 
         if content_start < len(nodes):
             candidate = nodes[content_start]
-            summary_value = _marker_value(candidate, "Summary:")
-            if summary_value:
-                summary_text = summary_value
+            if _marker_value(candidate, "Summary:"):
                 summary_node = candidate
                 content_start += 1
 
@@ -199,38 +196,16 @@ def apply_collapsible_markers(body_html: str) -> str:
             idx += 1
             continue
 
-        contains_dense_block = any(isinstance(node, Tag) and node.name in {"pre", "table"} for node in block_nodes)
-        preview_text = summary_text or ("Expand for full excerpt." if contains_dense_block else _preview_text_from_nodes(block_nodes))
-
-        feature = soup.new_tag("section", attrs={"class": "pse-feature-block"})
-        header = soup.new_tag("div", attrs={"class": "pse-feature-block-header"})
-
-        title_el = soup.new_tag("h3", attrs={"class": "pse-feature-block-title"})
-        title_el.string = title
-        header.append(title_el)
-
-        if preview_text:
-            summary_el = soup.new_tag("p", attrs={"class": "pse-feature-block-summary"})
-            summary_el.string = preview_text
-            header.append(summary_el)
-
-        body = soup.new_tag("div", attrs={"class": "pse-feature-block-body"})
+        insertion_anchor: Tag | NavigableString = marker_node
         for node in block_nodes:
-            body.append(node.extract())
+            insertion_anchor.insert_before(node.extract())
 
-        feature.append(header)
-        feature.append(body)
-
-        marker_node.insert_before(feature)
         marker_node.extract()
         if summary_node is not None:
             summary_node.extract()
 
         nodes = _top_level_nodes(soup)
-        try:
-            idx = nodes.index(feature) + 1
-        except ValueError:
-            idx = content_end
+        idx = max(0, content_start - 1)
 
     return "".join(str(node) for node in soup.contents)
 
