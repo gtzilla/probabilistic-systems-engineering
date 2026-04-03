@@ -97,6 +97,12 @@
 
     window.addEventListener('resize', applyScrollState);
     window.addEventListener('orientationchange', applyScrollState);
+    window.addEventListener('load', applyScrollState);
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(function () {
+        applyScrollState();
+      }).catch(function () {});
+    }
 
     applyScrollState();
   }
