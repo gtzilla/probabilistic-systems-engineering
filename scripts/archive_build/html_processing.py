@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import re
+from urllib.parse import parse_qs, urlparse
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 
@@ -132,6 +133,37 @@ def convert_google_docs_code_tables(body_html: str, exported_styles: str) -> str
         code.string = code_text
         pre.append(code)
         table.replace_with(pre)
+
+    return "".join(str(node) for node in soup.contents)
+
+
+def unwrap_google_redirect_links(body_html: str) -> str:
+    soup = BeautifulSoup(body_html, "html.parser")
+
+    for anchor in soup.find_all("a", href=True):
+        href = html.unescape(anchor.get("href", "")).strip()
+        if not href:
+            continue
+
+        parsed = urlparse(href)
+        host = parsed.netloc.lower()
+        if host not in {"www.google.com", "google.com"} or parsed.path != "/url":
+            continue
+
+        query = parse_qs(parsed.query, keep_blank_values=False)
+        target = (query.get("q") or query.get("url") or [""])[0].strip()
+        if not target:
+            continue
+
+        target = html.unescape(target)
+        target_parsed = urlparse(target)
+        if target_parsed.scheme not in {"http", "https"} or not target_parsed.netloc:
+            continue
+
+        anchor["href"] = target
+        for attr_name in ("data-saferedirecturl", "ping", "data-ved"):
+            if attr_name in anchor.attrs:
+                del anchor[attr_name]
 
     return "".join(str(node) for node in soup.contents)
 
@@ -374,6 +406,7 @@ def refine_body_html(body_html: str, exported_styles: str = "") -> str:
     body_html = convert_google_docs_code_tables(body_html, exported_styles)
     body_html = wrap_tables_for_scroll(body_html)
     body_html = apply_collapsible_markers(body_html)
+    body_html = unwrap_google_redirect_links(body_html)
 
     def has_structural_content(raw: str) -> bool:
         return bool(re.search(r"<(img|svg|table|hr)\b", raw, flags=re.IGNORECASE))
