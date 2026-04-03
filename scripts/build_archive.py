@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import hashlib
 import html
 import json
@@ -73,6 +74,10 @@ def fail(msg: str) -> None:
     raise SystemExit(1)
 
 
+def warn(msg: str) -> None:
+    print(f"WARN: {msg}", file=sys.stderr)
+
+
 def safe_text(s: str) -> str:
     return html.escape(s, quote=True)
 
@@ -81,6 +86,15 @@ def find_exactly_one(folder: Path, pattern: str, label: str) -> Path:
     matches = sorted(p for p in folder.glob(pattern) if p.is_file())
     if len(matches) != 1:
         fail(f"{folder}: expected exactly one {label} matching {pattern}, found {len(matches)}")
+    return matches[0]
+
+
+def find_optional_one(folder: Path, pattern: str, label: str) -> Path | None:
+    matches = sorted(p for p in folder.glob(pattern) if p.is_file())
+    if len(matches) > 1:
+        fail(f"{folder}: expected at most one {label} matching {pattern}, found {len(matches)}")
+    if not matches:
+        return None
     return matches[0]
 
 
@@ -311,7 +325,7 @@ def derive_document_metadata(
     family_key, slug_version, version_tuple = slug_family_info(slug)
     effective_version = slug_version or version
     html_path = f"/{type_name}/{slug}/"
-    pdf_path = f"/{type_name}/{slug}/{pdf_name}"
+    pdf_path = f"/{type_name}/{slug}/{pdf_name}" if pdf_name else ""
 
     metadata: dict[str, object] = {
         "kind": kind,
@@ -323,7 +337,7 @@ def derive_document_metadata(
         "html_path": html_path,
         "html_url": f"{SITE_URL}{html_path}",
         "pdf_path": pdf_path,
-        "pdf_url": f"{SITE_URL}{pdf_path}",
+        "pdf_url": f"{SITE_URL}{pdf_path}" if pdf_path else "",
         "group_key": group_key,
         "family_key": family_key,
         "version": effective_version,
@@ -354,16 +368,17 @@ def build_structured_data(metadata: dict[str, object]) -> str:
         "description": metadata["description"],
         "url": metadata["html_url"],
         "mainEntityOfPage": metadata["html_url"],
-        "encoding": {
-            "@type": "MediaObject",
-            "contentUrl": metadata["pdf_url"],
-            "encodingFormat": "application/pdf",
-            "name": metadata["pdf_url"].rsplit("/", 1)[-1],
-        },
         "isAccessibleForFree": True,
         "keywords": [metadata["content_type"], metadata["kind"]],
         "timeRequired": f"PT{metadata['reading_time_minutes']}M",
     }
+    if metadata.get("pdf_url"):
+        payload["encoding"] = {
+            "@type": "MediaObject",
+            "contentUrl": metadata["pdf_url"],
+            "encodingFormat": "application/pdf",
+            "name": str(metadata["pdf_url"]).rsplit("/", 1)[-1],
+        }
     if metadata.get("version"):
         payload["version"] = metadata["version"]
     if metadata.get("publication_date"):
@@ -474,11 +489,12 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
         if publication_date_document:
             publication_html = '<span class="pse-footer-date">' + safe_text(publication_date_document) + '</span>'
 
-    article_actions.append(
-        '<a class="pse-meta-button pse-meta-button-primary" href="'
-        + safe_text(pdf_href)
-        + '">PDF</a>'
-    )
+    if pdf_href:
+        article_actions.append(
+            '<a class="pse-meta-button pse-meta-button-primary" href="'
+            + safe_text(pdf_href)
+            + '">PDF</a>'
+        )
     content_type = str(metadata.get("content_type", "")).strip()
     section_label_map = {
         "papers": "Papers",
@@ -500,7 +516,7 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
     proof_href = f"{home_href}proof/"
     papers_href = f"{latest_href}#papers"
     contracts_href = f"{latest_href}#contracts"
-    replication_href = f"{latest_href}#replication"
+    replication_href = f"{archive_href}#replication"
     authority_href = f"{latest_href}#authority"
 
     article_meta_parts = [str(metadata.get("author", "Gregory Tomlinson")).strip() or "Gregory Tomlinson"]
@@ -568,7 +584,7 @@ def write_build_manifest(dist_root: Path) -> None:
     (dist_root / "build.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
 
-def discover_doc_dirs(type_root: Path) -> list[tuple[Path, str]]:
+def discover_doc_dirs(type_root: Path, allow_missing_pdfs: bool = False) -> list[tuple[Path, str]]:
     docs: list[tuple[Path, str]] = []
 
     for dirpath, dirnames, filenames in os.walk(type_root):
@@ -579,7 +595,12 @@ def discover_doc_dirs(type_root: Path) -> list[tuple[Path, str]]:
         zips = [name for name in files if name.lower().endswith(".zip")]
 
         if pdfs or zips:
-            if len(pdfs) != 1:
+            if allow_missing_pdfs:
+                if len(pdfs) > 1:
+                    fail(f"{current}: expected at most one PDF matching *.pdf, found {len(pdfs)}")
+                if len(pdfs) == 0:
+                    warn(f"{current}: continuing without PDF because --allow-missing-pdfs was set")
+            elif len(pdfs) != 1:
                 fail(f"{current}: expected exactly one PDF matching *.pdf, found {len(pdfs)}")
             if len(zips) != 1:
                 fail(f"{current}: expected exactly one ZIP matching *.zip, found {len(zips)}")
@@ -632,9 +653,10 @@ def build_doc(
     relative_slug: str,
     tmp_root: Path,
     latest_paper_slugs: set[str],
+    allow_missing_pdfs: bool = False,
 ) -> tuple[list[dict[str, str]], list[dict[str, object]], dict[str, dict[str, object]]]:
     slug = relative_slug
-    pdf = find_exactly_one(doc_dir, "*.pdf", "PDF")
+    pdf = find_optional_one(doc_dir, "*.pdf", "PDF") if allow_missing_pdfs else find_exactly_one(doc_dir, "*.pdf", "PDF")
     zf = find_exactly_one(doc_dir, "*.zip", "ZIP")
 
     extract_dir = tmp_root / type_name / Path(relative_slug)
@@ -660,8 +682,8 @@ def build_doc(
         else:
             shutil.copy2(child, dest)
 
-    pdf_href = pdf.name
-    doc_title = pdf.stem
+    pdf_href = pdf.name if pdf else ""
+    doc_title = pdf.stem if pdf else zf.stem
     raw_html = source_html.read_text(encoding="utf-8")
     normalized = normalize_exported_html(raw_html)
     extracted_styles = extract_head_styles(normalized)
@@ -669,18 +691,19 @@ def build_doc(
     body_html = refine_body_html(raw_body_html, extracted_styles)
     is_latest_paper_version = type_name != "papers" or relative_slug in latest_paper_slugs
     publication_metadata = resolve_paper_publication_metadata(doc_dir) if type_name == "papers" and is_latest_paper_version else None
-    metadata, match_context = derive_document_metadata(type_name, relative_slug, doc_title, pdf.name, body_html, publication_metadata)
+    metadata, match_context = derive_document_metadata(type_name, relative_slug, doc_title, pdf.name if pdf else "", body_html, publication_metadata)
     wrapped_html = render_document_page(raw_html, pdf_href, doc_title, metadata)
-    shutil.copy2(pdf, out_dir / pdf.name)
+    if pdf:
+        shutil.copy2(pdf, out_dir / pdf.name)
 
     entries = [{
         "type": type_name,
         "slug": slug,
-        "pdf_name": pdf.name,
-        "title": pdf.stem,
+        "pdf_name": pdf.name if pdf else "",
+        "title": doc_title,
         "url": f"/{type_name}/{slug}/",
-        "pdf_url": f"/{type_name}/{slug}/{pdf.name}",
-        "description": document_generated_description(body_html, pdf.stem),
+        "pdf_url": f"/{type_name}/{slug}/{pdf.name}" if pdf else "",
+        "description": document_generated_description(body_html, doc_title),
         "publication_date": str(metadata.get("publication_date", "")),
         "archive_date": str(metadata.get("publication_date_archive", "")),
     }]
@@ -698,7 +721,7 @@ def build_doc(
             section_out_dir = DIST / type_name / Path(section_rel_slug)
             section_out_dir.mkdir(parents=True, exist_ok=True)
             section_body_html = refine_body_html(section['body_html'], extracted_styles)
-            section_metadata, section_context = derive_document_metadata(type_name, section_rel_slug, section_title, pdf.name, section_body_html)
+            section_metadata, section_context = derive_document_metadata(type_name, section_rel_slug, section_title, pdf.name if pdf else "", section_body_html)
             section_metadata['kind'] = 'authority-essay'
             section_metadata['schema_type'] = 'Article'
             section_metadata['group_key'] = relative_slug.split('/')[0] if '/' in relative_slug else relative_slug
@@ -727,7 +750,8 @@ def build_doc(
             section_meta['collection_title'] = doc_title
             section_body_html = render_authority_section_body(str(section['title']), sections[idx]['body_html'])
             section_href = f"/{type_name}/{section_rel_slug}/"
-            essay_wrapped = render_document_page(raw_html, relative_href(section_href, metadata['pdf_path']), str(section['title']), section_meta)
+            section_pdf_href = relative_href(section_href, str(metadata['pdf_path'])) if metadata.get('pdf_path') else ''
+            essay_wrapped = render_document_page(raw_html, section_pdf_href, str(section['title']), section_meta)
             essay_html = essay_wrapped.replace(body_html, section_body_html, 1) if body_html in essay_wrapped else essay_wrapped
             essay_html = inject_discovery_markup(essay_html, [render_collection_navigation(doc_title, relative_href(section_href, collection_href), collection_items, section_slug)])
             (section_out_dir / 'index.html').write_text(essay_html, encoding='utf-8')
@@ -748,7 +772,7 @@ def build_doc(
             section_slug = section['slug']
             section_title = section['title']
             section_rel_slug = f"{relative_slug}/{section_slug}"
-            section_metadata, section_context = derive_document_metadata(type_name, section_rel_slug, section_title, pdf.name, section['body_html'])
+            section_metadata, section_context = derive_document_metadata(type_name, section_rel_slug, section_title, pdf.name if pdf else "", section['body_html'])
             section_metadata['kind'] = 'non-engineering-page'
             section_metadata['schema_type'] = 'Article'
             section_metadata['group_key'] = relative_slug.split('/')[0] if '/' in relative_slug else relative_slug
@@ -778,7 +802,8 @@ def build_doc(
             section_meta['collection_size'] = len(collection_items)
             section_meta['collection_title'] = doc_title
             section_href = f"/{type_name}/{section_rel_slug}/"
-            section_wrapped = render_document_page(raw_html, relative_href(section_href, metadata['pdf_path']), section_title, section_meta)
+            section_pdf_href = relative_href(section_href, str(metadata['pdf_path'])) if metadata.get('pdf_path') else ''
+            section_wrapped = render_document_page(raw_html, section_pdf_href, section_title, section_meta)
             section_wrapped = section_wrapped.replace(rendered_root_body_html, section_body_html, 1) if rendered_root_body_html in section_wrapped else section_wrapped
             nav_html = render_collection_navigation(doc_title, relative_href(section_href, collection_href), collection_items, section_slug, 'Page')
             section_wrapped = inject_discovery_markup(section_wrapped, [nav_html])
@@ -826,7 +851,7 @@ def collect_pdf_only_contract_entries(entries: list[dict[str, str]]) -> list[dic
             {
                 "type": "contracts",
                 "slug": slug,
-                "pdf_name": pdf.name,
+                "pdf_name": pdf.name if pdf else "",
                 "title": pdf.stem,
                 "url": "",
                 "pdf_url": f"/contracts/{slug}/{pdf.name}",
@@ -884,7 +909,18 @@ def copy_root_passthrough_files() -> None:
 
 
 
-def main() -> int:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Build the site archive")
+    parser.add_argument(
+        "--allow-missing-pdfs",
+        action="store_true",
+        help="Allow local/dev builds to continue when incoming source directories omit PDFs.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
     if DIST.exists():
         shutil.rmtree(DIST)
     DIST.mkdir(parents=True, exist_ok=True)
@@ -906,13 +942,13 @@ def main() -> int:
                 continue
             if not type_root.is_dir():
                 fail(f"{type_root} exists but is not a directory")
-            doc_specs_by_type[type_name] = discover_doc_dirs(type_root)
+            doc_specs_by_type[type_name] = discover_doc_dirs(type_root, allow_missing_pdfs=args.allow_missing_pdfs)
 
         latest_paper_slugs = find_latest_paper_slugs(doc_specs_by_type.get("papers", []))
 
         for type_name in CONTENT_TYPES:
             for doc_dir, relative_slug in doc_specs_by_type.get(type_name, []):
-                doc_entries, doc_metadata_items, doc_match_contexts = build_doc(type_name, doc_dir, relative_slug, tmp_root, latest_paper_slugs)
+                doc_entries, doc_metadata_items, doc_match_contexts = build_doc(type_name, doc_dir, relative_slug, tmp_root, latest_paper_slugs, allow_missing_pdfs=args.allow_missing_pdfs)
                 entries.extend(doc_entries)
                 metadata_index.extend(doc_metadata_items)
                 match_contexts.update(doc_match_contexts)

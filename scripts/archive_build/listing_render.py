@@ -60,7 +60,8 @@ def render_item_card(item: dict[str, str]) -> str:
     actions: list[str] = []
     if not is_pdf_only and item.get("url"):
         actions.append(f'<a class="item-action" href="{safe_text(item["url"])}">Read</a>')
-    actions.append(f'<a class="item-action" href="{safe_text(item["pdf_url"])}">PDF</a>')
+    if item.get("pdf_url"):
+        actions.append(f'<a class="item-action" href="{safe_text(item["pdf_url"])}">PDF</a>')
     meta = " · ".join(actions)
     title_html = (
         f'<a class="item-title-link" href="{safe_text(primary_href)}">{safe_text(item["title"])}' + "</a>"
@@ -86,7 +87,8 @@ def render_item_card(item: dict[str, str]) -> str:
     return (
         '<li class="archive-item">'
         + f'<div class="item-title">{title_html}{latest_badge}{version_note}</div>'
-        + f'{date_html}{desc_html}{children_html}<div class="item-actions">{meta}</div>'
+        + f'{date_html}{desc_html}{children_html}'
+        + (f'<div class="item-actions">{meta}</div>' if meta else '')
         + '</li>'
     )
 
@@ -119,6 +121,23 @@ def render_sections(items: list[dict[str, str]], family_buckets: dict[tuple[str,
             family_latest[family_key] = item
         else:
             flat_items.append(item)
+
+    if mode == "latest" and type_name == "papers":
+        paper_blocks: list[tuple[tuple[str, str], str]] = []
+        for item in flat_items:
+            rendered_items = render_item_card(dict(item, is_latest="true"))
+            block_html = '<section class="group-block"><ul class="archive-list">' + rendered_items + '</ul></section>'
+            paper_blocks.append((entry_sort_key(item), block_html))
+        for family_key, latest_item in family_latest.items():
+            all_items = family_buckets.get((type_name, family_key), [latest_item])
+            family_label = humanize_slug(family_key.split("/")[-1])
+            block_html = render_family_block(family_label, latest_item, all_items, mode)
+            paper_blocks.append((entry_sort_key(latest_item), block_html))
+        if not paper_blocks:
+            return f'<div class="empty-state">{safe_text(empty_label)}</div>'
+        paper_blocks.sort(key=lambda row: row[0], reverse=True)
+        return "\n".join(block_html for _sort_key, block_html in paper_blocks)
+
     blocks: list[str] = []
     if flat_items:
         flat_sorted = sorted(flat_items, key=entry_sort_key, reverse=True) if type_name == "papers" else sorted(flat_items, key=lambda value: value["title"].lower())
@@ -127,8 +146,6 @@ def render_sections(items: list[dict[str, str]], family_buckets: dict[tuple[str,
 
     def family_order_key(family_key: str) -> tuple[str, str]:
         latest_item = family_latest[family_key]
-        if mode == "latest" and type_name == "papers" and family_key.endswith("contract-authority-under-ai"):
-            return ("9999-99-99", family_key)
         if type_name == "papers":
             return (latest_item.get("publication_date", ""), family_key)
         return ("", family_key)
@@ -140,7 +157,6 @@ def render_sections(items: list[dict[str, str]], family_buckets: dict[tuple[str,
         blocks.append(render_family_block(family_label, latest_item, all_items, mode))
     return "\n".join(blocks)
 
-
 def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tuple[str, str], list[dict[str, str]]], mode: str, content_types: list[str], site_name: str, site_url: str, og_image_url: str, og_image_alt: str, favicon_ico_href: str, favicon_32_href: str, favicon_16_href: str, apple_touch_icon_href: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str]) -> str:
     grouped: dict[str, list[dict[str, str]]] = {key: [] for key in content_types}
     source_entries = entries if mode == "latest" else list(entries)
@@ -150,7 +166,7 @@ def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tupl
         grouped[entry["type"]].append(entry)
     template = load_template("listing.html")
     title = "Latest" if mode == "latest" else "Archive"
-    intro = "Current papers, supporting contracts, replication materials, and authority essays." if mode == "latest" else "Full archive with latest versions, older lineage, papers, supporting contracts, replication materials, and authority essays."
+    intro = "Current papers, supporting contracts, and authority essays." if mode == "latest" else "Full archive with latest versions, older lineage, papers, supporting contracts, replication materials, and authority essays."
     home_href = "../" if mode in ("latest", "archive") else "./"
     latest_href = "./" if mode == "latest" else "../latest/"
     archive_href = "./" if mode == "archive" else "../archive/"
@@ -174,7 +190,7 @@ def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tupl
         "AUTHORITY_SECTIONS": render_sections(grouped["authority"], family_buckets, "authority", mode, "No authority collections yet."),
         "PAPERS_SECTIONS": render_sections(grouped["papers"], family_buckets, "papers", mode, "No results yet."),
         "CONTRACTS_SECTIONS": render_sections(grouped["contracts"], family_buckets, "contracts", mode, "No engineering artifacts yet."),
-        "REPLICATION_SECTIONS": render_sections(grouped["replication"], family_buckets, "replication", mode, "No replication materials yet."),
+        "REPLICATION_SECTION_HTML": "" if mode == "latest" else '<section id="replication" class="archive-section archive-section-replication"><h2>Replication &amp; verification</h2><p class="section-note">Portable rerun support, comparison packets, and verification materials. Useful for repeatability and auditability, but secondary to the primary reading path.</p>' + render_sections(grouped["replication"], family_buckets, "replication", mode, "No replication materials yet.") + "</section>",
     })
 
 
@@ -242,7 +258,7 @@ def render_start_page(latest_entries: list[dict[str, str]], site_name: str, site
     non_engineering_href = href_or_fallback(non_engineering_entry, "/non-engineering/")
     cce_href = href_or_fallback(cce_entry, "/latest/#papers")
     stability_href = href_or_fallback(stability_entry, "/latest/#papers")
-    thesis_href = href_or_fallback(thesis_entry, "/latest/#replication")
+    thesis_href = href_or_fallback(thesis_entry, "/archive/#replication")
     boundary_href = href_or_fallback(boundary_entry, "/latest/#papers")
 
     core_path_items = [
@@ -338,9 +354,9 @@ def render_proof_page(latest_entries: list[dict[str, str]], site_name: str, site
         "BOUNDARY_TITLE": safe_text(title_or_fallback(boundary_entry, "Contract Authority Under AI")),
         "STABILITY_HREF": safe_text(href_or_fallback(stability_entry, "/latest/#papers")),
         "STABILITY_TITLE": safe_text(title_or_fallback(stability_entry, "Contract-Centered Iterative Stability")),
-        "THESIS_HREF": safe_text(href_or_fallback(thesis_entry, "/latest/#replication")),
+        "THESIS_HREF": safe_text(href_or_fallback(thesis_entry, "/archive/#replication")),
         "THESIS_TITLE": safe_text(title_or_fallback(thesis_entry, "Thesis & Experimental Methodology")),
-        "REPLICATION_HREF": safe_text(href_or_fallback(replication_entry, "/latest/#replication")),
+        "REPLICATION_HREF": safe_text(href_or_fallback(replication_entry, "/archive/#replication")),
         "REPLICATION_TITLE": safe_text(title_or_fallback(replication_entry, "Context Injection Research Program")),
         "CCE_HREF": safe_text(href_or_fallback(cce_entry, "/latest/#papers")),
         "CCE_TITLE": safe_text(title_or_fallback(cce_entry, "Contract-Centered Engineering")),

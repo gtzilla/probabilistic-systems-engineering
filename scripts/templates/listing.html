@@ -60,7 +60,7 @@ body{margin:0;padding:0;overflow-x:hidden}*,*::before,*::after{box-sizing:inheri
     <a href="{{LATEST_HREF}}">Latest</a>
     <a href="{{LATEST_HREF}}#papers">Papers</a>
     <a href="{{LATEST_HREF}}#contracts">Contracts</a>
-    <a href="{{LATEST_HREF}}#replication">Replication</a>
+    <a href="{{ARCHIVE_HREF}}#replication">Replication</a>
     <a href="{{LATEST_HREF}}#authority">Authority</a>
     <a href="{{ARCHIVE_HREF}}">Archive</a>
   </nav>
@@ -82,7 +82,7 @@ body{margin:0;padding:0;overflow-x:hidden}*,*::before,*::after{box-sizing:inheri
   <div class="archive-stack">
     <section id="papers" class="archive-section archive-section-papers"><h2>Papers</h2><p class="section-note">Research papers, mechanism papers, synthesis, and boundary results.</p>{{PAPERS_SECTIONS}}</section>
     <section id="contracts" class="archive-section archive-section-contracts"><h2>Contracts</h2><p class="section-note">Explicit source-of-truth artifacts and operational semantics that support the papers and experiments. Important support surfaces, but not presented here as the final authority surface.</p>{{CONTRACTS_SECTIONS}}</section>
-    <section id="replication" class="archive-section archive-section-replication"><h2>Replication & verification</h2><p class="section-note">Portable rerun support, comparison packets, and verification materials. Useful for repeatability and auditability, but secondary to the primary reading path.</p>{{REPLICATION_SECTIONS}}</section>
+{{REPLICATION_SECTION_HTML}}
     <section id="authority" class="archive-section archive-section-authority"><h2>Authority</h2><p class="section-note">Linked essays and collections on where control actually lives and why understanding alone does not restore it. Kept below the primary proof path.</p>{{AUTHORITY_SECTIONS}}</section>
   </div>
 </main>
