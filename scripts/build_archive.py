@@ -117,19 +117,6 @@ def safe_json(value: object) -> str:
 
 
 
-def derive_folder_publication_date(doc_dir: Path) -> str:
-    timestamps: list[datetime] = []
-    for child in sorted(doc_dir.iterdir()):
-        if child.name == PAPER_PUBLICATION_FILENAME or child.name.startswith('.'):
-            continue
-        stat = child.stat()
-        timestamps.append(datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc))
-    if not timestamps:
-        fail(f"{doc_dir}: unable to derive publication date; folder is empty")
-    return min(timestamps).date().isoformat()
-
-
-
 def derive_git_first_seen_publication_date(doc_dir: Path) -> str:
     try:
         result = subprocess.run(
@@ -189,14 +176,20 @@ def resolve_paper_publication_metadata(doc_dir: Path) -> dict[str, str]:
             fail(f"{metadata_path}: date must use YYYY-MM-DD")
         return {
             "date": parsed.date().isoformat(),
-            "date_source": "manual",
+            "date_source": str(data.get("date_source", "manual")).strip() or "manual",
         }
 
     git_first_seen = derive_git_first_seen_publication_date(doc_dir)
-    derived_date = git_first_seen or derive_folder_publication_date(doc_dir)
+    if git_first_seen:
+        return {
+            "date": git_first_seen,
+            "date_source": "git-first-seen",
+        }
+
+    warn(f"{doc_dir}: no published.json and no git first-seen date; leaving publication date blank")
     return {
-        "date": derived_date,
-        "date_source": "git-first-seen" if git_first_seen else "folder-derived",
+        "date": "",
+        "date_source": "unresolved",
     }
 
 
@@ -346,7 +339,7 @@ def derive_document_metadata(
         "word_count": len(re.findall(r"\S+", full_text)),
         "reading_time_minutes": estimate_reading_time_minutes(full_text),
     }
-    if publication_metadata:
+    if publication_metadata and publication_metadata.get("date"):
         metadata["publication_date"] = publication_metadata["date"]
         metadata["publication_date_document"] = format_publication_date(publication_metadata["date"], "document")
         metadata["publication_date_archive"] = format_publication_date(publication_metadata["date"], "archive")
@@ -462,6 +455,27 @@ def inject_head_metadata(raw_html: str, doc_title: str) -> str:
         "</head>\n"
         + raw_html
     )
+
+def render_not_found_page() -> str:
+    template = load_template("404.html")
+    return render_template(template, {
+        "SITE_NAME": safe_text(SITE_NAME),
+        "PAGE_TITLE": safe_text(f"Page not found | {SITE_NAME}"),
+        "PAGE_DESCRIPTION": safe_text("The page you requested was not found. Start from Home, Latest, Start here, or Archive."),
+        "CANONICAL_URL": safe_text(f"{SITE_URL}/404.html"),
+        "OG_IMAGE_URL": safe_text(OG_IMAGE_URL),
+        "OG_IMAGE_ALT": safe_text(OG_IMAGE_ALT),
+        "FAVICON_ICO_HREF": safe_text(FAVICON_ICO_HREF),
+        "FAVICON_32_HREF": safe_text(FAVICON_32_HREF),
+        "FAVICON_16_HREF": safe_text(FAVICON_16_HREF),
+        "APPLE_TOUCH_ICON_HREF": safe_text(APPLE_TOUCH_ICON_HREF),
+        "HOME_HREF": "/",
+        "START_HREF": "/start/",
+        "PROOF_HREF": "/proof/",
+        "LATEST_HREF": "/latest/",
+        "ARCHIVE_HREF": "/archive/",
+    })
+
 
 def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata: dict[str, object]) -> str:
     normalized = normalize_exported_html(raw_html)
@@ -958,6 +972,7 @@ def main(argv: list[str] | None = None) -> int:
         copy_root_passthrough_files()
         latest_entries, family_buckets = latest_entries_and_families(entries)
         (DIST / 'index.html').write_text(render_home_page(latest_entries, CONTENT_TYPES, SITE_NAME, SITE_URL, OG_IMAGE_URL, OG_IMAGE_ALT, FAVICON_ICO_HREF, FAVICON_32_HREF, FAVICON_16_HREF, APPLE_TOUCH_ICON_HREF, load_template, render_template), encoding='utf-8')
+        (DIST / '404.html').write_text(render_not_found_page(), encoding='utf-8')
         start_dir = DIST / 'start'
         start_dir.mkdir(parents=True, exist_ok=True)
         (start_dir / 'index.html').write_text(render_start_page(latest_entries, SITE_NAME, SITE_URL, OG_IMAGE_URL, OG_IMAGE_ALT, FAVICON_ICO_HREF, FAVICON_32_HREF, FAVICON_16_HREF, APPLE_TOUCH_ICON_HREF, load_template, render_template), encoding='utf-8')

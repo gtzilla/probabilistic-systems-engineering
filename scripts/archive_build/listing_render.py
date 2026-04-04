@@ -32,10 +32,10 @@ def family_slug_and_version(entry: dict[str, str]) -> tuple[str, tuple[int, ...]
 
 
 
-def entry_sort_key(entry: dict[str, str]) -> tuple[str, str]:
-    publication_date = entry.get("publication_date", "")
-    title = entry.get("title", "").lower()
-    return (publication_date, title)
+def entry_sort_key(entry: dict[str, str]) -> tuple[int, str, str]:
+    publication_date = str(entry.get("publication_date", "") or "")
+    title = str(entry.get("title", "")).lower()
+    return (1 if publication_date else 0, publication_date, title)
 
 
 def render_redirect_page(target_href: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str], site_name: str) -> str:
@@ -187,6 +187,7 @@ def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tupl
         "HOME_HREF": home_href,
         "LATEST_HREF": latest_href,
         "ARCHIVE_HREF": archive_href,
+        "REPLICATION_MENU_LINK": '' if mode == "latest" else '    <a href="' + safe_text(archive_href) + '#replication">Replication</a>',
         "AUTHORITY_SECTIONS": render_sections(grouped["authority"], family_buckets, "authority", mode, "No authority collections yet."),
         "PAPERS_SECTIONS": render_sections(grouped["papers"], family_buckets, "papers", mode, "No results yet."),
         "CONTRACTS_SECTIONS": render_sections(grouped["contracts"], family_buckets, "contracts", mode, "No engineering artifacts yet."),

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{PAGE_TITLE}}</title>
+<meta name="description" content="{{PAGE_DESCRIPTION}}">
+<link rel="canonical" href="{{CANONICAL_URL}}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{PAGE_TITLE}}">
+<meta property="og:description" content="{{PAGE_DESCRIPTION}}">
+<meta property="og:url" content="{{CANONICAL_URL}}">
+<meta property="og:image" content="{{OG_IMAGE_URL}}">
+<meta property="og:image:alt" content="{{OG_IMAGE_ALT}}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{PAGE_TITLE}}">
+<meta name="twitter:description" content="{{PAGE_DESCRIPTION}}">
+<meta name="twitter:image" content="{{OG_IMAGE_URL}}">
+<link rel="icon" href="{{FAVICON_ICO_HREF}}" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="{{FAVICON_32_HREF}}">
+<link rel="icon" type="image/png" sizes="16x16" href="{{FAVICON_16_HREF}}">
+<link rel="apple-touch-icon" sizes="180x180" href="{{APPLE_TOUCH_ICON_HREF}}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fcfcf9;--panel:#ffffff;--text:#171717;--muted:#6b7280;--border:#e6e3dc;--link:#374151}
+html{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:"Inter",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;box-sizing:border-box;overflow-x:hidden}
+body{margin:0;padding:0;overflow-x:hidden}*,*::before,*::after{box-sizing:inherit}.page{max-width:48rem;margin:0 auto;padding:2rem 1.15rem 4rem}.panel{background:var(--panel);border:1px solid var(--border);border-radius:22px;padding:1.4rem 1.2rem 1.25rem;box-shadow:0 1px 0 rgba(17,17,17,.02)}.kicker{margin:0 0 .5rem;color:var(--muted);font-size:.82rem;line-height:1.3;letter-spacing:.08em;text-transform:uppercase}h1{margin:0 0 .55rem;font-size:clamp(2rem,7vw,3rem);line-height:1.02;letter-spacing:-.035em;font-family:"Manrope","Inter",sans-serif;font-weight:800}.intro{margin:0;color:#4b5563;font-size:1rem;line-height:1.68;max-width:38rem}.actions{display:flex;gap:.7rem;flex-wrap:wrap;margin-top:1.25rem}.actions a{display:inline-flex;align-items:center;justify-content:center;min-height:2.5rem;padding:0 .95rem;border-radius:999px;border:1px solid var(--border);text-decoration:none;color:var(--link);background:var(--panel);font-family:"Manrope","Inter",sans-serif;font-weight:700}.actions a:hover{text-decoration:underline}.nav{display:flex;gap:.7rem;flex-wrap:wrap;margin:0 0 1rem}.nav a{text-decoration:none;color:var(--link);font-weight:600}.nav a:hover{text-decoration:underline}@media (max-width:900px){.page{padding:1.35rem 1rem 3rem}}
+</style>
+</head>
+<body>
+<main class="page">
+  <nav class="nav" aria-label="Primary">
+    <a href="{{HOME_HREF}}">Home</a>
+    <a href="{{START_HREF}}">Start</a>
+    <a href="{{PROOF_HREF}}">Proof</a>
+    <a href="{{LATEST_HREF}}">Latest</a>
+    <a href="{{ARCHIVE_HREF}}">Archive</a>
+  </nav>
+  <section class="panel">
+    <p class="kicker">Page not found</p>
+    <h1>This page doesn’t exist</h1>
+    <p class="intro">The URL may be old, moved, or mistyped. Start from Home, Latest, Start here, or Archive to find the current reading path.</p>
+    <div class="actions">
+      <a href="{{HOME_HREF}}">Home</a>
+      <a href="{{LATEST_HREF}}">Latest</a>
+      <a href="{{START_HREF}}">Start here</a>
+      <a href="{{ARCHIVE_HREF}}">Archive</a>
+    </div>
+  </section>
+</main>
+</body>
+</html>
