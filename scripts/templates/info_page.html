@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<title>{{PAGE_TITLE}}</title>
+<meta name="description" content="{{PAGE_DESCRIPTION}}">
+<link rel="canonical" href="{{CANONICAL_URL}}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{PAGE_TITLE}}">
+<meta property="og:description" content="{{PAGE_DESCRIPTION}}">
+<meta property="og:url" content="{{CANONICAL_URL}}">
+<meta property="og:image" content="{{OG_IMAGE_URL}}">
+<meta property="og:image:alt" content="{{OG_IMAGE_ALT}}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{PAGE_TITLE}}">
+<meta name="twitter:description" content="{{PAGE_DESCRIPTION}}">
+<meta name="twitter:image" content="{{OG_IMAGE_URL}}">
+<link rel="icon" href="{{FAVICON_ICO_HREF}}" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="{{FAVICON_32_HREF}}">
+<link rel="icon" type="image/png" sizes="16x16" href="{{FAVICON_16_HREF}}">
+<link rel="apple-touch-icon" sizes="180x180" href="{{APPLE_TOUCH_ICON_HREF}}">
+<style>
+:root{--bg:#fcfcf9;--panel:#ffffff;--text:#171717;--muted:#6b7280;--border:#e6e3dc;--link:#3b49df}
+html{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:"Inter",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;box-sizing:border-box;overflow-x:hidden}
+body{margin:0;padding:0;overflow-x:hidden}*,*::before,*::after{box-sizing:inherit}.page{max-width:48rem;margin:0 auto;padding:1.6rem 1rem 3.5rem}.top{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin-bottom:1.35rem;padding-bottom:.95rem;border-bottom:1px solid var(--border)}.kicker{margin:0 0 .45rem;color:var(--muted);font-size:.8rem;line-height:1.3;letter-spacing:.08em;text-transform:uppercase}h1{margin:0 0 .35rem;font-size:clamp(2rem,7vw,3.2rem);line-height:1.02;letter-spacing:-.035em;font-family:"Manrope","Inter",sans-serif;font-weight:800}.intro{margin:0;color:#4b5563;max-width:40rem;font-size:1rem;line-height:1.65}.top nav{display:flex;gap:.9rem;flex-wrap:wrap;padding-top:.15rem;font-family:"Manrope","Inter",sans-serif;font-weight:600}.top a,.body a{text-decoration:none;color:var(--link)}.top a:hover,.body a:hover{text-decoration:underline}.body{background:var(--panel);border:1px solid var(--border);border-radius:22px;padding:1.2rem 1.05rem 1.1rem;line-height:1.72;font-size:1.02rem}.body p{margin:0 0 1rem}.body p:last-child{margin-bottom:0}.utility{margin-top:1rem;color:var(--muted);font-size:.93rem;line-height:1.5}.utility a{color:#374151;text-decoration:none}.utility a:hover{text-decoration:underline}@media (max-width:900px){.page{padding:1.15rem .95rem 2.6rem}.top{display:block}.top nav{margin-top:.8rem}}
+</style>
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/reading-system.css">
+<link rel="stylesheet" href="/assets/css/surfaces.css">
+<script defer src="/assets/js/mobile-header.js"></script>
+</head>
+<body class="info-page has-mobile-header">
+<header class="mobile-header" data-mobile-header>
+  <div class="mobile-header-bar">
+    <div class="mobile-header-title-wrap">
+      <a class="mobile-header-title" href="{{HOME_HREF}}">{{SITE_NAME}}</a>
+      <span class="mobile-header-section">{{PAGE_HEADING}}</span>
+    </div>
+    <button class="mobile-header-toggle" type="button" data-mobile-menu-toggle aria-expanded="false" aria-controls="mobile-site-menu">Menu</button>
+  </div>
+  <nav id="mobile-site-menu" class="mobile-header-menu" data-mobile-menu aria-hidden="true">
+    <a href="{{LATEST_HREF}}">Latest</a>
+    <a href="{{ARCHIVE_HREF}}">Archive</a>
+  </nav>
+</header>
+<main class="page">
+  <div class="top">
+    <div>
+      <p class="kicker">{{PAGE_KICKER}}</p>
+      <h1>{{PAGE_HEADING}}</h1>
+    </div>
+    <nav>
+      <a href="{{LATEST_HREF}}">Latest</a>
+      <a href="{{ARCHIVE_HREF}}">Archive</a>
+    </nav>
+  </div>
+  <section class="body">{{PAGE_BODY_HTML}}</section>
+  <p class="utility"><a href="{{ABOUT_HREF}}">About</a> · <a href="{{RESEARCH_HREF}}">Research</a></p>
+</main>
+</body>
+</html>

@@ -187,6 +187,8 @@ def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tupl
         "HOME_HREF": home_href,
         "LATEST_HREF": latest_href,
         "ARCHIVE_HREF": archive_href,
+        "ABOUT_HREF": "../about/" if mode in ("latest", "archive") else "./about/",
+        "RESEARCH_HREF": "../research/" if mode in ("latest", "archive") else "./research/",
         "PAPERS_SECTIONS": render_sections(grouped["papers"], family_buckets, "papers", mode, "No results yet."),
         "CONTRACTS_SECTIONS": render_sections(grouped["contracts"], family_buckets, "contracts", mode, "No engineering artifacts yet."),
         "REPLICATION_SECTION_HTML": "" if mode == "latest" else '<section id="replication" class="archive-section archive-section-replication"><h2>Replication &amp; verification</h2><p class="section-note">Portable rerun support, comparison packets, and verification materials. Useful for repeatability and auditability, but secondary to the primary reading path.</p>' + render_sections(grouped["replication"], family_buckets, "replication", mode, "No replication materials yet.") + "</section>",
@@ -202,41 +204,36 @@ def render_home_page(latest_entries: list[dict[str, str]], content_types: list[s
     template = load_template("home.html")
     page_description = "An evolving research corpus on AI-assisted software work: omitted scope, blended inference, default fill-in, VDG, preserved truth, and where authority actually does and does not live."
 
-    current_one = find_entry_by_slug_prefix(latest_entries, "papers", "when-ai-collapses-fact-and-assumption-")
-    current_two = find_entry_by_slug_prefix(latest_entries, "papers", "making-ai-omitted-scope-visible-with-vdg-")
     boundary_entry = find_entry_by_slug_prefix(latest_entries, "papers", "contract-authority-under-ai-")
     vdg_entry = find_entry_by_slug_prefix(latest_entries, "papers", "why-verified-deduction-gap-")
 
-    fallback_papers = list(grouped["papers"])
-    if current_one is None and fallback_papers:
-        current_one = fallback_papers[0]
-    if current_two is None and len(fallback_papers) > 1:
-        current_two = fallback_papers[1]
-    if boundary_entry is None and len(fallback_papers) > 2:
-        boundary_entry = fallback_papers[2]
-    if vdg_entry is None:
-        vdg_entry = current_two or current_one or boundary_entry
+    newest_papers = sorted(grouped["papers"], key=entry_sort_key, reverse=True)
+    dynamic_papers = [
+        entry
+        for entry in newest_papers
+        if entry.get("slug") != (boundary_entry or {}).get("slug")
+    ][:2]
 
-    current_cards_html = "".join(
-        [
+    current_cards: list[str] = []
+    for entry in dynamic_papers:
+        current_cards.append(
             render_home_card(
-                title_or_fallback(current_one, "When AI Collapses Fact and Assumption"),
-                href_or_fallback(current_one, "./latest/"),
-                "Blended inference as baseline response mode, and why separating support from assumption matters.",
-            ) if current_one else "",
-            render_home_card(
-                title_or_fallback(current_two, "Making AI Omitted Scope Visible with VDG"),
-                href_or_fallback(current_two, "./latest/"),
-                "A concrete omitted-scope failure and the role VDG plays in making the miss visible.",
-            ) if current_two else "",
+                title_or_fallback(entry, "Untitled paper"),
+                href_or_fallback(entry, "./latest/"),
+                str(entry.get("description") or "Current paper from the live research thread."),
+            )
+        )
+    if boundary_entry:
+        current_cards.append(
             render_home_card(
                 title_or_fallback(boundary_entry, "Contract Authority Under AI"),
                 href_or_fallback(boundary_entry, "./latest/"),
                 "The strongest contract-authority claim, the research boundary, and the narrower result that survived.",
                 "current-boundary",
-            ) if boundary_entry else "",
-        ]
-    )
+            )
+        )
+    if vdg_entry is None:
+        vdg_entry = dynamic_papers[0] if dynamic_papers else boundary_entry
 
     protocol_links_html = "".join(
         render_protocol_link(str(entry.get("title", "Untitled artifact")), str(entry.get("url", "./latest/#contracts")))
@@ -256,8 +253,10 @@ def render_home_page(latest_entries: list[dict[str, str]], content_types: list[s
         "APPLE_TOUCH_ICON_HREF": safe_text(apple_touch_icon_href),
         "LATEST_HREF": "./latest/",
         "ARCHIVE_HREF": "./archive/",
+        "ABOUT_HREF": "./about/",
+        "RESEARCH_HREF": "./research/",
         "VDG_HREF": safe_text(href_or_fallback(vdg_entry, "./latest/")),
-        "CURRENT_THREAD_CARDS": current_cards_html,
+        "CURRENT_THREAD_CARDS": "".join(current_cards),
         "PROTOCOLS_AND_CONTRACTS_LINKS": protocol_links_html,
     })
 
@@ -298,6 +297,82 @@ def render_protocol_link(title: str, href: str) -> str:
         + '</a>'
     )
 
+
+
+def render_info_page(page_slug: str, page_title: str, page_description: str, page_kicker: str, body_html: str, site_name: str, site_url: str, og_image_url: str, og_image_alt: str, favicon_ico_href: str, favicon_32_href: str, favicon_16_href: str, apple_touch_icon_href: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str]) -> str:
+    template = load_template("info_page.html")
+    return render_template(template, {
+        "SITE_NAME": safe_text(site_name),
+        "PAGE_TITLE": safe_text(f"{page_title} | {site_name}"),
+        "PAGE_DESCRIPTION": safe_text(page_description),
+        "CANONICAL_URL": safe_text(f"{site_url}/{page_slug}/"),
+        "OG_IMAGE_URL": safe_text(og_image_url),
+        "OG_IMAGE_ALT": safe_text(og_image_alt),
+        "FAVICON_ICO_HREF": safe_text(favicon_ico_href),
+        "FAVICON_32_HREF": safe_text(favicon_32_href),
+        "FAVICON_16_HREF": safe_text(favicon_16_href),
+        "APPLE_TOUCH_ICON_HREF": safe_text(apple_touch_icon_href),
+        "PAGE_KICKER": safe_text(page_kicker),
+        "PAGE_HEADING": safe_text(page_title),
+        "PAGE_BODY_HTML": body_html,
+        "HOME_HREF": "../",
+        "LATEST_HREF": "../latest/",
+        "ARCHIVE_HREF": "../archive/",
+        "ABOUT_HREF": "../about/",
+        "RESEARCH_HREF": "../research/",
+    })
+
+
+def render_about_page(site_name: str, site_url: str, og_image_url: str, og_image_alt: str, favicon_ico_href: str, favicon_32_href: str, favicon_16_href: str, apple_touch_icon_href: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str]) -> str:
+    body_html = (
+        '<p>Gregory Tomlinson is a software engineer and writer.</p>'
+        "<p>I've been working in software long enough that this moment in AI feels, to me, a lot like the early Web2.0 era: noisy, fast-moving, and full of real new possibilities.</p>"
+        '<p>I write to think, test ideas, and make the underlying mechanisms more visible.</p>'
+    )
+    return render_info_page(
+        "about",
+        "About",
+        "About Gregory Tomlinson.",
+        "About",
+        body_html,
+        site_name,
+        site_url,
+        og_image_url,
+        og_image_alt,
+        favicon_ico_href,
+        favicon_32_href,
+        favicon_16_href,
+        apple_touch_icon_href,
+        load_template,
+        render_template,
+    )
+
+
+def render_research_page(site_name: str, site_url: str, og_image_url: str, og_image_alt: str, favicon_ico_href: str, favicon_32_href: str, favicon_16_href: str, apple_touch_icon_href: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str]) -> str:
+    body_html = (
+        '<p>This site is an evolving research corpus on AI-assisted software development.</p>'
+        '<p>It studies what breaks in one response or across change, what support artifacts help preserve truth, and where authority does and does not live when software work is mediated by AI.</p>'
+        '<p>The corpus includes papers, experiments, protocols and contracts, and archived lineage from earlier phases of the work.</p>'
+        '<p>Earlier phases tested stronger contract-centered claims. Some of those claims did not hold. The work continued by narrowing, revising, and following what survived.</p>'
+        '<p>Current threads include VDG, omitted scope, blended inference, default fill-in, review burden, preserved truth, and refusal surfaces.</p>'
+    )
+    return render_info_page(
+        "research",
+        "AI-Assisted Software Development Research",
+        "Research framing for the AI-assisted software development corpus.",
+        "Research",
+        body_html,
+        site_name,
+        site_url,
+        og_image_url,
+        og_image_alt,
+        favicon_ico_href,
+        favicon_32_href,
+        favicon_16_href,
+        apple_touch_icon_href,
+        load_template,
+        render_template,
+    )
 
 def render_start_page(latest_entries: list[dict[str, str]], site_name: str, site_url: str, og_image_url: str, og_image_alt: str, favicon_ico_href: str, favicon_32_href: str, favicon_16_href: str, apple_touch_icon_href: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str]) -> str:
     template = load_template("start.html")

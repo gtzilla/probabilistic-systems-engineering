@@ -36,10 +36,12 @@ from archive_build.non_engineering import (
     infer_non_engineering_theme,
 )
 from archive_build.listing_render import (
+    render_about_page,
     render_home_page,
     render_listing_page,
     render_proof_page,
     render_redirect_page,
+    render_research_page,
     render_start_page,
 )
 from archive_build.discovery import (
@@ -526,6 +528,8 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
     archive_href = f"{home_href}archive/"
     start_href = f"{home_href}start/"
     proof_href = f"{home_href}proof/"
+    about_href = f"{home_href}about/"
+    research_href = f"{home_href}research/"
     papers_href = f"{latest_href}#papers"
     contracts_href = f"{latest_href}#contracts"
     replication_href = f"{archive_href}#replication"
@@ -546,6 +550,8 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
             "PDF_HREF": safe_text(pdf_href),
             "LATEST_HREF": safe_text(latest_href),
             "ARCHIVE_HREF": safe_text(archive_href),
+            "ABOUT_HREF": safe_text(about_href),
+            "RESEARCH_HREF": safe_text(research_href),
             "START_HREF": safe_text(start_href),
             "PROOF_HREF": safe_text(proof_href),
             "PAPERS_HREF": safe_text(papers_href),
@@ -971,6 +977,12 @@ def main(argv: list[str] | None = None) -> int:
         latest_entries, family_buckets = latest_entries_and_families(entries)
         (DIST / 'index.html').write_text(render_home_page(latest_entries, CONTENT_TYPES, SITE_NAME, SITE_URL, OG_IMAGE_URL, OG_IMAGE_ALT, FAVICON_ICO_HREF, FAVICON_32_HREF, FAVICON_16_HREF, APPLE_TOUCH_ICON_HREF, load_template, render_template), encoding='utf-8')
         (DIST / '404.html').write_text(render_not_found_page(), encoding='utf-8')
+        about_dir = DIST / 'about'
+        about_dir.mkdir(parents=True, exist_ok=True)
+        (about_dir / 'index.html').write_text(render_about_page(SITE_NAME, SITE_URL, OG_IMAGE_URL, OG_IMAGE_ALT, FAVICON_ICO_HREF, FAVICON_32_HREF, FAVICON_16_HREF, APPLE_TOUCH_ICON_HREF, load_template, render_template), encoding='utf-8')
+        research_dir = DIST / 'research'
+        research_dir.mkdir(parents=True, exist_ok=True)
+        (research_dir / 'index.html').write_text(render_research_page(SITE_NAME, SITE_URL, OG_IMAGE_URL, OG_IMAGE_ALT, FAVICON_ICO_HREF, FAVICON_32_HREF, FAVICON_16_HREF, APPLE_TOUCH_ICON_HREF, load_template, render_template), encoding='utf-8')
         start_dir = DIST / 'start'
         start_dir.mkdir(parents=True, exist_ok=True)
         (start_dir / 'index.html').write_text(render_start_page(latest_entries, SITE_NAME, SITE_URL, OG_IMAGE_URL, OG_IMAGE_ALT, FAVICON_ICO_HREF, FAVICON_32_HREF, FAVICON_16_HREF, APPLE_TOUCH_ICON_HREF, load_template, render_template), encoding='utf-8')
