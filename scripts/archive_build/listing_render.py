@@ -326,8 +326,33 @@ def render_info_page(page_slug: str, page_title: str, page_description: str, pag
 def render_about_page(site_name: str, site_url: str, og_image_url: str, og_image_alt: str, favicon_ico_href: str, favicon_32_href: str, favicon_16_href: str, apple_touch_icon_href: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str]) -> str:
     body_html = (
         '<p>Gregory Tomlinson is a software engineer and writer.</p>'
-        "<p>I've been working in software long enough that this moment in AI feels, to me, a lot like the early Web2.0 era: noisy, fast-moving, and full of real new possibilities.</p>"
+        "<p>I&apos;ve spent years working in software, and a lot of my writing grows out of that practice.</p>"
+        "<p>I&apos;ve been working in software long enough that this moment in AI feels, to me, a lot like the early Web2.0 era: noisy, fast-moving, and full of real new possibilities.</p>"
         '<p>I write to think, test ideas, and make the underlying mechanisms more visible.</p>'
+        '<div class="contact-block">'
+        '<h2>Elsewhere</h2>'
+        '<ul class="contact-list">'
+        '<li><button type="button" class="email-reveal-button" data-email-reveal data-local="gregory.tomlinson" data-domain="gmail.com">Reveal email</button><span class="email-reveal-output" data-email-output aria-live="polite"></span></li>'
+        '<li><a href="https://github.com/gtzilla">GitHub</a></li>'
+        '<li><a href="https://www.linkedin.com/in/gregorytomlinson/">LinkedIn</a></li>'
+        '</ul>'
+        '</div>'
+        '<script>'
+        '(function(){'
+        'var button=document.querySelector("[data-email-reveal]");'
+        'var output=document.querySelector("[data-email-output]");'
+        'if(!button||!output){return;}'
+        'button.addEventListener("click",function(){'
+        'var local=button.getAttribute("data-local")||"";'
+        'var domain=button.getAttribute("data-domain")||"";'
+        'if(!local||!domain){return;}'
+        'var email=local+"@"+domain;'
+        'output.innerHTML=" <a href=\"mailto:"+email+"\">"+email+"</a>";'
+        'button.disabled=true;'
+        'button.textContent="Email";'
+        '});'
+        '})();'
+        '</script>'
     )
     return render_info_page(
         "about",
