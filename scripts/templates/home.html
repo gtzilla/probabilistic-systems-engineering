@@ -25,27 +25,37 @@
 <link rel="apple-touch-icon" sizes="180x180" href="{{APPLE_TOUCH_ICON_HREF}}">
 
 <style>
-:root{--bg:#f6f5f1;--panel:rgba(255,255,255,.84);--panel-strong:rgba(255,255,255,.92);--text:#171717;--muted:#5f6672;--border:rgba(34,34,34,.10);--border-strong:rgba(34,34,34,.18);--accent:#111111;--soft:rgba(245,242,234,.78);--papers-accent:#365b8c;--contracts-accent:#586847;--replication-accent:#7b5b2f;--authority-accent:#6b5a7a;}
+:root{--bg:#f6f5f1;--panel:rgba(255,255,255,.92);--panel-strong:#ffffff;--text:#171717;--muted:#5f6672;--border:rgba(34,34,34,.10);--border-strong:rgba(34,34,34,.18);--accent:#111111;--papers-accent:#365b8c;--contracts-accent:#586847;--vdg-accent:#5849d7;--vdg-soft:#f0eeff}
 html{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:"Inter",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;box-sizing:border-box;overflow-x:hidden}
 body{margin:0;padding:0;min-height:100vh;overflow-x:hidden;position:relative;background:var(--bg)}*,*::before,*::after{box-sizing:inherit}main,section,div,a,nav{min-width:0}
-.page{max-width:64rem;margin:0 auto;padding:2rem 1.25rem 4rem}
-.hero{max-width:48rem;margin-left:0;padding:1.5rem 1.5rem 1.7rem;border:1px solid rgba(34,34,34,.08);border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.page{max-width:68rem;margin:0 auto;padding:2rem 1.25rem 4rem}
+.hero{max-width:52rem;margin:0 0 1.5rem;padding:1.5rem 1.5rem 1.65rem;border:1px solid rgba(34,34,34,.08);border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .kicker{margin:0 0 .6rem;color:var(--muted);font-size:.84rem;line-height:1.3;letter-spacing:.08em;text-transform:uppercase}
 h1{margin:0 0 .9rem;font-size:clamp(2.4rem,8vw,4.6rem);line-height:.98;letter-spacing:-.04em;font-weight:800;font-family:"Manrope","Inter",sans-serif}
 .credit{margin:0 0 1rem;color:var(--muted);font-size:.9rem;line-height:1.4}
-.lead{margin:0 0 .85rem;font-size:1.06rem;line-height:1.64;color:#30343a;max-width:42rem}
-.actions{display:flex;gap:.75rem;flex-wrap:wrap;margin:1.5rem 0 1.75rem}.actions a{display:inline-flex;align-items:center;justify-content:center;min-height:2.7rem;padding:0 1rem;border-radius:999px;border:1px solid var(--border-strong);text-decoration:none;color:var(--text);background:rgba(255,255,255,.88);font-size:.96rem;text-align:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-family:"Manrope","Inter",sans-serif;font-weight:700}.actions .primary{background:var(--accent);border-color:var(--accent);color:#fff}
-.primary-stack{display:grid;gap:1rem;margin-top:1.5rem}
-.primary-feature,.primary-row,.secondary-row{border:1px solid var(--border);border-radius:24px;background:var(--panel);padding:1rem 1rem 1.05rem;text-decoration:none;color:inherit;display:block}
-.primary-feature:hover,.primary-row a:hover,.secondary-row a:hover{box-shadow:0 10px 24px rgba(0,0,0,.06)}
-.primary-feature .eyebrow,.primary-row .eyebrow,.secondary-row .eyebrow{display:block;color:var(--muted);font-size:.8rem;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.35rem}
-.primary-feature h2,.primary-row h2,.secondary-row h2{margin:0 0 .25rem;font-size:1.48rem;line-height:1.1;letter-spacing:-.025em;font-family:"Manrope","Inter",sans-serif;font-weight:800}.primary-feature h2{color:var(--papers-accent)}.primary-row.authority h2{color:var(--authority-accent)}.secondary-row.contracts h2{color:var(--contracts-accent)}.secondary-row.replication h2{color:var(--replication-accent)}
-.primary-feature p,.primary-row p,.secondary-row p{margin:0;color:#4b5563;line-height:1.5;font-size:.96rem}
-.primary-feature .count,.primary-row .count,.secondary-row .count{margin-top:.55rem;color:var(--muted);font-size:.9rem}
-.primary-pair,.secondary-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
-.section-divider{margin-top:1.3rem;padding-top:1.1rem;border-top:1px solid var(--border)}
-.secondary-label{margin:0 0 .8rem;font-size:.9rem;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
-@media (max-width:900px){.page{padding:1.4rem 1.35rem 3rem}.lead{font-size:1.08rem}.primary-pair,.secondary-pair{grid-template-columns:1fr}}
+.lead{margin:0;font-size:1.04rem;line-height:1.62;color:#30343a;max-width:42rem}
+.home-stack{display:grid;gap:1.1rem}
+.section-card{border:1px solid var(--border);border-radius:22px;background:var(--panel);padding:1rem 1rem 1.05rem}
+.section-kicker{display:block;margin:0 0 .45rem;color:var(--muted);font-size:.8rem;letter-spacing:.07em;text-transform:uppercase}
+.section-card h2{margin:0 0 .3rem;font-size:1.45rem;line-height:1.12;letter-spacing:-.025em;font-family:"Manrope","Inter",sans-serif;font-weight:800}
+.section-note{margin:0 0 .85rem;color:#4b5563;line-height:1.55;font-size:.95rem}
+.current-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
+.current-card,.protocol-link,.vdg-callout{display:block;border:1px solid var(--border);border-radius:18px;background:var(--panel-strong);padding:.95rem .95rem 1rem;text-decoration:none;color:inherit}
+.current-card:hover,.protocol-link:hover,.vdg-callout:hover{box-shadow:0 10px 24px rgba(0,0,0,.06)}
+.current-card .eyebrow,.protocol-link .eyebrow,.vdg-callout .eyebrow{display:block;margin-bottom:.35rem;color:var(--muted);font-size:.76rem;letter-spacing:.07em;text-transform:uppercase}
+.current-card h3,.protocol-link h3{margin:0 0 .35rem;font-size:1.14rem;line-height:1.28;letter-spacing:-.02em;font-family:"Manrope","Inter",sans-serif;font-weight:800}
+.current-card p{margin:0;color:#4b5563;font-size:.93rem;line-height:1.5}
+.vdg-row{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,.9fr);gap:1rem;align-items:stretch}
+.vdg-callout{display:flex;flex-direction:column;justify-content:center;border-color:color-mix(in srgb,var(--vdg-accent) 30%, #d8d2ff);background:linear-gradient(135deg,var(--vdg-soft),#ffffff 72%)}
+.vdg-word{font-family:"Manrope","Inter",sans-serif;font-size:clamp(2.6rem,7vw,4rem);line-height:.94;letter-spacing:-.05em;font-weight:800;color:var(--vdg-accent)}
+.vdg-sub{margin-top:.35rem;color:#3d4294;font-size:.95rem;line-height:1.35;font-weight:700;letter-spacing:.01em}
+.vdg-side{display:grid;gap:1rem}
+.protocols-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem}
+.protocol-link h3{font-size:1rem;margin-bottom:0}
+.protocols-card h2{color:var(--contracts-accent)}
+.current-card.current-live h3{color:var(--papers-accent)}
+.current-card.current-boundary h3{color:#654d2d}
+@media (max-width:960px){.page{padding:1.35rem 1.15rem 3rem}.current-grid,.vdg-row,.protocols-grid{grid-template-columns:1fr}}
 </style>
   <link rel="stylesheet" href="/assets/css/base.css">
   <link rel="stylesheet" href="/assets/css/reading-system.css">
@@ -62,12 +72,7 @@ h1{margin:0 0 .9rem;font-size:clamp(2.4rem,8vw,4.6rem);line-height:.98;letter-sp
     <button class="mobile-header-toggle" type="button" data-mobile-menu-toggle aria-expanded="false" aria-controls="mobile-site-menu">Menu</button>
   </div>
   <nav id="mobile-site-menu" class="mobile-header-menu" data-mobile-menu aria-hidden="true">
-    <a href="{{START_HREF}}">Start</a>
-    <a href="{{PROOF_HREF}}">Proof</a>
     <a href="{{LATEST_HREF}}">Latest</a>
-    <a href="{{LATEST_HREF}}#papers">Papers</a>
-    <a href="{{LATEST_HREF}}#contracts">Contracts</a>
-    <a href="{{LATEST_HREF}}#authority">Authority</a>
     <a href="{{ARCHIVE_HREF}}">Archive</a>
   </nav>
 </header>
@@ -76,49 +81,37 @@ h1{margin:0 0 .9rem;font-size:clamp(2.4rem,8vw,4.6rem);line-height:.98;letter-sp
     <p class="kicker">AI engineering research</p>
     <h1>{{SITE_NAME}}</h1>
     <p class="credit">Gregory Tomlinson</p>
-    <p class="lead">A bounded research corpus on AI-assisted software work: how explicit source-of-truth artifacts reduce drift, where authority actually lives, and what contracts can and cannot prove.</p>
-    <p class="lead">Start with the orientation path, then move into the papers and authority essays. Contracts support the claims. Archive preserves lineage and older supporting material without becoming the primary cold-reading surface.</p>
-    <div class="actions">
-      <a class="primary" href="{{START_HREF}}">Start here</a>
-      <a href="{{PROOF_HREF}}">What is proven</a>
-      <a href="{{LATEST_HREF}}">Read the papers</a>
-    </div>
-
-    <section class="primary-stack" aria-label="Primary sections">
-      <a class="primary-feature" href="{{LATEST_HREF}}#papers">
-        <span class="eyebrow">Primary path</span>
-        <h2>Papers</h2>
-        <p>Research and mechanism papers, boundary papers, comparisons, and synthesis that make the engineering claims legible.</p>
-        <div class="count">{{PAPERS_COUNT}} current items</div>
-      </a>
-      <div class="primary-pair">
-        <a class="primary-row authority" href="{{LATEST_HREF}}#authority">
-          <span class="eyebrow">Primary path</span>
-          <h2>Authority</h2>
-          <p>Collections and linked essays that diagnose where control actually lives and why understanding alone does not restore it.</p>
-          <div class="count">{{AUTHORITY_COLLECTION_COUNT}} collection · {{AUTHORITY_COUNT}} essays</div>
-        </a>
-        <a class="primary-row" href="{{ARCHIVE_HREF}}">
-          <span class="eyebrow">Browse</span>
-          <h2>Archive</h2>
-          <p>Latest plus historical lineage, grouped sanely without flattening version history.</p>
-          <div class="count">Version-preserving listings</div>
-        </a>
-      </div>
-    </section>
-
-    <section class="section-divider">
-      <p class="secondary-label">Secondary and support surfaces</p>
-      <div class="secondary-pair">
-        <a class="secondary-row contracts" href="{{LATEST_HREF}}#contracts">
-          <span class="eyebrow">Secondary</span>
-          <h2>Contracts</h2>
-          <p>Governing artifacts and operational semantics that support the papers. Valuable as explicit source-of-truth artifacts, but not presented here as the live authority surface.</p>
-          <div class="count">{{CONTRACTS_COUNT}} current items</div>
-        </a>
-      </div>
-    </section>
+    <p class="lead">An evolving research corpus on AI-assisted software work: omitted scope, blended inference, default fill-in, VDG, preserved truth, and where authority actually does and does not live.</p>
   </section>
+
+  <div class="home-stack">
+    <section class="section-card">
+      <span class="section-kicker">Current thread</span>
+      <h2>Current anchors</h2>
+      <p class="section-note">The live center is failure visibility in one response or across change, plus the narrower research boundary that survived after the stronger contract-authority claim failed.</p>
+      <div class="current-grid">
+        {{CURRENT_THREAD_CARDS}}
+      </div>
+    </section>
+
+    <section class="vdg-row" aria-label="VDG entry point">
+      <a class="vdg-callout" href="{{VDG_HREF}}">
+        <span class="eyebrow">Core protocol</span>
+        <span class="vdg-word">VDG</span>
+        <span class="vdg-sub">Verified / Deduction / Gap</span>
+      </a>
+      <div class="vdg-side">
+        <section class="section-card protocols-card">
+          <span class="section-kicker">Support surfaces</span>
+          <h2>Protocols &amp; Contracts</h2>
+          <p class="section-note">Explicit source-of-truth artifacts and response-structure documents that support the papers without pretending to be the final live authority surface.</p>
+          <div class="protocols-grid">
+            {{PROTOCOLS_AND_CONTRACTS_LINKS}}
+          </div>
+        </section>
+      </div>
+    </section>
+  </div>
 </main>
 </body>
 </html>

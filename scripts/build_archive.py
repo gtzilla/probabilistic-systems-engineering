@@ -461,7 +461,7 @@ def render_not_found_page() -> str:
     return render_template(template, {
         "SITE_NAME": safe_text(SITE_NAME),
         "PAGE_TITLE": safe_text(f"Page not found | {SITE_NAME}"),
-        "PAGE_DESCRIPTION": safe_text("The page you requested was not found. Start from Home, Latest, Start here, or Archive."),
+        "PAGE_DESCRIPTION": safe_text("The page you requested was not found. Start from Latest or Archive."),
         "CANONICAL_URL": safe_text(f"{SITE_URL}/404.html"),
         "OG_IMAGE_URL": safe_text(OG_IMAGE_URL),
         "OG_IMAGE_ALT": safe_text(OG_IMAGE_ALT),
@@ -470,8 +470,6 @@ def render_not_found_page() -> str:
         "FAVICON_16_HREF": safe_text(FAVICON_16_HREF),
         "APPLE_TOUCH_ICON_HREF": safe_text(APPLE_TOUCH_ICON_HREF),
         "HOME_HREF": "/",
-        "START_HREF": "/start/",
-        "PROOF_HREF": "/proof/",
         "LATEST_HREF": "/latest/",
         "ARCHIVE_HREF": "/archive/",
     })
@@ -512,7 +510,7 @@ def render_document_page(raw_html: str, pdf_href: str, doc_title: str, metadata:
     content_type = str(metadata.get("content_type", "")).strip()
     section_label_map = {
         "papers": "Papers",
-        "contracts": "Contracts",
+        "contracts": "Protocols & Contracts",
         "replication": "Replication",
         "authority": "Authority",
         "non-engineering": "Non-Engineering",

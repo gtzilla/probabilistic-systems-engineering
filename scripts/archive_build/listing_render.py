@@ -166,7 +166,7 @@ def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tupl
         grouped[entry["type"]].append(entry)
     template = load_template("listing.html")
     title = "Latest" if mode == "latest" else "Archive"
-    intro = "Current papers, supporting contracts, and authority essays." if mode == "latest" else "Full archive with latest versions, older lineage, papers, supporting contracts, replication materials, and authority essays."
+    intro = "Current papers and supporting protocols & contracts." if mode == "latest" else "Full archive with current work, older lineage, protocols & contracts, authority essays, and replication materials."
     home_href = "../" if mode in ("latest", "archive") else "./"
     latest_href = "./" if mode == "latest" else "../latest/"
     archive_href = "./" if mode == "archive" else "../archive/"
@@ -187,11 +187,10 @@ def render_listing_page(entries: list[dict[str, str]], family_buckets: dict[tupl
         "HOME_HREF": home_href,
         "LATEST_HREF": latest_href,
         "ARCHIVE_HREF": archive_href,
-        "REPLICATION_MENU_LINK": '' if mode == "latest" else '    <a href="' + safe_text(archive_href) + '#replication">Replication</a>',
-        "AUTHORITY_SECTIONS": render_sections(grouped["authority"], family_buckets, "authority", mode, "No authority collections yet."),
         "PAPERS_SECTIONS": render_sections(grouped["papers"], family_buckets, "papers", mode, "No results yet."),
         "CONTRACTS_SECTIONS": render_sections(grouped["contracts"], family_buckets, "contracts", mode, "No engineering artifacts yet."),
         "REPLICATION_SECTION_HTML": "" if mode == "latest" else '<section id="replication" class="archive-section archive-section-replication"><h2>Replication &amp; verification</h2><p class="section-note">Portable rerun support, comparison packets, and verification materials. Useful for repeatability and auditability, but secondary to the primary reading path.</p>' + render_sections(grouped["replication"], family_buckets, "replication", mode, "No replication materials yet.") + "</section>",
+        "AUTHORITY_SECTION_HTML": "" if mode == "latest" else '<section id="authority" class="archive-section archive-section-authority"><h2>Authority</h2><p class="section-note">Linked essays and collections on where control actually lives and why understanding alone does not restore it.</p>' + render_sections(grouped["authority"], family_buckets, "authority", mode, "No authority collections yet.") + "</section>",
     })
 
 
@@ -199,10 +198,51 @@ def render_home_page(latest_entries: list[dict[str, str]], content_types: list[s
     grouped: dict[str, list[dict[str, str]]] = {key: [] for key in content_types}
     for entry in latest_entries:
         grouped[entry["type"]].append(entry)
-    authority_count = sum(int(entry.get("essay_count", "1")) for entry in grouped["authority"])
-    authority_collection_count = len(grouped["authority"])
+
     template = load_template("home.html")
-    page_description = "A bounded research corpus on AI-assisted software work: how explicit source-of-truth artifacts reduce drift, where authority actually lives, and what contracts can and cannot prove."
+    page_description = "An evolving research corpus on AI-assisted software work: omitted scope, blended inference, default fill-in, VDG, preserved truth, and where authority actually does and does not live."
+
+    current_one = find_entry_by_slug_prefix(latest_entries, "papers", "when-ai-collapses-fact-and-assumption-")
+    current_two = find_entry_by_slug_prefix(latest_entries, "papers", "making-ai-omitted-scope-visible-with-vdg-")
+    boundary_entry = find_entry_by_slug_prefix(latest_entries, "papers", "contract-authority-under-ai-")
+    vdg_entry = find_entry_by_slug_prefix(latest_entries, "papers", "why-verified-deduction-gap-")
+
+    fallback_papers = list(grouped["papers"])
+    if current_one is None and fallback_papers:
+        current_one = fallback_papers[0]
+    if current_two is None and len(fallback_papers) > 1:
+        current_two = fallback_papers[1]
+    if boundary_entry is None and len(fallback_papers) > 2:
+        boundary_entry = fallback_papers[2]
+    if vdg_entry is None:
+        vdg_entry = current_two or current_one or boundary_entry
+
+    current_cards_html = "".join(
+        [
+            render_home_card(
+                title_or_fallback(current_one, "When AI Collapses Fact and Assumption"),
+                href_or_fallback(current_one, "./latest/"),
+                "Blended inference as baseline response mode, and why separating support from assumption matters.",
+            ) if current_one else "",
+            render_home_card(
+                title_or_fallback(current_two, "Making AI Omitted Scope Visible with VDG"),
+                href_or_fallback(current_two, "./latest/"),
+                "A concrete omitted-scope failure and the role VDG plays in making the miss visible.",
+            ) if current_two else "",
+            render_home_card(
+                title_or_fallback(boundary_entry, "Contract Authority Under AI"),
+                href_or_fallback(boundary_entry, "./latest/"),
+                "The strongest contract-authority claim, the research boundary, and the narrower result that survived.",
+                "current-boundary",
+            ) if boundary_entry else "",
+        ]
+    )
+
+    protocol_links_html = "".join(
+        render_protocol_link(str(entry.get("title", "Untitled artifact")), str(entry.get("url", "./latest/#contracts")))
+        for entry in grouped["contracts"]
+    )
+
     return render_template(template, {
         "SITE_NAME": safe_text(site_name),
         "PAGE_TITLE": safe_text(site_name),
@@ -216,13 +256,9 @@ def render_home_page(latest_entries: list[dict[str, str]], content_types: list[s
         "APPLE_TOUCH_ICON_HREF": safe_text(apple_touch_icon_href),
         "LATEST_HREF": "./latest/",
         "ARCHIVE_HREF": "./archive/",
-        "START_HREF": "./start/",
-        "PROOF_HREF": "./proof/",
-        "AUTHORITY_COUNT": str(authority_count),
-        "AUTHORITY_COLLECTION_COUNT": str(authority_collection_count),
-        "PAPERS_COUNT": str(len(grouped["papers"])),
-        "CONTRACTS_COUNT": str(len(grouped["contracts"])),
-        "REPLICATION_COUNT": str(len(grouped["replication"])),
+        "VDG_HREF": safe_text(href_or_fallback(vdg_entry, "./latest/")),
+        "CURRENT_THREAD_CARDS": current_cards_html,
+        "PROTOCOLS_AND_CONTRACTS_LINKS": protocol_links_html,
     })
 
 
@@ -243,6 +279,24 @@ def title_or_fallback(entry: dict[str, str] | None, fallback: str) -> str:
     if entry and entry.get("title"):
         return str(entry["title"])
     return fallback
+
+def render_home_card(title: str, href: str, description: str, card_class: str = "current-live") -> str:
+    return (
+        '<a class="current-card ' + safe_text(card_class) + '" href="' + safe_text(href) + '">'
+        + '<span class="eyebrow">Paper</span>'
+        + '<h3>' + safe_text(title) + '</h3>'
+        + '<p>' + safe_text(description) + '</p>'
+        + '</a>'
+    )
+
+
+def render_protocol_link(title: str, href: str) -> str:
+    return (
+        '<a class="protocol-link" href="' + safe_text(href) + '">'
+        + '<span class="eyebrow">Artifact</span>'
+        + '<h3>' + safe_text(title) + '</h3>'
+        + '</a>'
+    )
 
 
 def render_start_page(latest_entries: list[dict[str, str]], site_name: str, site_url: str, og_image_url: str, og_image_alt: str, favicon_ico_href: str, favicon_32_href: str, favicon_16_href: str, apple_touch_icon_href: str, load_template: Callable[[str], str], render_template: Callable[[str, dict[str, str]], str]) -> str:
