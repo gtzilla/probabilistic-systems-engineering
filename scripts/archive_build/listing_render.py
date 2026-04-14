@@ -236,7 +236,7 @@ def render_home_page(latest_entries: list[dict[str, str]], content_types: list[s
         vdg_entry = dynamic_papers[0] if dynamic_papers else boundary_entry
 
     protocol_links_html = "".join(
-        render_protocol_link(str(entry.get("title", "Untitled artifact")), str(entry.get("url", "./latest/#contracts")))
+        render_protocol_link(str(entry.get("title", "Untitled artifact")), str(entry.get("url") or entry.get("pdf_url") or "./latest/#contracts"))
         for entry in grouped["contracts"]
     )
 
